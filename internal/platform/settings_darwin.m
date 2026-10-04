@@ -2,6 +2,25 @@
 #import <ServiceManagement/ServiceManagement.h>
 #include "settings_darwin.h"
 #include <string.h>
+// Called on the UI thread. Accessory bootstrap avoids a Dock flash when the
+// saved preference is hidden. Switching to Regular here does not activate the
+// application or reveal any windows during background startup.
+int SLSetDockVisible(int visible, void *control) {
+ NSApplicationActivationPolicy policy = visible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
+ if (NSApp.activationPolicy == policy) return 1;
+ NSWindow *window = (__bridge NSWindow *)control;
+ BOOL wasVisible = window.visible;
+ BOOL wasKey = window.keyWindow && NSApp.active;
+ if (![NSApp setActivationPolicy:policy]) return 0;
+ // Regular -> Accessory can hide the application. Keep an already-visible
+ // settings window in place, while background startup stays nonactivating.
+ if (wasVisible) {
+  if (NSApp.hidden) [NSApp unhideWithoutActivation];
+  [window orderFrontRegardless];
+  if (wasKey) { [NSApp activateIgnoringOtherApps:YES]; [window makeKeyWindow]; }
+ }
+ return NSApp.activationPolicy == policy ? 1 : 0;
+}
 char *SLLoginStatus(void) {
  @autoreleasepool {
   switch (SMAppService.mainAppService.status) {

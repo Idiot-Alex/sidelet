@@ -27,7 +27,10 @@ func (c *controller) processSettings(m message) {
 		v := m.Settings
 		// Login registration has a separate operation and cannot be forged by a preference save.
 		v.Startup.Enabled = c.preferences.Value.Startup.Enabled
-		err = c.preferences.Save(v)
+		err = c.preferences.SaveWithDock(v, func(visible bool) (applyError error) {
+			application.InvokeSync(func() { applyError = platform.SetDockVisible(visible, c.control.NativeWindow()) })
+			return
+		})
 	case "settings-login":
 		if !c.loginAvailable {
 			err = errors.New("请在默认资料目录的 macOS 版本中设置登录启动。")
@@ -38,8 +41,18 @@ func (c *controller) processSettings(m message) {
 	}
 	event := c.settingsEvent()
 	theme := c.preferences.Value.Appearance.Theme
+	showDock := c.preferences.Value.Appearance.ShowDockIcon
 	application.InvokeSync(func() {
+		if dockError := platform.SetDockVisible(showDock, c.control.NativeWindow()); dockError != nil {
+			if err == nil {
+				err = dockError
+			}
+			if m.RequestID == "" {
+				c.control.EmitEvent("spike:error", dockError.Error())
+			}
+		}
 		platform.SetControlTheme(c.control.NativeWindow(), theme)
+		c.logFocus("settings-applied")
 		c.app.Event.Emit("settings:state", event)
 		if m.RequestID != "" && m.Window != nil {
 			message := ""
@@ -50,7 +63,7 @@ func (c *controller) processSettings(m message) {
 		}
 	})
 	if err == nil && m.Type != "settings-refresh" {
-		log.Printf("settings committed operation=%s login=%s", m.Type, event["loginStatus"])
+		log.Printf("settings committed operation=%s login=%s dock=%t", m.Type, event["loginStatus"], showDock)
 	}
 	if err != nil {
 		log.Printf("settings operation=%s failed: %v", m.Type, err)

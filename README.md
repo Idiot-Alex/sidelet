@@ -4,13 +4,14 @@
 
 当前阶段：**macOS 0.1.0 本地预览版 · 已提供 Apple Silicon DMG 安装包**。P0 原生验收仍保留待验收状态。
 
-当前安装包为构建 4，已重整任务页、设置页和浮动卡片，并提供“精致 Mac / 温暖纸色 / 深色石墨”三套可保存主题。详见 [UI 与主题记录](docs/phase-1-ui-themes.md)。侧栏继续保留细窄任务标记、空白透明和悬停展开，原修复见 [透明背景记录](docs/phase-1-macos-transparency.md)。
+当前安装包为构建 5，默认显示 Dock 图标，可在“设置 → 外观”关闭；关闭主窗口后仍在后台运行，点击 Dock 恢复窗口。详见 [Dock 行为记录](docs/phase-1-macos-dock.md)。任务页、设置页和浮动卡片提供“精致 Mac / 温暖纸色 / 深色石墨”三套可保存主题。详见 [UI 与主题记录](docs/phase-1-ui-themes.md)。侧栏继续保留细窄任务标记、空白透明和悬停展开，原修复见 [透明背景记录](docs/phase-1-macos-transparency.md)。
 
 产品规格见 [Revision 4](docs/sidelet-v1-product-spec-revision-4.md)，Windows 原型验收见 [Phase 0 验证记录](docs/phase-0-spike.md)，Mac 进展见 [macOS 原型记录](docs/phase-0-macos.md)，持久化实现与本机验证见 [SQLite 开发记录](docs/phase-1-sqlite.md)。根据当前开发机器，先完成 macOS / Apple Silicon 版本。
 
 ## 当前功能
 
 - 我的任务窗口支持新增、编辑、删除、完成 / 恢复、截止时间、重要程度和临时任务。任务列表位于主区域，新增 / 编辑面板位于右侧；截止时间与低频选项可展开。
+- macOS 默认显示 Dock 图标；“设置 → 外观 → 在 Dock 中显示”可即时切换并保存，旧设置升级默认显示。隐藏图标后仍保留菜单栏入口。
 - “设置 → 外观”切换三套主题，自动保存并同步到任务窗口、桌面标签、快速卡片和 macOS 主窗口标题栏；切换时保留任务草稿。
 - SQLite 保存任务、手动固定关系、Stack 位置、密度及任务顺序；重启恢复。新任务默认不在桌面显示，需明确固定。
 - 完成后保留 5 秒 Undo；支持基础 Snooze 和快速编辑。临时任务在撤销期结束后移除，重启清理已完成临时任务。

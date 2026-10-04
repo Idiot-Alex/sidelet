@@ -1,12 +1,13 @@
 # Phase 1：统一设置（macOS）
 
-2026-10-05。范围：应用偏好、登录启动、通知入口。构建 4 新增 [外观主题](phase-1-ui-themes.md)。P0 尚未完成的直接鼠标拖动、多屏、Spaces 等项目保持原状态。
+2026-10-05。范围：应用偏好、登录启动、通知入口。构建 4 新增 [外观主题](phase-1-ui-themes.md)，构建 5 新增 [Dock 显示开关](phase-1-macos-dock.md)。P0 尚未完成的直接鼠标拖动、多屏、Spaces 等项目保持原状态。
 
 ## 使用
 
 主窗口的“设置”、菜单栏菜单的“设置…”或主窗口内的 Command + , 打开设置页。“返回我的任务”保留未提交的任务表单。
 
 - 外观：精致 Mac（默认）、温暖纸色、深色石墨。主窗口、桌面标签和快速卡片同步，重启保留；旧设置文件缺少 appearance 时使用精致 Mac，原有偏好不变。
+- 在 Dock 中显示：macOS 默认开启，切换即时生效并自动保存；关闭后保留当前设置窗口及菜单栏入口。点击 Dock 恢复关闭或最小化的主窗口，保留当前页面与未提交草稿；安静模式不受影响。
 - 启动时显示主窗口：默认关闭；首次无设置且空库时显示引导窗口。显式 `-main` 始终显示。
 - 登录 Mac 后启动：默认关闭，使用系统 `SMAppService.mainAppService` 注册。界面展示系统实际状态；需要批准时提示打开系统登录项。只在默认资料目录的 macOS 实例中提供注册开关，测试资料目录不会注册错误的登录实例。
 - 新任务组默认边缘、密度：默认右侧、标准。只在创建新 Stack 时取值；已有 Stack 继续读取 SQLite，修改默认值不会移动任务或改变其密度。当前产品没有增加新任务组的独立入口，默认值在空布局初始化时生效。
@@ -21,7 +22,7 @@
   "version": 1,
   "edge": { "defaultSide": "right", "defaultDensity": "normal" },
   "startup": { "enabled": false, "showMainWindow": false },
-  "appearance": { "theme": "mac" }
+  "appearance": { "theme": "mac", "showDockIcon": true }
 }
 ```
 

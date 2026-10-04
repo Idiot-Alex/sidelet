@@ -4,7 +4,7 @@
   import { request, send, hostPlatform, type NotificationStatus } from '../lib/bridge';
   import { themes, loginLabels, notificationLabels, type SettingsState, type Preferences } from '../lib/settings';
   let { settings, notificationStatus, externalError, onClose }: { settings?: SettingsState; externalError: string; notificationStatus: NotificationStatus; onClose: () => void } = $props();
-  let draft = $state<Preferences>({ version: 1, edge: { defaultSide: 'right', defaultDensity: 'normal' }, startup: { enabled: false, showMainWindow: false }, appearance: { theme: 'mac' } });
+  let draft = $state<Preferences>({ version: 1, edge: { defaultSide: 'right', defaultDensity: 'normal' }, startup: { enabled: false, showMainWindow: false }, appearance: { theme: 'mac', showDockIcon: true } });
   let busy = $state(false);
  let loginChecked = $state(false);
   let error = $state('');
@@ -39,6 +39,7 @@
           </button>
         {/each}
       </div>
+      {#if hostPlatform === 'darwin'}<div class="row dock-row"><div><label for="show-dock">在 Dock 中显示</label><p>点击图标打开任务窗口。关闭后仍可从顶部菜单栏进入。</p></div><input id="show-dock" type="checkbox" bind:checked={draft.appearance.showDockIcon} onchange={event => { draft.appearance.showDockIcon = event.currentTarget.checked; void save(); }} /></div>{/if}
     </section>
     <section aria-labelledby="startup-heading">
       <h2 id="startup-heading">启动行为</h2>
@@ -78,6 +79,7 @@
   .section-heading h2 { margin-bottom:5px; }.section-heading { margin-bottom:18px; }
   .row { display:flex; justify-content:space-between; align-items:center; gap:28px; padding:15px 0; }.row:last-child { padding-bottom:0; }.row + .row { border-top:1px solid var(--line); margin-top:8px; }
   .row label { font-size:13px; font-weight:500; }.row p { margin:5px 0; }small { font-size:11px; color:var(--muted); }
+  .dock-row { border-top:1px solid var(--line); margin-top:20px; padding-top:20px; }
   input[type=checkbox] { appearance:none; -webkit-appearance:none; width:32px; height:19px; border-radius:20px; background:var(--surface-alt); border:1px solid var(--line); flex-shrink:0; position:relative; cursor:pointer; margin:0; }
   input[type=checkbox]::after { content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--subtle); }
   input[type=checkbox]:checked { background:var(--accent); border-color:var(--accent); }input[type=checkbox]:checked::after { left:15px; background:var(--on-accent); }input:disabled { opacity:.45; cursor:default; }

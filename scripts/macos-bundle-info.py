@@ -18,6 +18,8 @@ elif len(sys.argv) == 3 and sys.argv[1] == '--plist':
         'CFBundleIdentifier': info['bundleIdentifier'], 'CFBundleExecutable': info['executable'],
         'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': info['version'],
         'CFBundleVersion': info['build'], 'CFBundleIconFile': 'Sidelet.icns',
+        # Start as an agent to honour a hidden Dock preference without a flash.
+        # On ready, the app promotes itself to Regular (Dock visible by default).
         'LSMinimumSystemVersion': info['minimumSystemVersion'], 'LSUIElement': True,
         'NSHighResolutionCapable': True, 'NSPrincipalClass': 'NSApplication',
         'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True},

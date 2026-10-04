@@ -183,10 +183,11 @@ func main() {
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) { c.post(message{Type: "show-control"}) }}
 	}
 	c.app = application.New(application.Options{
-		Name:           "Sidelet",
-		Description:    "Desktop task companion",
-		Assets:         application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
-		Windows:        application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		Name:        "Sidelet",
+		Description: "Desktop task companion",
+		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
+		Windows:     application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		// Bootstrap without activation; ready applies the saved Dock preference.
 		Mac:            application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
 		SingleInstance: singleInstance,
 		RawMessageHandler: func(w application.Window, raw string, origin *application.OriginInfo) {
@@ -224,6 +225,14 @@ func main() {
 	}
 	c.control = c.app.Window.NewWithOptions(application.WebviewWindowOptions{Name: "control", Title: windowTitle, Width: 1120, Height: 800, MinWidth: 820, MinHeight: 600, URL: "/?view=control&platform=" + runtime.GOOS + memoryQuery, Hidden: true, BackgroundColour: application.NewRGB(247, 246, 243)})
 	c.control.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) { e.Cancel(); c.control.Hide() })
+	if runtime.GOOS == "darwin" {
+		// Wails' default reopen listener shows every hidden window. Sidelet must
+		// reopen only its task window, including while overlays are visible/quiet.
+		c.app.Event.RegisterApplicationEventHook(events.Mac.ApplicationShouldHandleReopen, func(e *application.ApplicationEvent) {
+			e.Cancel()
+			c.post(message{Type: "show-control", Source: "dock"})
+		})
+	}
 	count := 1
 	if *two {
 		count = 2
@@ -603,10 +612,18 @@ func (c *controller) handle(m message) error {
 		c.control.EmitEvent("settings:open", true)
 		c.post(message{Type: "settings-refresh"})
 	case "show-control":
-		c.control.EmitEvent("settings:open", false)
+		if m.Source == "dock" {
+			c.exitModes(false)
+			c.hideQuick(false)
+			log.Printf("dock reopen control-only quiet=%t", c.quiet)
+		} else {
+			c.control.EmitEvent("settings:open", false)
+		}
 		c.cancelStackDrag()
+		c.control.UnMinimise()
 		c.control.Show()
 		c.control.Focus()
+		c.logFocus("control-reopened")
 	case "hide-control":
 		c.control.Hide()
 	case "quit":

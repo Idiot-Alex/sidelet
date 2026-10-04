@@ -19,7 +19,8 @@ type Startup struct {
 	ShowMainWindow bool `json:"showMainWindow"`
 }
 type Appearance struct {
-	Theme string `json:"theme"`
+	Theme        string `json:"theme"`
+	ShowDockIcon bool   `json:"showDockIcon"`
 }
 type Value struct {
 	Version    int        `json:"version"`
@@ -29,7 +30,7 @@ type Value struct {
 }
 
 func Defaults() Value {
-	return Value{Version: 1, Edge: Edge{"right", "normal"}, Appearance: Appearance{Theme: "mac"}}
+	return Value{Version: 1, Edge: Edge{"right", "normal"}, Appearance: Appearance{Theme: "mac", ShowDockIcon: true}}
 }
 func (v Value) Validate() error {
 	if v.Version != 1 {
@@ -132,6 +133,31 @@ func (s *Store) Save(v Value) error {
 		return err
 	}
 	s.Value, s.Exists = v, true
+	return nil
+}
+
+// SaveWithDock changes the native Dock policy only when requested and compensates
+// a failed file commit. The caller supplies a UI-thread native operation.
+func (s *Store) SaveWithDock(v Value, apply func(bool) error) error {
+	if v.Appearance.ShowDockIcon == s.Value.Appearance.ShowDockIcon {
+		return s.Save(v)
+	}
+	if s.LoadError != nil {
+		return errors.New("设置文件无法读取，无法更改 Dock 图标。")
+	}
+	if err := v.Validate(); err != nil {
+		return err
+	}
+	previous := s.Value.Appearance.ShowDockIcon
+	if err := apply(v.Appearance.ShowDockIcon); err != nil {
+		return err
+	}
+	if err := s.Save(v); err != nil {
+		if rollback := apply(previous); rollback != nil {
+			return fmt.Errorf("设置保存失败，恢复 Dock 图标也失败；请重试：%v（%v）", err, rollback)
+		}
+		return fmt.Errorf("设置保存失败，已恢复原 Dock 图标状态：%w", err)
+	}
 	return nil
 }
 

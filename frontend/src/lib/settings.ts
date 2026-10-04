@@ -8,7 +8,7 @@ export interface Preferences {
   version: number;
   edge: { defaultSide: 'left' | 'right'; defaultDensity: 'compact' | 'normal' | 'relaxed' };
   startup: { enabled: boolean; showMainWindow: boolean };
-  appearance: { theme: Theme };
+  appearance: { theme: Theme; showDockIcon: boolean };
 }
 export interface SettingsState { appVersion: string; appBuild: string; value: Preferences; loginStatus: string; loginAvailable: boolean; error: string }
 export const loginLabels: Record<string, string> = { enabled: '已开启', notRegistered: '未开启', requiresApproval: '等待系统批准', notFound: '系统未找到此应用', unsupported: '当前平台暂不支持' };

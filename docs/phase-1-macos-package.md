@@ -1,6 +1,6 @@
 # macOS 本地安装包 · 0.1.0
 
-当前产物已更新为构建 4，包含 [UI 与三套主题](phase-1-ui-themes.md)，并保留 [侧栏透明背景修复](phase-1-macos-transparency.md)。下方首次打包 / 升级验证及原稳定性记录对应构建 2，保留为历史证据。
+当前产物已更新为构建 5，包含 [Dock 图标与设置开关](phase-1-macos-dock.md)、[UI 与三套主题](phase-1-ui-themes.md)，并保留 [侧栏透明背景修复](phase-1-macos-transparency.md)。下方首次打包 / 升级验证及原稳定性记录对应构建 2，保留为历史证据。
 
 2026-10-05，Apple Silicon / macOS 13+。此次产物是可在本机安装验证的本地预览版；原有 P0 人工验收范围保持不变。
 

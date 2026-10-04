@@ -138,3 +138,86 @@ func TestThemesAndLegacyPreferences(t *testing.T) {
 		t.Fatal("accepted unknown theme on disk")
 	}
 }
+
+func TestDockPreferenceCompatibility(t *testing.T) {
+	for _, raw := range []string{
+		`{"version":1,"startup":{"showMainWindow":true}}`,
+		`{"version":1,"startup":{"showMainWindow":true},"appearance":{"theme":"paper"}}`,
+	} {
+		t.Run(raw, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(raw), 0600); err != nil {
+				t.Fatal(err)
+			}
+			s := Open(dir)
+			if s.LoadError != nil || !s.Value.Appearance.ShowDockIcon || !s.Value.Startup.ShowMainWindow {
+				t.Fatalf("legacy defaults lost: %+v", s)
+			}
+			for _, visible := range []bool{false, true} {
+				v := s.Value
+				v.Appearance.ShowDockIcon = visible
+				if err := s.Save(v); err != nil {
+					t.Fatal(err)
+				}
+				s = Open(dir)
+				if s.LoadError != nil || s.Value != v {
+					t.Fatalf("Dock preference lost on restart: %+v", s)
+				}
+			}
+		})
+	}
+}
+
+func TestDockPreferenceFailureAndCompensation(t *testing.T) {
+	s := Open(t.TempDir())
+	if err := s.Save(s.Value); err != nil {
+		t.Fatal(err)
+	}
+	before := s.Value
+	fileBefore, _ := os.ReadFile(s.path)
+	changed := before
+	changed.Appearance.ShowDockIcon = false
+	if s.SaveWithDock(changed, func(bool) error { return errors.New("native policy failed") }) == nil || s.Value != before {
+		t.Fatal("native failure changed preference")
+	}
+	calls := []bool{}
+	apply := func(visible bool) error { calls = append(calls, visible); return nil }
+	s.replace = func(string, string) error { return errors.New("disk full") }
+	if s.SaveWithDock(changed, apply) == nil || s.Value != before || !reflect.DeepEqual(calls, []bool{false, true}) {
+		t.Fatal("failed save did not restore Dock", calls, s.Value)
+	}
+	fileAfter, _ := os.ReadFile(s.path)
+	if string(fileAfter) != string(fileBefore) {
+		t.Fatal("failed save changed file")
+	}
+	count := 0
+	if err := s.SaveWithDock(changed, func(bool) error {
+		count++
+		if count == 2 {
+			return errors.New("restore failed")
+		}
+		return nil
+	}); err == nil || count != 2 {
+		t.Fatal("missing compensation error", err, count)
+	}
+	s.replace = os.Rename
+	calls = nil
+	if err := s.SaveWithDock(changed, apply); err != nil || s.Value != changed || !reflect.DeepEqual(calls, []bool{false}) {
+		t.Fatal(err, calls)
+	}
+	calls = nil
+	changed.Appearance.Theme = "graphite"
+	if err := s.SaveWithDock(changed, apply); err != nil || len(calls) != 0 {
+		t.Fatal("unrelated preference touched Dock", err, calls)
+	}
+	changed.Appearance.ShowDockIcon = true
+	changed.Appearance.Theme = "unknown"
+	if s.SaveWithDock(changed, apply) == nil || len(calls) != 0 {
+		t.Fatal("invalid settings touched Dock")
+	}
+	s.LoadError = errors.New("invalid JSON")
+	changed.Appearance.Theme = "mac"
+	if s.SaveWithDock(changed, apply) == nil || len(calls) != 0 {
+		t.Fatal("corrupt settings touched Dock")
+	}
+}

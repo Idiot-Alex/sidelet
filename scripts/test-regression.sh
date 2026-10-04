@@ -9,4 +9,5 @@ bash scripts/go.sh vet ./internal/... ./cmd/spike
 if [[ "$(uname -s)" == Darwin ]]; then
   bash scripts/test-macos-hit-regions.sh
   bash scripts/test-macos-transparency.sh
+  bash scripts/test-macos-dock.sh
 fi

@@ -477,7 +477,7 @@ char *SLFocusDiagnostic(void) {
         NSRunningApplication *front=NSWorkspace.sharedWorkspace.frontmostApplication;
         NSWindow *key=NSApp.keyWindow;
         return jsonString(@{@"ownPID":@(getpid()),@"foregroundPID":@(front.processIdentifier),@"foregroundBundle":front.bundleIdentifier?:@"",
-            @"appActive":@(NSApp.active),@"keyWindow":@(key?key.windowNumber:0),@"mainWindow":@(NSApp.mainWindow?NSApp.mainWindow.windowNumber:0),
+            @"appActive":@(NSApp.active),@"activationPolicy":@(NSApp.activationPolicy),@"mainWindowVisible":@(NSApp.mainWindow.visible),@"keyWindow":@(key?key.windowNumber:0),@"mainWindow":@(NSApp.mainWindow?NSApp.mainWindow.windowNumber:0),
             @"firstResponderClass":key.firstResponder?NSStringFromClass(key.firstResponder.class):@"",@"shortcutRegistered":@(keyboardShortcut!=NULL),@"interactionTest":@(interactionTestObserver!=nil)});
     }
 }
