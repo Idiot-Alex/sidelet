@@ -1,0 +1,39 @@
+/* Shared by the main window and every transparent native overlay. */
+:root, [data-theme="mac"] {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  --font-heading: var(--font-ui);
+  --app-bg: #f4f6f4; --surface: #ffffff; --surface-alt: #edf1ee; --field: #fafbfa;
+  --ink: #25342d; --muted: #65736b; --subtle: #738078; --line: #dce3de;
+  --accent: #38644f; --accent-hover: #2c513f; --on-accent: #ffffff; --accent-soft: #e6eee8;
+  --danger: #a34338; --danger-soft: #f9eeeb; --warning: #85621d; --warning-soft: #f5efdf;
+  --radius: 12px; --control-radius: 7px; --heading-weight: 650;
+  font-family: var(--font-ui); color: var(--ink);
+}
+[data-theme="paper"] {
+  color-scheme: light;
+  --font-heading: 'Iowan Old Style', 'Songti SC', 'STSong', Georgia, serif;
+  --app-bg: #f4efe5; --surface: #fffaf0; --surface-alt: #eee6d8; --field: #fcf7ed;
+  --ink: #443c31; --muted: #796a55; --subtle: #83725e; --line: #ded3c2;
+  --accent: #85603e; --accent-hover: #6f4d30; --on-accent: #fffaf0; --accent-soft: #eee3d2;
+  --danger: #a34634; --danger-soft: #f7e8df; --warning: #8a631b; --warning-soft: #f3e9cb;
+  --radius: 9px; --control-radius: 5px; --heading-weight: 600;
+}
+[data-theme="graphite"] {
+  color-scheme: dark;
+  --app-bg: #1c201f; --surface: #252b28; --surface-alt: #303833; --field: #202623;
+  --ink: #e3ebe5; --muted: #a9b5ad; --subtle: #9aa89f; --line: #3d4941;
+  --accent: #b1ceb9; --accent-hover: #c8dfcd; --on-accent: #1b3023; --accent-soft: #34483b;
+  --danger: #f1a597; --danger-soft: #432d28; --warning: #e2c180; --warning-soft: #3e3829;
+  --radius: 12px; --control-radius: 7px; --heading-weight: 600;
+}
+button, input, textarea, select { font-family: var(--font-ui); }
+button, summary, select { -webkit-tap-highlight-color: transparent; }
+button { transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+input[type=checkbox], input[type=range] { accent-color: var(--accent); }
+textarea::placeholder, input::placeholder { color: var(--subtle); opacity: 1; }
+output { color: var(--muted); font-variant-numeric: tabular-nums; }
+.undo-toast { background: var(--ink); color: var(--surface); border-radius: var(--control-radius); }
+.undo-toast button { color: var(--surface); }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }

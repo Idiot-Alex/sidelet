@@ -1,0 +1,8 @@
+{
+  "name": "Sidelet",
+  "bundleIdentifier": "io.sidelet.spike",
+  "executable": "sidelet",
+  "version": "0.1.0",
+  "build": "4",
+  "minimumSystemVersion": "13.0"
+}

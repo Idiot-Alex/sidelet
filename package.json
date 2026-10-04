@@ -1,0 +1,15 @@
+{
+  "name": "sidelet",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:macos": "bash scripts/build-macos.sh arm64",
+    "check": "npm --prefix frontend run check",
+    "test": "npm --prefix frontend test",
+    "test:macos": "bash scripts/test-macos-hit-regions.sh",
+    "profile:macos": "python3 scripts/profile-macos.py",
+    "test:regression": "bash scripts/test-regression.sh",
+    "package:macos": "bash scripts/package-macos.sh arm64"
+  }
+}
