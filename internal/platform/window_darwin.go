@@ -35,6 +35,10 @@ var nativeSequence atomic.Uint64
 var foregroundCallbacks sync.Map
 
 func EnableMemoryDiagnostics() { C.SLEnableMemoryDiagnostics() }
+func SetControlRendering(pointer unsafe.Pointer, visible bool) bool {
+	return bool(C.SLControlRendering(pointer, C.bool(visible)))
+}
+
 func SetControlTheme(pointer unsafe.Pointer, theme string) {
 	value := 0
 	if theme == "paper" {

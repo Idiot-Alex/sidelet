@@ -386,4 +386,5 @@ func WatchForeground(changed func()) (func(), error) {
 
 // macOS title bar appearance is independent of the web content theme.
 // Windows keeps its existing system-managed title bar.
-func SetControlTheme(_ unsafe.Pointer, _ string) {}
+func SetControlTheme(_ unsafe.Pointer, _ string)        {}
+func SetControlRendering(_ unsafe.Pointer, _ bool) bool { return true }

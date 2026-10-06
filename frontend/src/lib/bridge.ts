@@ -18,15 +18,17 @@ let requestSequence = 0;
 let layoutRevision = 0;
 export interface StackConfig { side: 'left' | 'right'; offset: number; stackIndex: number; stackCount: number; stackId: number; itemHeight: number; workHeight: number; viewportTop: number; layoutRevision: number }
 export interface QuickAddState { open: boolean; saving: boolean; revision: number; resetVersion: number }
+export interface ControlVisibility { visible: boolean; revision: number }
 export interface ParsedTask { title: string; dueAt: number }
 export interface RequestResult { requestId: string; error: string; cancelled?: boolean; filename?: string; count?: number; parsed?: ParsedTask }
 const pendingActions = new Map<string, { resolve: (result: RequestResult) => void; reject: (error: Error) => void }>();
 
-export async function connect(onState: (state: Snapshot) => void, onMode: (mode: string) => void, onConfig: (config: StackConfig) => void, onError: (message: string) => void, onPresentation: (state: Presentation) => void, onPointer?: (state: NativePointer) => void, onNotification?: (state: NotificationStatus) => void, onSettings?: (state: SettingsState) => void, onSettingsOpen?: (open: boolean) => void, onQuickAdd?: (state: QuickAddState) => void) {
+export async function connect(onState: (state: Snapshot) => void, onMode: (mode: string) => void, onConfig: (config: StackConfig) => void, onError: (message: string) => void, onPresentation: (state: Presentation) => void, onPointer?: (state: NativePointer) => void, onNotification?: (state: NotificationStatus) => void, onSettings?: (state: SettingsState) => void, onSettingsOpen?: (open: boolean) => void, onQuickAdd?: (state: QuickAddState) => void, onControlVisibility?: (state: ControlVisibility) => void) {
   if (!native) return () => {};
   const { Events } = await import('@wailsio/runtime');
   let disposed = false;
   const cleanup = [
+    Events.On('control:visibility', event => { if (role === 'control' && event.sender === windowName) onControlVisibility?.(event.data as ControlVisibility); }),
     Events.On('quick-add:state', event => { if (event.sender === windowName) onQuickAdd?.(event.data as QuickAddState); }),
  Events.On('settings:state', event => onSettings?.(event.data as SettingsState)),
  Events.On('settings:open', event => onSettingsOpen?.(!!event.data)),

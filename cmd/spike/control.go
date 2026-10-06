@@ -5,6 +5,9 @@ package main
 import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"log"
+	"runtime"
+	"sidelet/internal/platform"
 	"unsafe"
 )
 
@@ -39,6 +42,17 @@ func (c *controller) presentControl() {
 		c.control.EmitEvent("settings:open", *c.controlSettings)
 		c.controlSettings = nil
 	}
+	if runtime.GOOS == "darwin" {
+		log.Printf("control-viewport restored=true success=%t", platform.SetControlRendering(c.control.NativeWindow(), true))
+		c.controlRevision++
+		c.controlPreparing = true
+		c.control.EmitEvent("control:visibility", map[string]any{"visible": true, "revision": c.controlRevision})
+		return
+	}
+	c.showPreparedControl()
+}
+
+func (c *controller) showPreparedControl() {
 	c.control.UnMinimise()
 	c.control.Show()
 	c.control.Focus()
@@ -46,7 +60,12 @@ func (c *controller) presentControl() {
 
 func (c *controller) hideControl() {
 	c.showControl = false
+	c.controlPreparing = false
+	c.controlRevision++
 	if c.control != nil {
+		if runtime.GOOS == "darwin" {
+			c.control.EmitEvent("control:visibility", map[string]any{"visible": false, "revision": c.controlRevision})
+		}
 		c.control.Hide()
 	}
 }

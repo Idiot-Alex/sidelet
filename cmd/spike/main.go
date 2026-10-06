@@ -89,6 +89,8 @@ type controller struct {
 	control               *application.WebviewWindow
 	controlOptions        application.WebviewWindowOptions
 	controlReady          bool
+	controlRevision       uint64
+	controlPreparing      bool
 	controlSettings       *bool
 	stacks                []*overlay
 	quick                 *overlay
@@ -465,6 +467,9 @@ func (c *controller) handle(m message) error {
 				platform.SetControlTheme(c.control.NativeWindow(), c.preferences.Value.Appearance.Theme)
 			}
 			c.presentControl()
+			if !c.showControl {
+				c.hideControl()
+			}
 		}
 		if c.control != nil && m.Window == c.control && c.store != nil {
 			c.emitControl("spike:config", c.stackConfig(c.stacks[0]))
@@ -683,6 +688,15 @@ func (c *controller) handle(m message) error {
 		c.logFocus("control-reopened")
 	case "hide-control":
 		c.hideControl()
+	case "control-rendered":
+		if runtime.GOOS == "darwin" && c.control != nil && m.Window == c.control && c.controlReady && c.showControl && c.controlPreparing && m.Revision == c.controlRevision {
+			c.controlPreparing = false
+			c.showPreparedControl()
+		}
+	case "control-hidden":
+		if runtime.GOOS == "darwin" && c.control != nil && m.Window == c.control && c.controlReady && !c.showControl && m.Revision == c.controlRevision {
+			log.Printf("control-viewport restored=false success=%t", platform.SetControlRendering(c.control.NativeWindow(), false))
+		}
 	case "quit":
 		if c.add != nil && c.add.native != nil {
 			c.add.native.Close()

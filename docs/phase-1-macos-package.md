@@ -1,10 +1,10 @@
 # macOS 本地安装包 · 0.1.0
 
-当前产物已更新为构建 10，增加 [侧栏空白视口优化](phase-1-stack-viewport-memory.md)，保留 [Quick Card 按需加载](phase-1-quick-card-memory.md)，保留 [主窗口按需加载与内存试验记录](phase-1-memory-lifecycle.md)，包含 [Quick Add](phase-1-quick-add.md)、[JSON / CSV 导出](phase-1-export.md)、[Dock 图标与设置开关](phase-1-macos-dock.md)、[UI 与三套主题](phase-1-ui-themes.md)，并保留 [侧栏透明背景修复](phase-1-macos-transparency.md)。构建 10 已安装到 `/Applications/Sidelet.app`，当前两条任务和设置在升级前后精确相同。下方首次打包 / 升级验证及原稳定性记录对应构建 2，保留为历史证据。
+当前产物已更新为构建 11，增加 [主窗口隐藏视口优化](phase-1-hidden-main-memory.md)，保留 [侧栏空白视口优化](phase-1-stack-viewport-memory.md)，保留 [Quick Card 按需加载](phase-1-quick-card-memory.md)，保留 [主窗口按需加载与内存试验记录](phase-1-memory-lifecycle.md)，包含 [Quick Add](phase-1-quick-add.md)、[JSON / CSV 导出](phase-1-export.md)、[Dock 图标与设置开关](phase-1-macos-dock.md)、[UI 与三套主题](phase-1-ui-themes.md)，并保留 [侧栏透明背景修复](phase-1-macos-transparency.md)。构建 11 已安装到 `/Applications/Sidelet.app`，当前两条任务和设置在升级前后精确相同。下方首次打包 / 升级验证及原稳定性记录对应构建 2，保留为历史证据。
 
 2026-10-06，Apple Silicon / macOS 13+。此次产物是可在本机安装验证的本地预览版；原有 P0 人工验收范围保持不变。
 
-当前构建 10 的内存对比见 [侧栏视口优化记录](phase-1-stack-viewport-memory.md)，此前 Quick Card 对比见 [构建 9 记录](phase-1-quick-card-memory.md)，构建 8 的结果见 [主窗口按需加载记录](phase-1-memory-lifecycle.md)。构建 7 的空闲 CPU、快速添加 / 设置 / 任务操作、恢复观察与内存原因分析见 [构建 7 稳定性记录](phase-1-build7-stability.md)；同一构建 2 二进制的历史测试保留在 [安装版稳定性记录](phase-1-macos-stability.md)。
+当前构建 11 的对照见 [主窗口隐藏视口优化](phase-1-hidden-main-memory.md)，此前构建 10 的内存对比见 [侧栏视口优化记录](phase-1-stack-viewport-memory.md)，此前 Quick Card 对比见 [构建 9 记录](phase-1-quick-card-memory.md)，构建 8 的结果见 [主窗口按需加载记录](phase-1-memory-lifecycle.md)。构建 7 的空闲 CPU、快速添加 / 设置 / 任务操作、恢复观察与内存原因分析见 [构建 7 稳定性记录](phase-1-build7-stability.md)；同一构建 2 二进制的历史测试保留在 [安装版稳定性记录](phase-1-macos-stability.md)。
 
 ## 产物与重建
 
@@ -25,7 +25,7 @@ shasum -a 256 -c Sidelet-0.1.0-local-arm64.dmg.sha256
 
 用户可见名称由 Sidelet Spike 改为 Sidelet，主程序改为 `Contents/MacOS/sidelet`。原 `io.sidelet.spike` bundle ID 保留，以延续系统识别；SQLite 与 `settings.json` 继续使用 `~/Library/Application Support/Sidelet/`，无需导入。保留的旧开发 `.app` 可用作回退，使用时应退出其他实例。
 
-`packaging/macos/app.json` 定义当前版本与 bundle 元数据（现为 0.1.0、构建 10；首次打包为构建 2）。构建时将版本注入可执行程序，设置页和 `sidelet -version` 显示同一版本。SVG 是图标唯一绘图源，Swift / AppKit 离线渲染 16–1024 像素图标并用 `iconutil` 生成 ICNS，不增加运行时依赖。
+`packaging/macos/app.json` 定义当前版本与 bundle 元数据（现为 0.1.0、构建 11；首次打包为构建 2）。构建时将版本注入可执行程序，设置页和 `sidelet -version` 显示同一版本。SVG 是图标唯一绘图源，Swift / AppKit 离线渲染 16–1024 像素图标并用 `iconutil` 生成 ICNS，不增加运行时依赖。
 
 历史验收文档保留当时应用名称；当前 README、验收启动脚本及进程工具更新到新路径。进程分析仍识别历史 `sidelet-spike` 样本，采样时从真实进程路径计算二进制哈希，避免把安装版误记为构建目录中的版本。
 
