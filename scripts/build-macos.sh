@@ -14,7 +14,7 @@ export MACOSX_DEPLOYMENT_TARGET=13.0
 export CGO_CFLAGS="${CGO_CFLAGS:-} -arch $sidelet_clang_arch"
 export CGO_LDFLAGS="${CGO_LDFLAGS:-} -arch $sidelet_clang_arch"
 npm run build:frontend
-bash scripts/go.sh test ./internal/spike ./internal/storage ./internal/reminder ./internal/settings ./internal/integration ./cmd/spike
+bash scripts/go.sh test ./internal/spike ./internal/storage ./internal/reminder ./internal/settings ./internal/exportdata ./internal/quickadd ./internal/integration ./cmd/spike
 bash scripts/go.sh vet ./cmd/spike ./internal/platform
 
 mkdir -p "$sidelet_root/build/bin"

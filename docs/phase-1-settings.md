@@ -43,3 +43,11 @@
 未自动注销或重启用户电脑，因此注册状态验证不代表已经完成一次真实登录启动。当前是本地临时签名开发包，正式发布签名后的安装与登录流程仍需验收。
 
 参考：[Apple SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice)、[打开系统登录项](https://developer.apple.com/documentation/servicemanagement/smappservice/opensystemsettingsloginitems())。
+
+## 2026-10-06：数据导出
+
+设置页新增“导出任务”，支持通过系统保存窗口导出 JSON / CSV。导出范围、格式、文件保护与实机验证见 [导出记录](phase-1-export.md)。任务页草稿在设置往返及导出后继续保留。
+
+## 2026-10-06：快速添加
+
+构建 7 新增“快速添加”说明与入口，显示 Control + Shift + Space 的注册失败提示；快捷键占用时仍可使用页面按钮。窗口同步三套主题，时间识别与固定选项是本次输入的临时选择，保存成功或明确取消后恢复默认。实机流程、数据保护及待验收范围见 [Quick Add 记录](phase-1-quick-add.md)。

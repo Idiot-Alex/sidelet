@@ -10,13 +10,15 @@ int main(int argc, const char **argv) {
         [NSApplication sharedApplication];
         EventHotKeyRef ref = NULL;
         EventHotKeyID id = {'SLtp',1};
-        OSStatus result = RegisterEventHotKey(kVK_ANSI_T,controlKey|optionKey,id,GetApplicationEventTarget(),kEventHotKeyExclusive,&ref);
-        printf("shortcut-probe pid=%d code=%d modifiers=%u exclusive=true status=%d\n",getpid(),kVK_ANSI_T,controlKey|optionKey,(int)result);
+        BOOL quickAdd=argc>3 && !strcmp(argv[3],"quick-add");
+        UInt32 code=quickAdd?kVK_Space:kVK_ANSI_T, modifiers=quickAdd?(controlKey|shiftKey):(controlKey|optionKey);
+        OSStatus result = RegisterEventHotKey(code,modifiers,id,GetApplicationEventTarget(),kEventHotKeyExclusive,&ref);
+        printf("shortcut-probe pid=%d code=%d modifiers=%u exclusive=true status=%d\n",getpid(),code,modifiers,(int)result);
         fflush(stdout);
         BOOL passed = !strcmp(argv[1],"occupied") ? result==eventHotKeyExistsErr : result==noErr;
         if (ref) {
             if (!strcmp(argv[1],"hold")) {
-                unsigned seconds = argc==3 ? (unsigned)atoi(argv[2]) : 10;
+                unsigned seconds = argc>=3 ? (unsigned)atoi(argv[2]) : 10;
                 if (!seconds || seconds>30) { UnregisterEventHotKey(ref); return 2; }
                 sleep(seconds);
             }

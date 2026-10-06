@@ -9,6 +9,19 @@
  let loginChecked = $state(false);
   let error = $state('');
   let feedback = $state('');
+  let exporting = $state(false);
+  let exportFeedback = $state('');
+  let exportError = $state('');
+  async function exportTasks(format: 'json' | 'csv') {
+    if (exporting || busy || !settings) return;
+    exporting = true; exportFeedback = ''; exportError = '';
+    try {
+      const result = await request('export', { format });
+      exportFeedback = result.cancelled ? '已取消导出' : `已导出 ${result.count ?? 0} 项任务到 ${result.filename ?? ''}`;
+    } catch (cause) {
+      exportError = cause instanceof Error ? cause.message : '导出失败，请重试。';
+    } finally { exporting = false; }
+  }
   $effect(() => { if (settings) { draft = { ...settings.value, edge: { ...settings.value.edge }, startup: { ...settings.value.startup }, appearance: { ...settings.value.appearance } }; loginChecked = settings.loginStatus === "enabled" || settings.loginStatus === "requiresApproval"; } });
   async function save(login?: boolean) {
     if (!settings || busy) return;
@@ -24,11 +37,11 @@
 </script>
 
 <main class="settings" data-sidelet>
-  <AppHeader><button class="back-button" disabled={busy} onclick={onClose}><Icon name="back" />返回我的任务</button></AppHeader>
+  <AppHeader><button class="back-button" disabled={busy || exporting} onclick={onClose}><Icon name="back" />返回我的任务</button></AppHeader>
   <div class="settings-content">
   <div class="intro"><div><p class="eyebrow">为你的习惯，留一点空间</p><h1>设置</h1><p>界面与桌面，按照你喜欢的方式。</p></div><span class="save-status" role="status">{busy ? '正在保存…' : feedback || (!settings ? '正在读取…' : '更改自动保存')}</span></div>
   {#if error || settings?.error || externalError}<p class="error-message" role="alert">{error || settings?.error || externalError}</p>{/if}
-  <fieldset disabled={busy || !settings || !!settings.error}>
+  <fieldset disabled={busy || exporting || !settings || !!settings.error}>
     <section aria-labelledby="appearance-heading">
       <div class="section-heading"><h2 id="appearance-heading">外观</h2><p>同一种风格，贯穿任务窗口与桌面卡片。</p></div>
       <div class="theme-options" role="group" aria-label="界面主题">
@@ -61,6 +74,21 @@
     {#if notificationStatus.message}<p class="hint">{notificationStatus.message}</p>{/if}
     {#if hostPlatform === 'darwin'}<div class="actions"><button onclick={() => send('notification-permission')}>{notificationStatus.authorization === 'notDetermined' ? '开启系统通知' : '检查通知权限'}</button><button onclick={() => send('open-notification-settings')}>打开系统通知设置</button></div><p class="hint">在系统通知列表中选择 Sidelet，调整横幅和声音。</p>{/if}
   </section>
+  <section aria-labelledby="quick-add-heading">
+    <h2 id="quick-add-heading">快速添加</h2>
+    <p class="hint">在任何应用中按 Control + Shift + Space，记下任务。Enter 保存，Esc 取消并返回之前的应用。</p>
+    <p class="hint">支持“明天下午3点 联系客户”等简单时间，默认不固定到桌面、不发送系统通知。</p>
+    {#if settings?.quickAddShortcutError}<p class="error-message" role="alert">{settings.quickAddShortcutError}</p>{/if}
+    <div class="actions"><button onclick={() => send('quick-add-open')}>打开快速添加</button></div>
+  </section>
+  <section aria-labelledby="export-heading">
+    <h2 id="export-heading">导出任务</h2>
+    <p class="hint">导出全部任务，包含已完成、未固定和暂时隐藏的任务。JSON 保留完整任务字段与桌面布局，CSV 适合用表格查看。</p>
+    <div class="actions"><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('json')}><Icon name="download" />导出 JSON</button><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('csv')}><Icon name="download" />导出 CSV</button></div>
+    <p class="hint">导出的是点击时已保存的数据，不包含未提交的草稿。当前版本暂不支持导入。</p>
+    {#if exporting || exportFeedback}<p class="export-feedback" role="status">{exporting ? '请选择保存位置…' : exportFeedback}</p>{/if}
+    {#if exportError}<p class="error-message" role="alert">{exportError}</p>{/if}
+  </section>
 <footer>Sidelet {settings?.appVersion ?? "…"} · 构建 {settings?.appBuild ?? "…"} · 本地预览版</footer>
 </div>
 </main>
@@ -88,6 +116,7 @@
   button:disabled { opacity:.5; cursor:default; }fieldset:disabled { opacity:.7; }
   .back-button { display:flex; gap:7px; align-items:center; border-color:transparent; background:transparent; color:var(--muted); }
   .actions { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 0; }.hint { max-width:650px; }.save-status { font-size:11px; color:var(--subtle); padding-bottom:2px; }
+  .export-button { display:flex; align-items:center; gap:7px; }.export-feedback { color:var(--accent); overflow-wrap:anywhere; margin-top:12px; }
   .status { display:inline-block; font:11px var(--font-ui); margin-left:8px; color:var(--accent); background:var(--accent-soft); padding:4px 7px; border-radius:5px; }
   .error-message { padding:10px 12px; background:var(--danger-soft); color:var(--danger); border-radius:var(--control-radius); }
   footer { padding:6px 0 0; text-align:center; color:var(--subtle); font-size:11px; }

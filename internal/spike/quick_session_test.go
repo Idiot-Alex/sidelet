@@ -49,3 +49,46 @@ func TestReopeningInvalidatesQueuedClose(t *testing.T) {
 		t.Fatal("a stale timeout can close the newly opened card")
 	}
 }
+
+func TestColdCardLoadKeepsLatestTaskAndIgnoresCancelledReplies(t *testing.T) {
+	now := time.Unix(100, 0)
+	var s QuickSession
+	s.Begin("stack-0", 1)
+	first := s.RequestRevision
+	s.Presence("stack-0", false, now)
+	s.Presence("stack-0", true, now.Add(100*time.Millisecond))
+	if !s.CanPresent(first, now.Add(200*time.Millisecond), false) {
+		t.Fatal("pointer updates discarded the loading card")
+	}
+	s.Begin("stack-1", 8)
+	latest := s.RequestRevision
+	if s.CanPresent(first, now, true) || !s.CanPresent(latest, now, true) || s.TodoID != 8 {
+		t.Fatal("a late first-task renderer reply can reveal the wrong task")
+	}
+	s.Close() // Escape, quiet mode, foreground change or opening another window.
+	if s.CanPresent(latest, now, true) {
+		t.Fatal("the renderer reopened a cancelled card")
+	}
+	s.Begin("stack-0", 2)
+	if s.CanPresent(latest, now, true) || !s.CanPresent(s.RequestRevision, now, false) {
+		t.Fatal("an old renderer reply affected the next opening")
+	}
+}
+
+func TestLoadingCardHonoursLeaveDeadlineAndActiveEditing(t *testing.T) {
+	now := time.Unix(100, 0)
+	var s QuickSession
+	s.Begin("stack-0", 1)
+	request := s.RequestRevision
+	s.Presence("stack-0", false, now)
+	if !s.CanPresent(request, now.Add(499*time.Millisecond), false) || s.CanPresent(request, now.Add(500*time.Millisecond), false) {
+		t.Fatal("a delayed render ignored the 500ms leave deadline")
+	}
+	if !s.CanPresent(request, now.Add(time.Second), true) {
+		t.Fatal("keyboard/editing was discarded while loading")
+	}
+	s.Close()
+	if s.CanPresent(request, now.Add(time.Second), true) {
+		t.Fatal("editing allowed a cancelled request to return")
+	}
+}

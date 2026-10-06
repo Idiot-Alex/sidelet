@@ -34,17 +34,24 @@ deadline = time.monotonic() + args.timeout
 while time.monotonic() < deadline:
     try:
         native = json.loads((destination / "native.json").read_text())
-        if not native.get('enabled') or native.get('boundStates', 0) < 2:
+        minimum = 1 if native.get('controllerViews') is not None else 2
+        if not native.get('enabled') or native.get('boundStates', 0) < minimum:
             time.sleep(0.1)
             continue
-        expected = ["go.json", "heap.pprof", "allocs.pprof", "goroutine.pprof", "control.json", "quick.json"]
-        expected += [f"stack-{i}.json" for i in range(native["boundStates"] - 1)]
+        expected = ["go.json", "heap.pprof", "allocs.pprof", "goroutine.pprof"]
+        quick_add = native.get("quickAddBound", 0)
+        views = native.get("controllerViews")
+        if views is None:
+            views = ["control", "quick"] + [f"stack-{i}" for i in range(native["boundStates"] - 1 - quick_add)]
+            if quick_add:
+                views.append("add")
+        expected += [f"{name}.json" for name in views]
         if all((destination / name).is_file() for name in expected):
             # Validate replies, rather than accepting files mid-write.
             for name in expected:
                 if name.endswith(".json"):
                     reply = json.loads((destination / name).read_text())
-                    if name in ('control.json', 'quick.json') or name.startswith('stack-'):
+                    if name in ('control.json', 'quick.json', 'add.json') or name.startswith('stack-'):
                         if reply.get('label') != args.label or reply.get('window') != name[:-5]:
                             raise ValueError(f"mismatched view reply: {name}")
             print(destination)

@@ -15,7 +15,7 @@ func (c *controller) settingsEvent() map[string]any {
 	if c.preferences.LoadError != nil {
 		message = "设置文件无法读取，当前使用默认偏好。原文件已保留，请检查 settings.json 后重启。"
 	}
-	return map[string]any{"appVersion": appVersion, "appBuild": appBuild, "value": c.preferences.Value, "loginStatus": platform.LoginStatus(), "loginAvailable": c.loginAvailable, "error": message}
+	return map[string]any{"appVersion": appVersion, "appBuild": appBuild, "value": c.preferences.Value, "loginStatus": platform.LoginStatus(), "loginAvailable": c.loginAvailable, "error": message, "quickAddShortcutError": c.addShortcutError}
 }
 func (c *controller) processSettings(m message) {
 	if c.preferences == nil {
@@ -28,7 +28,7 @@ func (c *controller) processSettings(m message) {
 		// Login registration has a separate operation and cannot be forged by a preference save.
 		v.Startup.Enabled = c.preferences.Value.Startup.Enabled
 		err = c.preferences.SaveWithDock(v, func(visible bool) (applyError error) {
-			application.InvokeSync(func() { applyError = platform.SetDockVisible(visible, c.control.NativeWindow()) })
+			application.InvokeSync(func() { applyError = platform.SetDockVisible(visible, c.controlNative()) })
 			return
 		})
 	case "settings-login":
@@ -43,15 +43,15 @@ func (c *controller) processSettings(m message) {
 	theme := c.preferences.Value.Appearance.Theme
 	showDock := c.preferences.Value.Appearance.ShowDockIcon
 	application.InvokeSync(func() {
-		if dockError := platform.SetDockVisible(showDock, c.control.NativeWindow()); dockError != nil {
+		if dockError := platform.SetDockVisible(showDock, c.controlNative()); dockError != nil {
 			if err == nil {
 				err = dockError
 			}
 			if m.RequestID == "" {
-				c.control.EmitEvent("spike:error", dockError.Error())
+				c.emitControl("spike:error", dockError.Error())
 			}
 		}
-		platform.SetControlTheme(c.control.NativeWindow(), theme)
+		platform.SetControlTheme(c.controlNative(), theme)
 		c.logFocus("settings-applied")
 		c.app.Event.Emit("settings:state", event)
 		if m.RequestID != "" && m.Window != nil {

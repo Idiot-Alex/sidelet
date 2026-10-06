@@ -15,6 +15,21 @@ import (
 // The queue worker performs SQLite IO outside InvokeSync. Only publication and
 // native window changes run on the UI thread, after a successful commit.
 func (c *controller) process(m message) {
+	if m.Type == "quick-add-save" || m.Type == "quick-add-preview" {
+		c.processQuickAdd(m)
+		return
+	}
+	if m.Type == "export" {
+		c.startExport(m)
+		return
+	}
+	if m.Type == "export-finished" {
+		if m.Export != nil && m.Export == c.activeExport {
+			c.activeExport = nil
+			c.finishExport(m.Export)
+		}
+		return
+	}
 	if m.Type == "settings-save" || m.Type == "settings-login" || m.Type == "settings-refresh" {
 		c.processSettings(m)
 		return
@@ -112,9 +127,9 @@ func (c *controller) process(m message) {
 			if m.Window != nil {
 				m.Window.EmitEvent("spike:error", storage.UserMessage(err))
 			} else {
-				c.control.EmitEvent("spike:error", storage.UserMessage(err))
+				c.emitControl("spike:error", storage.UserMessage(err))
 			}
-			c.control.EmitEvent("spike:config", c.stackConfig(c.stacks[0]))
+			c.emitControl("spike:config", c.stackConfig(c.stacks[0]))
 			return
 		}
 		c.acceptPersistentState(state)

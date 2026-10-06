@@ -125,21 +125,6 @@ func (c *controller) previewStackDrag(m message) error {
 	return nil
 }
 
-func (c *controller) placeStack(o *overlay, display platform.Display) error {
-	a := display.WorkArea
-	w := math.Min(312*display.Scale, a.Width)
-	x := a.X
-	if o.side == "right" {
-		x += a.Width - w
-	}
-	if err := o.native.Move(platform.Rect{X: x, Y: a.Y, Width: w, Height: a.Height}); err != nil {
-		return err
-	}
-	o.window.EmitEvent("spike:config", c.stackConfig(o))
-	o.window.EmitEvent("spike:measure")
-	return nil
-}
-
 func (c *controller) cancelStackDrag() {
 	d := c.drag
 	if d == nil {
@@ -185,7 +170,7 @@ func (c *controller) finishStackDrag(m message) {
 		c.drag = nil
 		c.acceptPersistentState(state)
 		// acceptPersistentState may see the already-previewed position as unchanged.
-		c.control.EmitEvent("spike:config", c.stackConfig(c.stacks[0]))
+		c.emitControl("spike:config", c.stackConfig(c.stacks[0]))
 		c.acknowledge(m, nil)
 		log.Printf("stack drag committed stack=%d side=%s offset=%.6f", next.ID, next.Side, next.Offset)
 	})

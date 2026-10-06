@@ -12,6 +12,10 @@ static void check(BOOL passed, NSString *name) {
 @end
 @implementation DockTestDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    BOOL initiallyActive=NSApp.active;
+    check(SLSetDockVisible(1,NULL) && NSApp.activationPolicy==NSApplicationActivationPolicyRegular,@"enable Dock before task window creation");
+    check(NSApp.active==initiallyActive,@"lazy task window Dock bootstrap does not activate application");
+    check(SLSetDockVisible(0,NULL) && NSApp.activationPolicy==NSApplicationActivationPolicyAccessory,@"hide Dock before task window creation");
     self.control=[[NSWindow alloc] initWithContentRect:NSMakeRect(220,220,420,180) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
     self.control.releasedWhenClosed=NO;
     self.control.title=@"Sidelet Dock regression fixture";

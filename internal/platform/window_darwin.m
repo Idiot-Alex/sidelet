@@ -20,6 +20,7 @@ extern void sideletNativeEvent(uint64_t id, int kind, double x, double y, bool i
 @property(nonatomic, strong) NSMutableArray *observers;
 @property(nonatomic, weak) NSView *webview;
 @property(nonatomic) BOOL directInput;
+@property(nonatomic) BOOL quickAdd;
 @property(nonatomic) NSUInteger forwardedEvents;
 @property(nonatomic) NSPoint pointerScreen;
 @property(nonatomic, strong) NSMutableArray<NSPanel *> *inputPanels;
@@ -39,8 +40,12 @@ static IMP originalCanBecomeKey, originalFirstMouse;
 static EventHotKeyRef keyboardShortcut;
 static EventHandlerRef keyboardHandler;
 static uint64_t keyboardToken;
+static EventHotKeyRef quickAddShortcut;
+static EventHandlerRef quickAddHandler;
+static uint64_t quickAddToken;
 static id interactionTestObserver;
 static uint64_t interactionTestToken;
+static SLWindowState *stateFor(NSWindow *window);
 
 static OSStatus keyboardHandlerProc(EventHandlerCallRef next, EventRef event, void *context) {
     EventHotKeyID id;
@@ -53,6 +58,31 @@ static void stopKeyboardShortcut(void) {
     if (keyboardShortcut) UnregisterEventHotKey(keyboardShortcut);
     if (keyboardHandler) RemoveEventHandler(keyboardHandler);
     keyboardShortcut=NULL; keyboardHandler=NULL; keyboardToken=0;
+}
+static OSStatus quickAddHandlerProc(EventHandlerCallRef next, EventRef event, void *context) {
+    EventHotKeyID id;
+    OSStatus result=GetEventParameter(event,kEventParamDirectObject,typeEventHotKeyID,NULL,sizeof(id),NULL,&id);
+    if(result!=noErr || id.signature!='SLet' || id.id!=2 || !quickAddToken) return eventNotHandledErr;
+    sideletNativeEvent(quickAddToken,8,0,0,false);return noErr;
+}
+static void stopQuickAddShortcut(void) {
+    if(quickAddShortcut) UnregisterEventHotKey(quickAddShortcut);
+    if(quickAddHandler) RemoveEventHandler(quickAddHandler);
+    quickAddShortcut=NULL;quickAddHandler=NULL;quickAddToken=0;
+}
+void SLConfigureQuickAdd(void *pointer) {
+    NSWindow *window=(__bridge NSWindow *)pointer;
+    stateFor(window).quickAdd=YES;window.title=@"Sidelet · 快速添加";
+}
+bool SLRegisterQuickAddShortcut(void *pointer) {
+    SLWindowState *state=stateFor((__bridge NSWindow *)pointer);
+    if(!state){lastFailure=@"quick add requires a bound panel";return false;}
+    if(quickAddShortcut){if(quickAddToken==state.token)return true;lastFailure=@"quick add shortcut has another owner";return false;}
+    EventTypeSpec type={kEventClassKeyboard,kEventHotKeyPressed};
+    OSStatus result=InstallApplicationEventHandler(quickAddHandlerProc,1,&type,NULL,&quickAddHandler);
+    if(result==noErr){EventHotKeyID id={'SLet',2};result=RegisterEventHotKey(kVK_Space,controlKey|shiftKey,id,GetApplicationEventTarget(),kEventHotKeyExclusive,&quickAddShortcut);}
+    if(result!=noErr){lastFailure=[NSString stringWithFormat:@"RegisterEventHotKey OSStatus=%d",(int)result];stopQuickAddShortcut();return false;}
+    quickAddToken=state.token;return true;
 }
 static void stopInteractionTest(void) {
     if (interactionTestObserver) [NSDistributedNotificationCenter.defaultCenter removeObserver:interactionTestObserver];
@@ -195,7 +225,7 @@ bool SLEnableInteractionTest(void *pointer) {
         NSRunningApplication *fixture=[NSRunningApplication runningApplicationWithProcessIdentifier:pid];
         // An opt-in test entry from the active, disposable fixture only.
         if (pid>0 && [fixture.bundleIdentifier isEqualToString:@"io.sidelet.interactionfixture"] && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier==pid)
-            sideletNativeEvent(token,6,0,0,false);
+            sideletNativeEvent(token,[note.userInfo[@"operation"] isEqualToString:@"quick-add"]?9:6,0,0,false);
     }];
     return true;
 }
@@ -401,6 +431,7 @@ void SLClose(void *pointer) {
     SLWindowState *state = stateFor(window);
     if (!state) return;
     if (keyboardToken==state.token) stopKeyboardShortcut();
+    if (quickAddToken==state.token) stopQuickAddShortcut();
     if (interactionTestToken==state.token) stopInteractionTest();
     for (NSPanel *panel in state.inputPanels) { [window removeChildWindow:panel]; [panel orderOut:nil]; [panel close]; }
     [state.inputPanels removeAllObjects];
@@ -459,7 +490,7 @@ void SLRegions(void *pointer, const SLRect *rects, int count, double width, doub
     for (int i = 0; i < count; i++) [regions addObject:[NSValue valueWithRect:NSMakeRect(rects[i].x*sx, rects[i].y*sy, rects[i].width*sx, rects[i].height*sy)]];
     state.regions = regions;
     state.directInput = count==1 && rects[0].x<=0 && rects[0].y<=0 && rects[0].width>=width && rects[0].height>=height;
-    if (state.directInput) window.title = @"Sidelet · 快速操作";
+    if (state.directInput) window.title = state.quickAdd?@"Sidelet · 快速添加":@"Sidelet · 快速操作";
     syncInputPanels(state);
     updatePointer(state);
 }
@@ -478,7 +509,7 @@ char *SLFocusDiagnostic(void) {
         NSWindow *key=NSApp.keyWindow;
         return jsonString(@{@"ownPID":@(getpid()),@"foregroundPID":@(front.processIdentifier),@"foregroundBundle":front.bundleIdentifier?:@"",
             @"appActive":@(NSApp.active),@"activationPolicy":@(NSApp.activationPolicy),@"mainWindowVisible":@(NSApp.mainWindow.visible),@"keyWindow":@(key?key.windowNumber:0),@"mainWindow":@(NSApp.mainWindow?NSApp.mainWindow.windowNumber:0),
-            @"firstResponderClass":key.firstResponder?NSStringFromClass(key.firstResponder.class):@"",@"shortcutRegistered":@(keyboardShortcut!=NULL),@"interactionTest":@(interactionTestObserver!=nil)});
+            @"firstResponderClass":key.firstResponder?NSStringFromClass(key.firstResponder.class):@"",@"shortcutRegistered":@(keyboardShortcut!=NULL),@"quickAddShortcutRegistered":@(quickAddShortcut!=NULL),@"interactionTest":@(interactionTestObserver!=nil)});
     }
 }
 static void collectWebViews(NSView *view, NSMutableSet<NSValue *> *webviews) {
@@ -490,9 +521,10 @@ static void collectWebViews(NSView *view, NSMutableSet<NSValue *> *webviews) {
 char *SLMemoryDiagnostic(void) {
     @autoreleasepool {
     if (!memoryStates) return jsonString(@{@"enabled":@NO});
-    NSUInteger panels=0, observers=0, tracking=0, regions=0;
+    NSUInteger panels=0, observers=0, tracking=0, regions=0, quickAdds=0;
     for (SLWindowState *state in states.allValues) {
         panels += state.inputPanels.count; observers += state.observers.count; regions += state.regions.count;
+        if(state.quickAdd) quickAdds++;
     }
     for (NSView *view in memoryInputViews.allObjects) tracking += view.trackingAreas.count;
     NSMutableSet *webviews = [NSMutableSet new];
@@ -502,7 +534,7 @@ char *SLMemoryDiagnostic(void) {
         [windows addObject:@{@"number":@(window.windowNumber),@"class":NSStringFromClass(window.class),@"visible":@(window.visible)}];
     }
     return jsonString(@{@"enabled":@YES,@"windowCount":@(NSApp.windows.count),@"windows":windows,
-        @"attachedWebViews":@(webviews.count),@"boundStates":@(states.count),@"liveStates":@(memoryStates.allObjects.count),
+        @"attachedWebViews":@(webviews.count),@"boundStates":@(states.count),@"quickAddBound":@(quickAdds),@"liveStates":@(memoryStates.allObjects.count),
         @"ownedInputPanels":@(panels),@"liveInputPanels":@(memoryPanels.allObjects.count),@"liveInputViews":@(memoryInputViews.allObjects.count),
         @"inputPanelsCreated":@(memoryPanelsCreated),@"inputViewsCreated":@(memoryInputViewsCreated),
         @"inputTrackingAreas":@(tracking),@"regions":@(regions),@"windowObservers":@(observers),@"workspaceObservers":@(workspaceObservers.count),
@@ -510,6 +542,11 @@ char *SLMemoryDiagnostic(void) {
     }
 }
 char *SLDisplays(void) { NSMutableArray *values = [NSMutableArray new]; for (NSScreen *screen in NSScreen.screens) [values addObject:displayJSON(screen)]; return jsonString(values); }
+char *SLQuickAddDisplay(void) {
+    NSScreen *target=NSScreen.screens.firstObject;
+    for(NSScreen *screen in NSScreen.screens) if(NSPointInRect(NSEvent.mouseLocation,screen.frame)){target=screen;break;}
+    return target?jsonString(displayJSON(target)):NULL;
+}
 char *SLDisplay(void *pointer) { NSScreen *screen = ((__bridge NSWindow *)pointer).screen ?: NSScreen.screens.firstObject; return screen ? jsonString(displayJSON(screen)) : NULL; }
 char *SLDiagnostic(void *pointer) {
     NSWindow *window = (__bridge NSWindow *)pointer;

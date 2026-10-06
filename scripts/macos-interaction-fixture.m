@@ -126,6 +126,8 @@ static void recordClick(NSEvent *event) {
     NSButton *keyboard=[NSButton buttonWithTitle:@"Test-only Sidelet keyboard entry" target:self action:@selector(testKeyboard:)];
     keyboard.frame=NSMakeRect(240,110,350,25); [surface addSubview:keyboard];
     keyboard.hidden=manualSession;
+    NSButton *quickAdd=[NSButton buttonWithTitle:@"Test-only Sidelet quick add" target:self action:@selector(testQuickAdd:)];
+    quickAdd.frame=NSMakeRect(610,110,350,25);[surface addSubview:quickAdd];quickAdd.hidden=manualSession;
     if (manualSession) {
         NSTextField *instructions=[NSTextField labelWithString:@"实机验收：输入 before-sidelet → 实按 Ctrl+Option+T → ↓ / Enter / E / Esc / Esc → 不点击输入框，输入 after-escape。\n随后 Hover 标签并输入 after-hover；测试任务间隙及左侧透明区的点击与滚轮。"];
         instructions.frame=NSMakeRect(20,140,NSWidth(surface.bounds)-40,45);
@@ -163,6 +165,11 @@ static void recordClick(NSEvent *event) {
     [NSDistributedNotificationCenter.defaultCenter postNotificationName:@"io.sidelet.spike.test-keyboard" object:[NSString stringWithFormat:@"%d",sideletPID] userInfo:@{@"fixturePID":@(getpid())} deliverImmediately:YES];
 }
 - (void)nativeFullscreen:(id)sender { [self.window toggleFullScreen:sender]; }
+- (void)testQuickAdd:(id)sender {
+    [self.window makeFirstResponder:self.input];[self recordFocus:@"before-quick-add-entry"];
+    evidence(@"test-entry",@{@"source":@"fixture-request",@"operation":@"quick-add",@"targetPID":@(sideletPID),@"fixturePID":@(getpid()),@"globalKeyTested":@NO});
+    [NSDistributedNotificationCenter.defaultCenter postNotificationName:@"io.sidelet.spike.test-keyboard" object:[NSString stringWithFormat:@"%d",sideletPID] userInfo:@{@"fixturePID":@(getpid()),@"operation":@"quick-add"} deliverImmediately:YES];
+}
 - (void)activate:(id)sender { evidence(@"manual-activate",focusFields()); [NSApp activateIgnoringOtherApps:YES]; [self.window makeKeyAndOrderFront:nil]; }
 - (void)borderlessFullscreen:(id)sender {
     self.borderless=!self.borderless;

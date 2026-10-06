@@ -102,6 +102,12 @@ func subclass(handle, message, wParam, lParam, id, data uintptr) uintptr {
 				return 3
 			} // MA_NOACTIVATE
 		case 0x312: // WM_HOTKEY
+			if wParam == 2 {
+				if w.callbacks.QuickAdd != nil {
+					go w.callbacks.QuickAdd()
+				}
+				return 0
+			}
 			if w.callbacks.Hotkey != nil {
 				go w.callbacks.Hotkey()
 			}
@@ -308,8 +314,19 @@ func (w *Window) RegisterKeyboardShortcut() error {
 	result, _, err := user.NewProc("RegisterHotKey").Call(w.handle, 1, 0x4003, 0x54) // NOREPEAT | CTRL | ALT, T
 	return check(result, err, "RegisterHotKey(Ctrl+Alt+T)")
 }
+func (w *Window) ConfigureQuickAdd() {}
+func (w *Window) RegisterQuickAddShortcut() error {
+	result, _, err := user.NewProc("RegisterHotKey").Call(w.handle, 2, 0x4006, 0x20) // NOREPEAT | CTRL | SHIFT, SPACE
+	return check(result, err, "RegisterHotKey(Ctrl+Shift+Space)")
+}
+func QuickAddDisplay() (Display, error) {
+	handle, _, _ := getForeground.Call()
+	monitor, _, _ := monitorFromWindow.Call(handle, 2)
+	return readMonitor(monitor)
+}
 func (w *Window) Close() {
 	user.NewProc("UnregisterHotKey").Call(w.handle, 1)
+	user.NewProc("UnregisterHotKey").Call(w.handle, 2)
 	removeSubclass.Call(w.handle, subclassCallback, subclassID)
 	windows.Delete(w.handle)
 }

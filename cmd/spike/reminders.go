@@ -76,8 +76,8 @@ func messageForReminders() message { return message{Type: "reminders-sync"} }
 func (c *controller) notificationEvent(m message) {
 	if m.Source == "open" && strings.HasPrefix(m.Label, c.reminderPrefix) {
 		c.cancelStackDrag()
-		c.control.Show()
-		c.control.Focus()
+		settingsOpen := false
+		c.openControl(&settingsOpen)
 	} else if m.Source == "refresh" {
 		c.post(messageForReminders())
 	}

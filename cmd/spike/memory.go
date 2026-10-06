@@ -54,6 +54,26 @@ func (c *controller) watchMemoryRequests() {
 				c.memoryLabel = label
 				c.memoryViews = map[string]bool{}
 				native = platform.MemoryDiagnostic()
+				var sample map[string]any
+				if json.Unmarshal(native, &sample) == nil {
+					views := []string{}
+					if c.controlReady {
+						views = append(views, "control")
+					}
+					for _, stack := range c.stacks {
+						if stack.native != nil {
+							views = append(views, stack.window.Name())
+						}
+					}
+					if c.quick.native != nil {
+						views = append(views, "quick")
+					}
+					if c.add != nil && c.add.native != nil {
+						views = append(views, "add")
+					}
+					sample["controllerViews"] = views
+					native, _ = json.Marshal(sample)
+				}
 				c.app.Event.Emit("spike:memory-request", label)
 			})
 			if err := diagnostics.WriteJSON(filepath.Join(path, "native.json"), native); err != nil {
@@ -73,7 +93,7 @@ func (c *controller) memoryView(m message) error {
 		return nil
 	}
 	name := m.Window.Name()
-	if name != "control" && c.find(m.Window) == nil {
+	if m.Window != c.control && c.find(m.Window) == nil {
 		return nil
 	}
 	if c.memoryViews[name] {

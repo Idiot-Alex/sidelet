@@ -1,5 +1,7 @@
 # macOS 安装版性能与稳定性记录
 
+当前构建 7 的复测及内存原因分析见 [构建 7 稳定性记录](phase-1-build7-stability.md)。本文保留构建 2 的历史采样，不用旧结果替代新增功能后的资源测量。
+
 2026-10-05，针对 `/Applications/Sidelet.app` 的 0.1.0（构建 2）进行复测。沿用 [P0 性能记录](phase-0-macos-performance.md) 的 CPU、RSS、physical footprint 口径；内存预算尚未冻结，不根据 RSS 单独判断泄漏。
 
 ## 场景与隔离

@@ -5,17 +5,19 @@ import "time"
 // QuickSession joins pointer presence across two separate native windows.
 // Revision invalidates delayed close messages after re-entry or reopening.
 type QuickSession struct {
-	Source       string
-	TodoID       int64
-	Open         bool
-	Revision     uint64
-	CloseAt      time.Time
-	sourceInside bool
-	quickInside  bool
+	Source          string
+	TodoID          int64
+	Open            bool
+	Revision        uint64
+	RequestRevision uint64
+	CloseAt         time.Time
+	sourceInside    bool
+	quickInside     bool
 }
 
 func (s *QuickSession) Begin(source string, todoID int64) {
 	s.Revision++
+	s.RequestRevision++
 	s.Source, s.TodoID, s.Open = source, todoID, true
 	s.sourceInside, s.quickInside = true, false
 	s.CloseAt = time.Time{}
@@ -47,7 +49,15 @@ func (s *QuickSession) Expired(revision uint64, now time.Time) bool {
 
 func (s *QuickSession) Close() {
 	s.Revision++
+	s.RequestRevision++
 	s.Open = false
 	s.TodoID = 0
 	s.CloseAt = time.Time{}
+}
+
+// Pointer changes invalidate close timers, but must not invalidate the renderer
+// replying to the same opening request. A cancelled/replaced request must never
+// become visible when its asynchronous WebView load finally completes.
+func (s *QuickSession) CanPresent(request uint64, now time.Time, active bool) bool {
+	return s.Open && request == s.RequestRevision && (active || s.CloseAt.IsZero() || now.Before(s.CloseAt))
 }

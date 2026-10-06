@@ -7,8 +7,8 @@
   import { dueLabel, dueState, type InputMode, type Todo } from '../lib/model';
   import type { NativePointer } from '../lib/bridge';
 
-  let { todos, now = Date.now(), side, offset, height, width, itemHeight = 44, mode, selected, locked, nativePointer, onSelect, onOpen, onComplete, onOverflow, onRegions, onPresence, onMetric, arranging = false, orderError = "", onMove, onFinish, onShowAll }:
-    { todos: Todo[]; now?: number; side: Side; offset: number; height: number; width: number; itemHeight?: number; mode: InputMode; selected: number; locked: number; nativePointer?: NativePointer; onSelect: (id: number) => void; onOpen: (todo: Todo, rect: Rect, editing: boolean) => void; onComplete: (id: number) => void; onOverflow: (rect: Rect) => void; onRegions: (rects: Rect[]) => void; onPresence?: (inside: boolean) => void; onMetric?: (metric: { delayMs: number; fps: number; frameCount: number }) => void; arranging?: boolean; orderError?: string; onMove?: (id: number, target: DropTarget) => Promise<boolean>; onFinish?: () => void; onShowAll?: () => void } = $props();
+  let { todos, now = Date.now(), side, offset, height, width, viewportTop = 0, layoutRevision = 0, itemHeight = 44, mode, selected, locked, nativePointer, onSelect, onOpen, onComplete, onOverflow, onRegions, onPresence, onMetric, arranging = false, orderError = "", onMove, onFinish, onShowAll }:
+    { todos: Todo[]; now?: number; side: Side; offset: number; height: number; width: number; viewportTop?: number; layoutRevision?: number; itemHeight?: number; mode: InputMode; selected: number; locked: number; nativePointer?: NativePointer; onSelect: (id: number) => void; onOpen: (todo: Todo, rect: Rect, editing: boolean) => void; onComplete: (id: number) => void; onOverflow: (rect: Rect) => void; onRegions: (rects: Rect[], revision: number) => void; onPresence?: (inside: boolean) => void; onMetric?: (metric: { delayMs: number; fps: number; frameCount: number }) => void; arranging?: boolean; orderError?: string; onMove?: (id: number, target: DropTarget) => Promise<boolean>; onFinish?: () => void; onShowAll?: () => void } = $props();
   let root: HTMLDivElement;
   let expanded = $state(0);
   let hover: ReturnType<typeof setTimeout> | undefined;
@@ -76,10 +76,11 @@
     }
   });
   $effect(() => {
-    active; todos; width; height; side; offset; itemHeight; arranging; orderError;
+    active; todos; width; height; side; offset; itemHeight; arranging; orderError; viewportTop;
+    const revision = layoutRevision;
     let disposed = false;
     void tick().then(() => {
-      if (!disposed && root) onRegions(Array.from(root.parentElement!.querySelectorAll('[data-hit]')).map(localRect));
+      if (!disposed && root) onRegions(Array.from(root.parentElement!.querySelectorAll('[data-hit]')).map(localRect), revision);
     });
     return () => { disposed = true; };
   });
@@ -87,11 +88,11 @@
 </script>
 
 {#if arranging}
-  <div class="stack-drag-handle" style:top={`${layout.top - 42}px`} style:left={side === 'left' ? '0' : 'auto'} style:right={side === 'right' ? '0' : 'auto'} style:width={`${Math.max(0, Math.min(296, width - 20))}px`} data-sidelet>
+  <div class="stack-drag-handle" style:top={`${layout.top - viewportTop - 42}px`} style:left={side === 'left' ? '0' : 'auto'} style:right={side === 'right' ? '0' : 'auto'} style:width={`${Math.max(0, Math.min(296, width - 20))}px`} data-sidelet>
     <StackDragHandle anchor={() => localRect(root)} geometryKey={`${height}:${width}:${itemHeight}:${todos.map(todo => todo.id).join(',')}`} disabled={height < 190} />
   </div>
 {/if}
-<div bind:this={root} class="edge-stack" class:left={side === 'left'} style:top={`${layout.top}px`} style:--item-height={`${layout.rowHeight}px`} style:width={arranging ? `${Math.max(0, Math.min(296, width - 20))}px` : undefined} data-sidelet>
+<div bind:this={root} class="edge-stack" class:left={side === 'left'} style:top={`${layout.top - viewportTop}px`} style:--item-height={`${layout.rowHeight}px`} style:width={arranging ? `${Math.max(0, Math.min(296, width - 20))}px` : undefined} data-sidelet>
   {#if arranging && onMove}
     <div style:width={`${Math.max(0, Math.min(296, width - 20))}px`}><TaskOrder todos={items.direct} rowHeight={layout.rowHeight} {onMove} /></div>
   {:else}

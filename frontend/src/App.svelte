@@ -2,13 +2,14 @@
   import { onMount, tick, untrack } from 'svelte';
   import EdgeStack from './components/EdgeStack.svelte';
   import QuickCard from './components/QuickCard.svelte';
+  import QuickAdd from './components/QuickAdd.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
  import type { SettingsState } from './lib/settings';
  import TodoManager from './components/TodoManager.svelte';
   import { moveTask, type DropTarget } from './lib/reorder';
   import { trackMemory } from './lib/memory';
   import { ensureVisible, quickRect, stackItems, stackLayout, type Rect, type Side } from './lib/geometry';
-  import { connect, dispatch, fixtureMode, hitRegions, hostPlatform, native, role, send, shortcutLabel, type NativePointer, type NotificationStatus } from './lib/bridge';
+  import { connect, dispatch, fixtureMode, hitRegions, hostPlatform, native, role, send, shortcutLabel, type QuickAddState, type NativePointer, type NotificationStatus } from './lib/bridge';
   import { initialSnapshot, nextDeadline, reduce, visibleTodos, type Action, type InputMode, type Todo } from './lib/model';
 
   let snapshot = $state(native && !fixtureMode ? { todos: [], stacks: [], storage: 'sqlite' as const, undoId: 0, undoUntil: 0, selectedId: 0 } as ReturnType<typeof initialSnapshot> : initialSnapshot());
@@ -22,6 +23,10 @@
   let height = $state(role === 'stack' || role === 'quick' ? innerHeight : 520);
   let width = $state(role === 'stack' || role === 'quick' ? innerWidth : 700);
   let itemHeight = $state(44);
+  let workHeight = $state(0);
+  let viewportTop = $state(0);
+  let layoutRevision = $state(0);
+  const stackHeight = $derived(role === 'stack' && hostPlatform === 'darwin' && workHeight > 0 ? workHeight : height);
   let stackIndex = $state(0);
   let stackCount = $state(1);
   let stackId = $state(0);
@@ -38,6 +43,7 @@
   let quiet = $state(false);
   let arranging = $state(false);
   let error = $state('');
+  let addSession = $state<QuickAddState>({ open:false, saving:false, revision:0, resetVersion:0 });
   let settingsOpen = $state(false);
  let settingsState = $state<SettingsState>();
   $effect(() => { document.documentElement.dataset.theme = settingsState?.value.appearance.theme ?? 'mac'; });
@@ -53,7 +59,7 @@
   const allVisible = $derived(visibleTodos(snapshot, now).filter(todo => !arranging || !todo.completed));
   const todos = $derived(role === 'stack' || role === 'quick' ? allVisible.filter(todo => snapshot.storage === 'sqlite' ? todo.stackId === stackId : stackCount === 1 || (todo.id - 1) % stackCount === stackIndex) : allVisible);
   const actionable = $derived(todos.filter(todo => !todo.completed));
-  const layout = $derived(stackLayout(todos.length, height, offset, itemHeight));
+  const layout = $derived(stackLayout(todos.length, stackHeight, offset, itemHeight));
   const current = $derived(snapshot.todos.find(todo => todo.id === (role === 'quick' ? snapshot.selectedId : selected)));
   const area = $derived({ x: 0, y: 0, width, height });
   const locked = $derived(quickOpen && (!native || quickSource === stackIndex) ? quickTask : 0);
@@ -133,14 +139,16 @@
     if (native) { send('presence', { inside }); return; }
     if (surface === 'source') sourceInside = inside; else cardInside = inside;
   }
-  function receiveRegions(rects: Rect[]) {
+  function receiveRegions(rects: Rect[], revision = layoutRevision) {
+    if (revision !== layoutRevision) return;
     regions = rects;
     if (role === 'stack') {
       const undo = document.querySelector('.undo-toast')?.getBoundingClientRect();
-      hitRegions(undo ? [...rects, { x: undo.x, y: undo.y, width: undo.width, height: undo.height }] : rects);
+      hitRegions(undo ? [...rects, { x: undo.x, y: undo.y, width: undo.width, height: undo.height }] : rects, revision);
     }
   }
   function keyboard(event: KeyboardEvent) {
+    if (role === 'add') return;
  if (role === "control" && snapshot.storage === "sqlite" && event.metaKey && event.key === ",") { event.preventDefault(); error = ""; settingsOpen = true; send("settings-refresh"); return; }
     if (arranging) {
       if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); arrange(false); }
@@ -166,7 +174,7 @@
     if (key === 'enter' || key === 'e') {
       if (role === 'quick') { if (key === 'e') startEditing(); return; }
       const index = Math.max(0, items.direct.findIndex(todo => todo.id === selected));
-      let rect = { x: side === 'right' ? width - 14 : 0, y: layout.top + index * (itemHeight + 6), width: 14, height: itemHeight };
+      let rect = { x: side === 'right' ? width - 14 : 0, y: layout.top - viewportTop + index * (itemHeight + 6), width: 14, height: itemHeight };
       const parent = role === 'stack' ? keyboardRoot : canvas;
       const row = parent?.querySelector(`[data-todo="${selected}"]`);
       if (row && parent) {
@@ -202,7 +210,15 @@
   });
   $effect(() => {
     snapshot.undoUntil; now;
-    if (role === 'stack') void tick().then(() => receiveRegions(regions));
+    if (role === 'stack') void tick().then(() => receiveRegions(Array.from(document.querySelectorAll('[data-hit]')).map(element => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    })));
+  });
+  $effect(() => {
+    const undoVisible = now < snapshot.undoUntil;
+    const count = todos.length;
+    if (role === 'stack' && ready) { undoVisible; count; arranging; send('stack-layout'); }
   });
   $effect(() => {
     width; height;
@@ -214,14 +230,14 @@
     const disposeObserver = trackMemory('ResizeObserver');
     let dispose = () => {};
     let disposed = false;
-    void connect(incoming => { snapshot = incoming; ready = true; now = Date.now(); if (role === 'quick' && incoming.selectedId) selected = incoming.selectedId; }, value => { if (mode !== value) error = ""; mode = value as InputMode; if (mode === 'KeyboardActive') void tick().then(() => keyboardRoot?.focus()); }, config => { side = config.side; offset = config.offset; stackIndex = config.stackIndex; stackCount = config.stackCount; stackId = config.stackId; itemHeight = config.itemHeight; }, message => { error = message; }, presentation => { if (role === "quick" && quickTask !== presentation.todoId) error = ""; quickOpen = presentation.quickOpen; quickSource = presentation.sourceIndex; quickTask = presentation.todoId; quiet = presentation.quiet; arranging = !!presentation.arranging; }, pointer => { nativePointer = pointer; }, status => { notificationStatus = status; now = Date.now(); }, value => { settingsState = value; }, open => { settingsOpen = open; }).then(cleanup => { if (disposed) cleanup(); else dispose = cleanup; }).catch(cause => { error = String(cause); });
+    void connect(incoming => { snapshot = incoming; ready = true; now = Date.now(); if (role === 'quick' && incoming.selectedId) selected = incoming.selectedId; }, value => { if (mode !== value) error = ""; mode = value as InputMode; if (mode === 'KeyboardActive') void tick().then(() => keyboardRoot?.focus()); }, config => { side = config.side; offset = config.offset; stackIndex = config.stackIndex; stackCount = config.stackCount; stackId = config.stackId; itemHeight = config.itemHeight; workHeight = config.workHeight; viewportTop = hostPlatform === 'darwin' ? config.viewportTop : 0; layoutRevision = config.layoutRevision; }, message => { error = message; }, presentation => { if (role === "quick" && quickTask !== presentation.todoId) error = ""; quickOpen = presentation.quickOpen; quickSource = presentation.sourceIndex; quickTask = presentation.todoId; quiet = presentation.quiet; arranging = !!presentation.arranging; }, pointer => { nativePointer = pointer; }, status => { notificationStatus = status; now = Date.now(); }, value => { settingsState = value; }, open => { settingsOpen = open; }, value => { addSession = value; }).then(cleanup => { if (disposed) cleanup(); else dispose = cleanup; }).catch(cause => { error = String(cause); });
     const resize = () => { if (role === 'stack' || role === 'quick') { height = innerHeight; width = innerWidth; } };
     window.addEventListener('resize', resize);
     document.addEventListener('keydown', keyboard);
     document.addEventListener('pointerdown', outside);
     const observer = new ResizeObserver(() => { if (canvas) width = canvas.clientWidth; });
     if (canvas) observer.observe(canvas);
-    if (role === 'quick') void tick().then(() => hitRegions([{ x: 0, y: 0, width: innerWidth, height: innerHeight }]));
+    if (role === 'quick' || role === 'add') void tick().then(() => hitRegions([{ x: 0, y: 0, width: innerWidth, height: innerHeight }]));
     return () => { disposed = true; dispose(); observer.disconnect(); window.removeEventListener('resize', resize); document.removeEventListener('keydown', keyboard); document.removeEventListener('pointerdown', outside); disposeApp(); disposeListeners.forEach(off => off()); disposeObserver(); };
   });
 </script>
@@ -232,17 +248,19 @@
   {/key}
 {/snippet}
 
-{#if role === 'quick'}
+{#if role === 'add'}
+  <QuickAdd session={addSession} />
+{:else if role === 'quick'}
   <div class="native-quick" bind:this={keyboardRoot} tabindex="-1">{@render card()}</div>
 {:else if role === 'stack'}
   <div class="native-stack" bind:this={keyboardRoot} tabindex="-1">
-    <EdgeStack {now} {todos} {side} {offset} {height} {width} {itemHeight} {mode} {selected} {locked} {nativePointer} {arranging} orderError={error} onMove={reorder} onFinish={() => arrange(false)} onShowAll={() => send("show-control")} onSelect={choose} onOpen={open} onComplete={complete} onOverflow={openOverflow} onRegions={receiveRegions} onPresence={inside => presence('source', inside)} onMetric={metric} />
+    <EdgeStack {now} {todos} {side} {offset} height={stackHeight} {viewportTop} {layoutRevision} {width} {itemHeight} {mode} {selected} {locked} {nativePointer} {arranging} orderError={error} onMove={reorder} onFinish={() => arrange(false)} onShowAll={() => send("show-control")} onSelect={choose} onOpen={open} onComplete={complete} onOverflow={openOverflow} onRegions={receiveRegions} onPresence={inside => presence('source', inside)} onMetric={metric} />
     {#if now < snapshot.undoUntil}<div class="undo-toast" data-sidelet><span>已完成</span><button onclick={() => act({ type: 'undo' })}>撤销</button></div>{/if}
   </div>
 {:else if native && snapshot.storage === 'sqlite'}
   {#if settingsOpen}<SettingsPanel externalError={error} settings={settingsState} {notificationStatus} onClose={() => settingsOpen = false} />{/if}
  <div hidden={settingsOpen}>
-  <TodoManager onSettings={() => { error = ""; settingsOpen = true; send("settings-refresh"); }} {notificationStatus} onNotificationPermission={() => send("notification-permission")} {arranging} onArrange={() => arrange(!arranging)} onMove={reorder} {snapshot} {ready} {error} {side} {offset} {itemHeight} {quiet} {now} onAction={act} onLayout={(type, payload) => send(type, payload)} onQuiet={toggleQuiet} onHide={() => send('hide-control')} />
+  <TodoManager onQuickAdd={() => send('quick-add-open')} onSettings={() => { error = ""; settingsOpen = true; send("settings-refresh"); }} {notificationStatus} onNotificationPermission={() => send("notification-permission")} {arranging} onArrange={() => arrange(!arranging)} onMove={reorder} {snapshot} {ready} {error} {side} {offset} {itemHeight} {quiet} {now} onAction={act} onLayout={(type, payload) => send(type, payload)} onQuiet={toggleQuiet} onHide={() => send('hide-control')} />
  </div>
 {:else}
   <main class="lab">

@@ -15,7 +15,7 @@ try {
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
     } finally { Pop-Location }
-    & go test ./internal/spike ./internal/storage ./internal/reminder ./internal/settings ./internal/integration
+    & go test ./internal/spike ./internal/storage ./internal/reminder ./internal/settings ./internal/exportdata ./internal/quickadd ./internal/integration
     if ($LASTEXITCODE -ne 0) { throw 'Go task tests failed' }
     $env:GOOS = 'windows'
     $env:GOARCH = $Architecture

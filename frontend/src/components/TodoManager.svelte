@@ -5,8 +5,8 @@
   import Icon from './Icon.svelte';
   import TaskOrder from './TaskOrder.svelte';
   import type { DropTarget } from '../lib/reorder';
-  let { onSettings, notificationStatus, onNotificationPermission, snapshot, ready, error, side, offset, itemHeight, quiet, now, onAction, onLayout, onQuiet, onHide, arranging, onArrange, onMove }:
-    { onSettings: () => void; notificationStatus: NotificationStatus; onNotificationPermission: () => void; snapshot: Snapshot; ready: boolean; error: string; side: 'left' | 'right'; offset: number; itemHeight: number; quiet: boolean; now: number; onAction: (action: Action) => Promise<boolean>; onLayout: (type: string, payload: Record<string, unknown>) => void; onQuiet: () => void; onHide: () => void; arranging: boolean; onArrange: () => void; onMove: (id: number, target: DropTarget) => Promise<boolean> } = $props();
+  let { onQuickAdd, onSettings, notificationStatus, onNotificationPermission, snapshot, ready, error, side, offset, itemHeight, quiet, now, onAction, onLayout, onQuiet, onHide, arranging, onArrange, onMove }:
+    { onQuickAdd: () => void; onSettings: () => void; notificationStatus: NotificationStatus; onNotificationPermission: () => void; snapshot: Snapshot; ready: boolean; error: string; side: 'left' | 'right'; offset: number; itemHeight: number; quiet: boolean; now: number; onAction: (action: Action) => Promise<boolean>; onLayout: (type: string, payload: Record<string, unknown>) => void; onQuiet: () => void; onHide: () => void; arranging: boolean; onArrange: () => void; onMove: (id: number, target: DropTarget) => Promise<boolean> } = $props();
   let formOptions = $state(false);
   let filter = $state<'pending' | 'completed' | 'all'>('pending');
   let editing = $state(0);
@@ -65,6 +65,7 @@
 
 <main class="manager" data-sidelet>
   <AppHeader>
+    <button class="toolbar-button" onclick={onQuickAdd}><Icon name="plus" />快速添加</button>
     <button class="toolbar-button" disabled={!ready || quiet || busy} aria-pressed={arranging} onclick={onArrange}><Icon name="layout" />{arranging ? '完成整理' : '整理桌面'}</button>
     <button class="toolbar-button" class:engaged={quiet} aria-pressed={quiet} onclick={onQuiet}><Icon name="moon" />{quiet ? '恢复显示' : '安静模式'}</button>
     <span class="toolbar-divider"></span>

@@ -79,6 +79,18 @@ func (w *Window) RegisterKeyboardShortcut() error {
 	}
 	return nil
 }
+func (w *Window) ConfigureQuickAdd() { C.SLConfigureQuickAdd(w.pointer) }
+func (w *Window) RegisterQuickAddShortcut() error {
+	if !bool(C.SLRegisterQuickAddShortcut(w.pointer)) {
+		return fmt.Errorf("Ctrl+Shift+Space registration failed: %s", C.GoString(C.SLLastError()))
+	}
+	return nil
+}
+func QuickAddDisplay() (Display, error) {
+	var d Display
+	err := readJSON(C.SLQuickAddDisplay(), &d)
+	return d, err
+}
 func (w *Window) EnableInteractionTest() error {
 	if !bool(C.SLEnableInteractionTest(w.pointer)) {
 		return fmt.Errorf("interaction test receiver requires a bound panel")
@@ -218,6 +230,14 @@ func sideletNativeEvent(id C.uint64_t, kind C.int, x C.double, y C.double, insid
 	if value, ok := nativeWindows.Load(uint64(id)); ok {
 		w := value.(*Window)
 		switch kind {
+		case 8:
+			if w.callbacks.QuickAdd != nil {
+				w.callbacks.QuickAdd()
+			}
+		case 9:
+			if w.callbacks.TestQuickAdd != nil {
+				w.callbacks.TestQuickAdd()
+			}
 		case 6:
 			if w.callbacks.TestKeyboard != nil {
 				w.callbacks.TestKeyboard()

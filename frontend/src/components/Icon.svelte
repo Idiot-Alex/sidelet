@@ -1,7 +1,8 @@
 <script lang="ts">
-  let { name, size = 16 }: { name: 'check' | 'plus' | 'settings' | 'layout' | 'moon' | 'hide' | 'back' | 'pin' | 'close' | 'list'; size?: number } = $props();
+  let { name, size = 16 }: { name: 'check' | 'plus' | 'settings' | 'layout' | 'moon' | 'hide' | 'back' | 'pin' | 'close' | 'list' | 'download'; size?: number } = $props();
   const paths = {
     check: 'm5 12 4 4L19 6', plus: 'M12 5v14M5 12h14',
+    download: 'M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5',
     settings: 'M4 7h16M4 17h16M8 4v6M16 14v6',
     layout: 'M4 4h16v16H4zM15 4v16M18 8h-1M18 12h-1M18 16h-1',
     moon: 'M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10Z',

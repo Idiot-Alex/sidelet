@@ -24,6 +24,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"sidelet/frontend"
 	"sidelet/internal/platform"
+	"sidelet/internal/quickadd"
 	"sidelet/internal/settings"
 	"sidelet/internal/spike"
 	"sidelet/internal/storage"
@@ -31,6 +32,8 @@ import (
 )
 
 type message struct {
+	Format         string             `json:"format"`
+	Export         *exportJob         `json:"-"`
 	Settings       settings.Value     `json:"settings"`
 	Type           string             `json:"type"`
 	RequestID      string             `json:"requestId"`
@@ -67,14 +70,32 @@ type overlay struct {
 	editReturnMode string
 	itemHeight     int
 	regionsLogged  bool
+	stackDisplay   platform.Display
+	stackFrame     platform.Rect
+	viewportTop    float64
+	layoutRevision uint64
 }
 type controller struct {
+	add                   *overlay
+	addSession            quickadd.Session
+	addPrevious           platform.FocusToken
+	addShortcutError      string
+	addPendingSource      string
+	profileDirectory      string
+	activeExport          *exportJob
 	preferences           *settings.Store
 	loginAvailable        bool
 	app                   *application.App
 	control               *application.WebviewWindow
+	controlOptions        application.WebviewWindowOptions
+	controlReady          bool
+	controlSettings       *bool
 	stacks                []*overlay
 	quick                 *overlay
+	quickOptions          application.WebviewWindowOptions
+	quickReady            bool
+	quickPending          *quickRequest
+	quickPaintStart       time.Time
 	snapshot              spike.Snapshot
 	queue                 *messageQueue
 	done                  chan struct{}
@@ -178,6 +199,7 @@ func main() {
 			log.Fatal(err)
 		}
 		profileID := sha256.Sum256([]byte(*dataDir))
+		c.profileDirectory = *dataDir
 		c.reminderPrefix = fmt.Sprintf("sidelet.%x.", profileID[:8])
 		singleInstance = &application.SingleInstanceOptions{UniqueID: fmt.Sprintf("io.sidelet.profile.%x", profileID[:16]),
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) { c.post(message{Type: "show-control"}) }}
@@ -223,8 +245,10 @@ func main() {
 		windowTitle = "Sidelet · 我的任务"
 		log.Printf("storage=sqlite schema=%d tasks=%d path=%s", storage.SchemaVersion, len(c.snapshot.Todos), filepath.Join(*dataDir, "sidelet.sqlite3"))
 	}
-	c.control = c.app.Window.NewWithOptions(application.WebviewWindowOptions{Name: "control", Title: windowTitle, Width: 1120, Height: 800, MinWidth: 820, MinHeight: 600, URL: "/?view=control&platform=" + runtime.GOOS + memoryQuery, Hidden: true, BackgroundColour: application.NewRGB(247, 246, 243)})
-	c.control.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) { e.Cancel(); c.control.Hide() })
+	c.controlOptions = application.WebviewWindowOptions{Name: "control", Title: windowTitle, Width: 1120, Height: 800, MinWidth: 820, MinHeight: 600, URL: "/?view=control&platform=" + runtime.GOOS + memoryQuery, Hidden: true, BackgroundColour: application.NewRGB(247, 246, 243)}
+	if c.showControl {
+		c.ensureControl()
+	}
 	if runtime.GOOS == "darwin" {
 		// Wails' default reopen listener shows every hidden window. Sidelet must
 		// reopen only its task window, including while overlays are visible/quiet.
@@ -259,7 +283,11 @@ func main() {
 		}
 		c.stacks = append(c.stacks, o)
 	}
-	c.quick = &overlay{window: c.app.Window.NewWithOptions(overlayOptions("quick", "/?view=quick&platform="+runtime.GOOS+memoryQuery)), mode: "Passive"}
+	c.quick = &overlay{mode: "Passive"}
+	c.quickOptions = overlayOptions("quick", "/?view=quick&platform="+runtime.GOOS+memoryQuery)
+	if c.tracePointer || c.traceFocus {
+		c.quickOptions.URL += "&trace-quick=1"
+	}
 	menu := c.app.NewMenu()
 	menuLabel := "我的任务"
 	if *fixtures {
@@ -269,6 +297,7 @@ func main() {
 	menu.Add("键盘操作 · " + shortcutLabel()).OnClick(func(*application.Context) { c.post(message{Type: "keyboard", Source: "tray-menu"}) })
 	menu.Add("安静模式 / 恢复").OnClick(func(*application.Context) { c.post(message{Type: "quiet"}) })
 	if !*fixtures {
+		menu.Add("快速添加 · " + quickAddShortcutLabel).OnClick(func(*application.Context) { c.post(message{Type: "quick-add-open", Source: "tray-menu"}) })
 		menu.Add("设置…").OnClick(func(*application.Context) { c.post(message{Type: "show-settings"}) })
 		menu.Add("整理桌面 / 完成整理").OnClick(func(*application.Context) { c.post(message{Type: "toggle-arrange"}) })
 	}
@@ -302,12 +331,15 @@ func (c *controller) find(w application.Window) *overlay {
 		return nil
 	}
 	for _, o := range c.stacks {
-		if o.window.Name() == w.Name() {
+		if o.window == w {
 			return o
 		}
 	}
-	if c.quick.window.Name() == w.Name() {
+	if c.quick.window == w {
 		return c.quick
+	}
+	if c.add != nil && c.add.window == w {
+		return c.add
 	}
 	return nil
 }
@@ -321,6 +353,8 @@ func (c *controller) bind(o *overlay) error {
 	w, err := platform.Bind(o.window.NativeWindow(), platform.Callbacks{
 		Hotkey:          func() { c.post(message{Type: "keyboard", Source: "global-shortcut"}) },
 		TestKeyboard:    func() { c.post(message{Type: "keyboard", Source: "fixture-request"}) },
+		TestQuickAdd:    func() { c.post(message{Type: "quick-add-open", Source: "fixture-request"}) },
+		QuickAdd:        func() { c.post(message{Type: "quick-add-open", Source: "global-shortcut"}) },
 		Changed:         func() { c.post(message{Type: "displays"}) },
 		Blur:            func() { c.post(message{Type: "blur"}) },
 		CheckFullscreen: func() { c.post(message{Type: "fullscreen-check"}) },
@@ -344,6 +378,9 @@ func (c *controller) bind(o *overlay) error {
 			log.Print(err)
 			c.app.Event.Emit("spike:error", err.Error())
 		}
+		if c.store != nil {
+			c.registerQuickAdd(w)
+		}
 		cleanup, err := platform.WatchForeground(func() { c.post(message{Type: "foreground"}) })
 		if err != nil {
 			return err
@@ -361,6 +398,20 @@ func (c *controller) bind(o *overlay) error {
 func (c *controller) handle(m message) error {
 	o := c.find(m.Window)
 	switch m.Type {
+	case "quick-add-open":
+		source := m.Source
+		if m.Window != nil {
+			source = "window"
+		}
+		return c.openQuickAdd(source)
+	case "quick-add-window-close":
+		if c.add != nil && m.Window == c.add.window {
+			c.hideQuickAdd(true, true)
+		}
+	case "quick-add-cancel":
+		if c.add != nil && m.Window == c.add.window && m.Revision == c.addSession.Revision {
+			c.hideQuickAdd(true, true)
+		}
 	case "stack-drag-start":
 		return c.beginStackDrag(m)
 	case "stack-drag-preview":
@@ -374,6 +425,19 @@ func (c *controller) handle(m message) error {
 	case "memory-view":
 		return c.memoryView(m)
 	case "ready":
+		if c.add != nil && m.Window == c.add.window {
+			if err := c.bindQuickAdd(); err != nil {
+				return err
+			}
+			c.emitQuickAdd()
+			c.post(message{Type: "settings-refresh"})
+			if c.addPendingSource != "" {
+				source := c.addPendingSource
+				c.addPendingSource = ""
+				return c.openQuickAdd(source)
+			}
+			return nil
+		}
 		if c.preferences != nil {
 			c.post(message{Type: "settings-refresh"})
 		}
@@ -395,14 +459,24 @@ func (c *controller) handle(m message) error {
 			m.Window.EmitEvent("spike:measure")
 			c.emitPresentation()
 		}
-		if m.Window == c.control && c.showControl {
-			c.control.Show()
-			c.control.Focus()
+		if c.control != nil && m.Window == c.control {
+			c.controlReady = true
+			if c.preferences != nil {
+				platform.SetControlTheme(c.control.NativeWindow(), c.preferences.Value.Appearance.Theme)
+			}
+			c.presentControl()
 		}
-		if m.Window == c.control && c.store != nil {
-			c.control.EmitEvent("spike:config", c.stackConfig(c.stacks[0]))
+		if c.control != nil && m.Window == c.control && c.store != nil {
+			c.emitControl("spike:config", c.stackConfig(c.stacks[0]))
+		}
+		if o == c.quick {
+			c.quickReady = true
+			return c.prepareQuickCard()
 		}
 	case "regions":
+		if o != nil && o != c.quick && o != c.add && m.Revision != o.layoutRevision {
+			return nil // A reply from the previous viewport must not scale old hit regions.
+		}
 		if o != nil && o.native != nil && len(m.Rects) <= 32 {
 			if err := o.native.SetRegions(m.Rects, m.ViewportWidth, m.ViewportHeight); err != nil {
 				return err
@@ -417,6 +491,10 @@ func (c *controller) handle(m message) error {
 				log.Printf("regions window=%s count=%d viewport=%.0fx%.0f", o.window.Name(), len(m.Rects), m.ViewportWidth, m.ViewportHeight)
 				logNativeWindow(o)
 			}
+		}
+	case "stack-layout":
+		if o != nil && o != c.quick && o != c.add && o.native != nil && o.stackDisplay.Scale > 0 {
+			return c.placeStack(o, o.stackDisplay)
 		}
 	case "metric":
 		if o != nil {
@@ -449,47 +527,13 @@ func (c *controller) handle(m message) error {
 		}
 		c.acknowledge(m, nil)
 	case "quick", "overflow":
-		if c.arranging {
-			return nil
+		return c.openQuickCard(m)
+	case "quick-rendered":
+		return c.presentQuickCard(m)
+	case "quick-painted":
+		if (c.tracePointer || c.traceFocus) && m.Window == c.quick.window && c.quickSession.Open && m.Revision == c.quickSession.RequestRevision && !c.quickPaintStart.IsZero() {
+			log.Printf("quick frame revision=%d request-to-frame-ms=%.2f", m.Revision, float64(time.Since(c.quickPaintStart).Microseconds())/1000)
 		}
-		c.refreshFullscreen()
-		if c.quiet || c.fullscreen {
-			return nil
-		}
-		source := o
-		if source == nil || source == c.quick {
-			source = c.stacks[0]
-		}
-		if source.native == nil || c.quick.native == nil {
-			return nil
-		}
-		spike.Apply(&c.snapshot, spike.Action{Type: "select", ID: m.Action.ID}, time.Now())
-		if m.Type == "overflow" {
-			for _, id := range m.IDs {
-				for _, todo := range c.snapshot.Todos {
-					if todo.ID == id {
-						c.snapshot.OverflowIDs = append(c.snapshot.OverflowIDs, id)
-					}
-				}
-			}
-		}
-		c.app.Event.Emit("spike:state", c.snapshot.Copy())
-		if err := c.quick.native.PlaceQuick(source.native, m.Anchor, source.side); err != nil {
-			return err
-		}
-		c.quickSession.Begin(source.window.Name(), m.Action.ID)
-		c.quickSession.Presence(source.window.Name(), c.pointers[source.window.Name()], time.Now())
-		c.quick.window.EmitEvent("spike:config", c.stackConfig(source))
-		c.emitPresentation()
-		c.quick.native.ShowInactive()
-		if c.tracePointer {
-			logNativeWindow(source)
-			logNativeWindow(c.quick)
-		}
-		if m.Mode == "Editing" || source.mode == "KeyboardActive" {
-			return c.enterMode(c.quick, m.Mode)
-		}
-		c.scheduleQuickClose()
 	case "presence":
 		if o != nil {
 			c.pointers[o.window.Name()] = m.Inside
@@ -529,6 +573,9 @@ func (c *controller) handle(m message) error {
 			}
 		}
 	case "keyboard":
+		if c.addSession.Open || c.addSession.Saving {
+			return nil
+		}
 		source := m.Source
 		if source == "" {
 			source = "control"
@@ -542,8 +589,8 @@ func (c *controller) handle(m message) error {
 		if err := c.enterMode(c.stacks[0], "KeyboardActive"); err != nil {
 			return err
 		}
-		if m.Window == c.control {
-			c.control.Hide()
+		if c.control != nil && m.Window == c.control {
+			c.hideControl()
 		}
 	case "toggle-arrange":
 		return c.setArranging(!c.arranging)
@@ -582,17 +629,23 @@ func (c *controller) handle(m message) error {
 		c.hideQuick(false)
 		return c.layout()
 	case "blur":
-		if !platform.ForegroundIsOurs() && !(c.arranging && platform.ForegroundApplicationIsOurs() && c.control.IsFocused()) {
+		if c.addSession.Open && !platform.ForegroundApplicationIsOurs() {
+			c.hideQuickAdd(false, false)
+		}
+		if !platform.ForegroundIsOurs() && !(c.arranging && platform.ForegroundApplicationIsOurs() && c.control != nil && c.control.IsFocused()) {
 			c.exitModes(false)
 			c.hideQuick(false)
 		}
 	case "foreground":
+		if c.addSession.Open && !platform.ForegroundApplicationIsOurs() {
+			c.hideQuickAdd(false, false)
+		}
 		if platform.ForegroundApplicationIsOurs() && c.store != nil {
 			c.post(messageForReminders())
 			c.post(message{Type: "settings-refresh"})
 		}
 		c.logFocus("foreground-notification")
-		if !platform.ForegroundIsOurs() && !(c.arranging && platform.ForegroundApplicationIsOurs() && c.control.IsFocused()) {
+		if !platform.ForegroundIsOurs() && !(c.arranging && platform.ForegroundApplicationIsOurs() && c.control != nil && c.control.IsFocused()) {
 			c.exitModes(false)
 			c.hideQuick(false)
 			c.fullscreen = platform.IsFullscreen()
@@ -606,27 +659,34 @@ func (c *controller) handle(m message) error {
 	case "open-notification-settings", "open-login-settings":
 		return platform.OpenSystemSettings(m.Type == "open-login-settings")
 	case "show-settings":
+		c.hideQuick(false)
+		c.hideQuickAdd(false, false)
 		c.cancelStackDrag()
-		c.control.Show()
-		c.control.Focus()
-		c.control.EmitEvent("settings:open", true)
+		settingsOpen := true
+		c.openControl(&settingsOpen)
 		c.post(message{Type: "settings-refresh"})
 	case "show-control":
+		c.hideQuick(false)
+		c.hideQuickAdd(false, false)
 		if m.Source == "dock" {
 			c.exitModes(false)
 			c.hideQuick(false)
 			log.Printf("dock reopen control-only quiet=%t", c.quiet)
-		} else {
-			c.control.EmitEvent("settings:open", false)
 		}
 		c.cancelStackDrag()
-		c.control.UnMinimise()
-		c.control.Show()
-		c.control.Focus()
+		var settingsOpen *bool
+		if m.Source != "dock" {
+			value := false
+			settingsOpen = &value
+		}
+		c.openControl(settingsOpen)
 		c.logFocus("control-reopened")
 	case "hide-control":
-		c.control.Hide()
+		c.hideControl()
 	case "quit":
+		if c.add != nil && c.add.native != nil {
+			c.add.native.Close()
+		}
 		if c.reminderTimer != nil {
 			c.reminderTimer.Stop()
 		}
@@ -708,23 +768,13 @@ func (c *controller) layout() error {
 			}
 		}
 		area := display.WorkArea
-		width := 312 * display.Scale
-		if width > area.Width {
-			width = area.Width
-		}
-		x := area.X
-		if o.side == "right" {
-			x = area.X + area.Width - width
-		}
-		if err := o.native.Move(platform.Rect{X: x, Y: area.Y, Width: width, Height: area.Height}); err != nil {
+		if err := c.placeStack(o, display); err != nil {
 			return err
 		}
-		o.window.EmitEvent("spike:config", c.stackConfig(o))
-		o.window.EmitEvent("spike:measure")
 		log.Printf("layout platform=%s window=%s display=%s side=%s offset=%.2f coordinateScale=%.2f backingScale=%.2f workArea=%+v", runtime.GOOS, o.window.Name(), display.ID, o.side, o.offset, display.Scale, display.BackingScale, area)
 	}
 	if c.store != nil {
-		c.control.EmitEvent("spike:config", c.stackConfig(c.stacks[0]))
+		c.emitControl("spike:config", c.stackConfig(c.stacks[0]))
 	}
 	c.fullscreen = platform.IsFullscreen()
 	c.updateVisibility()
@@ -799,7 +849,7 @@ func (c *controller) enterMode(o *overlay, mode string) error {
 	c.logFocus("mode-" + mode)
 	logNativeWindow(o)
 	o.window.EmitEvent("spike:mode", mode)
-	c.control.EmitEvent("spike:mode", mode)
+	c.emitControl("spike:mode", mode)
 	c.scheduleQuickClose()
 	log.Printf("input window=%s mode=%s", o.window.Name(), mode)
 	return nil
@@ -841,7 +891,7 @@ func (c *controller) exitModesExcept(restore bool, keep *overlay) {
 	}
 	if wasActive {
 		c.logFocus("exit-modes")
-		c.control.EmitEvent("spike:mode", "Passive")
+		c.emitControl("spike:mode", "Passive")
 	}
 }
 func (c *controller) logFocus(boundary string) {
@@ -850,18 +900,19 @@ func (c *controller) logFocus(boundary string) {
 	}
 }
 func (c *controller) hideQuick(restore bool) {
+	c.quickPending = nil
 	c.quickSession.Close()
 	c.pointers["quick"] = false
 	c.scheduleQuickClose()
 	c.emitPresentation()
+	c.exitModes(restore)
 	if c.quick.native != nil {
-		c.exitModes(restore)
 		c.quick.native.Hide()
 	}
 }
 
 func (c *controller) stackConfig(o *overlay) map[string]any {
-	return map[string]any{"side": o.side, "offset": o.offset, "stackIndex": o.index, "stackCount": len(c.stacks), "stackId": o.stackID, "itemHeight": o.itemHeight}
+	return map[string]any{"side": o.side, "offset": o.offset, "stackIndex": o.index, "stackCount": len(c.stacks), "stackId": o.stackID, "itemHeight": o.itemHeight, "workHeight": o.stackDisplay.WorkArea.Height / max(1, o.stackDisplay.Scale), "viewportTop": o.viewportTop, "layoutRevision": o.layoutRevision}
 }
 func (c *controller) emitPresentation() {
 	sourceIndex := -1
@@ -889,7 +940,7 @@ func (c *controller) setArranging(enabled bool) error {
 		c.emitPresentation()
 		return err
 	}
-	c.control.Hide()
+	c.hideControl()
 	c.emitPresentation()
 	return nil
 }
@@ -907,6 +958,9 @@ func (c *controller) scheduleQuickClose() {
 	})
 }
 func (c *controller) interactionActive() bool {
+	if c.quickPending != nil && c.quickPending.message.Mode == "Editing" {
+		return true
+	}
 	if c.quick.mode != "Passive" {
 		return true
 	}

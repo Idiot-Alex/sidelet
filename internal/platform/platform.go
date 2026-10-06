@@ -21,6 +21,8 @@ type Display struct {
 }
 
 type Callbacks struct {
+	QuickAdd        func()
+	TestQuickAdd    func()
 	Hotkey          func()
 	TestKeyboard    func() // Explicit fixture entry; never a global-key assertion.
 	Changed         func()

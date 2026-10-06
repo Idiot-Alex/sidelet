@@ -2,7 +2,8 @@
 #import "../internal/platform/window_darwin.m"
 
 static int fullscreenRequests;
-void sideletNativeEvent(uint64_t token, int kind, double x, double y, bool inside) { if (kind==5) fullscreenRequests++; }
+static int quickAddRequests;
+void sideletNativeEvent(uint64_t token, int kind, double x, double y, bool inside) { if (kind==5) fullscreenRequests++;if(kind==8)quickAddRequests++; }
 static int failures;
 static NSWindow *underlying;
 static NSPanel *render;
@@ -75,6 +76,14 @@ static void finish(void) {
         EventHotKeyID unrelatedID={'othr',1};
         SetEventParameter(unrelated,kEventParamDirectObject,typeEventHotKeyID,sizeof(unrelatedID),&unrelatedID);
         check(keyboardHandlerProc(NULL,unrelated,NULL)==eventNotHandledErr,@"unrelated Carbon hotkeys remain available to other handlers");
+        check(quickAddHandlerProc(NULL,unrelated,NULL)==eventNotHandledErr,@"Quick Add ignores unrelated Carbon event data");
+        EventHotKeyID quickID={'SLet',2};
+        SetEventParameter(unrelated,kEventParamDirectObject,typeEventHotKeyID,sizeof(quickID),&quickID);
+        check(quickAddHandlerProc(NULL,unrelated,NULL)==eventNotHandledErr,@"Quick Add requires a registered owner token");
+        quickAddToken=1;
+        check(quickAddHandlerProc(NULL,unrelated,NULL)==noErr && quickAddRequests==1,@"Quick Add Carbon DATA dispatch uses its separate callback");
+        check(keyboardHandlerProc(NULL,unrelated,NULL)==eventNotHandledErr,@"keyboard interaction ignores Quick Add event data");
+        quickAddToken=0;
         ReleaseEvent(unrelated);
         // Construct event DATA only. No event is sent or posted in these tests.
         NSWindow *source=state.inputPanels[0];
@@ -96,6 +105,25 @@ static void finish(void) {
                 check(SLMove((__bridge void *)render,moved),@"move render panel");
                 settled(^{
                     check(route(screenPoint(290,30))==state.inputPanels[0].windowNumber,@"input panels follow render movement");
+                    // AppKit can add a content-view point after setFrame. Like
+                    // the real frontend's innerWidth/innerHeight reply, publish
+                    // the actual resized viewport before comparing rectangles.
+                    SLRegions((__bridge void *)render,collapsed,2,NSWidth(state.webview.bounds),NSHeight(state.webview.bounds));
+                    NSRect firstBefore=state.inputPanels[0].frame, secondBefore=state.inputPanels[1].frame;
+                    SLRect clientBefore=SLClientOrigin((__bridge void *)render);
+                    SLRect crop={moved.x,moved.y+10,300,114};
+                    check(SLMove((__bridge void *)render,crop),@"crop blank top and bottom of render viewport");
+                    SLRect cropped[]={{280,2,20,44},{280,52,20,44}};
+                    SLRegions((__bridge void *)render,cropped,2,NSWidth(state.webview.bounds),NSHeight(state.webview.bounds));
+                    settled(^{
+                    printf("Crop helper frames: before=%s / %s after=%s / %s\n",NSStringFromRect(firstBefore).UTF8String,NSStringFromRect(secondBefore).UTF8String,NSStringFromRect(state.inputPanels[0].frame).UTF8String,NSStringFromRect(state.inputPanels[1].frame).UTF8String);
+                    check(NSEqualRects(firstBefore,state.inputPanels[0].frame) && NSEqualRects(secondBefore,state.inputPanels[1].frame),@"cropping preserves both screen hit rectangles");
+                    check(route(screenPoint(290,20))==state.inputPanels[0].windowNumber && route(screenPoint(290,70))==state.inputPanels[1].windowNumber,@"cropped task regions still route independently");
+                    check(route(screenPoint(290,49))==underlying.windowNumber && route(screenPoint(150,20))==underlying.windowNumber,@"cropped gap and blank width still pass through");
+                    SLRect clientAfter=SLClientOrigin((__bridge void *)render);
+                    check(fabs(clientBefore.y+12-clientAfter.y-2)<0.01,@"popup anchor screen origin survives viewport translation");
+                    check(state.inputPanels.count==2 && memoryPanelsCreated==2,@"cropping reuses existing input helper windows");
+                    SLMove((__bridge void *)render,moved); SLRegions((__bridge void *)render,collapsed,2,300,240);
                     SLHide((__bridge void *)render);
                     settled(^{
                         check(route(screenPoint(290,30))==underlying.windowNumber,@"hidden helpers cannot intercept input");
@@ -135,6 +163,7 @@ static void finish(void) {
                                 });
                             });
                         });
+                    });
                     });
                 });
             });
