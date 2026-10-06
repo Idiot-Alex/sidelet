@@ -18,8 +18,6 @@ export function memorySnapshot() {
   return { lifecycle: counts.snapshot(), domElements: document.querySelectorAll('*').length,
     hitElements: document.querySelectorAll('[data-hit]').length,
     quickCards: document.querySelectorAll('.quick-card').length,
-    layout: { viewportWidth: innerWidth, viewportHeight: innerHeight, scrollX, scrollY,
-      controlPaintCollapsed: document.querySelector('[data-control-root]')?.hasAttribute('hidden') ?? false },
     // Counts cover our registrations/components, not the JS engine's full heap.
     scope: 'Sidelet component and registration counters; current DOM only' };
 }

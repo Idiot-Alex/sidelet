@@ -39,3 +39,5 @@
 两项试验仅在隔离资料目录运行，安装版没有被替换；源码与前端产物已恢复，原有 19 项前端测试和 Svelte 检查通过。`build/bin/Sidelet.app` 与 `/Applications/Sidelet.app` 均为构建 8，可执行文件 SHA-256 都为 `e90211bdcafe5f2ef1ebc1f98527e590c4f7a059d816df42a573a2021d6803aa`。试验二进制标记为构建 9，只保存在证据目录，不是发布产物。
 
 所有测试实例已退出，正常安装版恢复为后台启动，日志为两条原任务、原保存的设置和已授权通知；全部 SQLite 表与设置文件和排查前备份精确相同，完整性 / 外键检查通过。恢复进程 PID 42491 的一次只读快照为 RSS **238.64 MiB**、footprint **88.96 MiB**、两个 WebContent；这是重启状态，不能用作使用后优化收益。相关验证保存在 `restored-validation.json` / `restored-processes.json`。
+
+全窗口后续验收未复现主窗口隐藏视口试验的整体收益，构建 13 已撤回该试验，见 [全窗口验收与回退](phase-1-full-window-memory.md)。

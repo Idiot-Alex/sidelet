@@ -6,7 +6,6 @@ typedef struct { double x, y, width, height; } SLRect;
 bool SLBind(void *window, uint64_t id);
 void SLClose(void *window);
 void SLControlTheme(void *window, int theme);
-bool SLControlRendering(void *window, bool visible);
 void SLPassive(void *window);
 bool SLActivate(void *window);
 bool SLRegisterKeyboardShortcut(void *window);

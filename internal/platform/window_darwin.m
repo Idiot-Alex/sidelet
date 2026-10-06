@@ -518,33 +518,6 @@ static void collectWebViews(NSView *view, NSMutableSet<NSValue *> *webviews) {
     if (wk && [view isKindOfClass:wk]) [webviews addObject:[NSValue valueWithNonretainedObject:view]];
     for (NSView *child in view.subviews) collectWebViews(child,webviews);
 }
-static const char SLControlPaintFrameKey;
-bool SLControlRendering(void *pointer, bool visible) {
-    NSWindow *window = (__bridge NSWindow *)pointer;
-    if (!window) return false;
-    NSMutableSet *webviews = [NSMutableSet new];
-    collectWebViews(window.contentView, webviews);
-    if (webviews.count != 1) return false;
-    NSView *view = [(NSValue *)webviews.anyObject nonretainedObjectValue];
-    if (!view) return false;
-    NSDictionary *saved = objc_getAssociatedObject(view, &SLControlPaintFrameKey);
-    if (visible) {
-        if (!saved) return true;
-        NSRect frame = [saved[@"frame"] rectValue];
-        view.autoresizingMask = [saved[@"mask"] unsignedIntegerValue];
-        [view setFrame:frame];
-        objc_setAssociatedObject(view, &SLControlPaintFrameKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        return NSEqualRects(view.frame, frame);
-    }
-    if (window.visible) return false;
-    if (!saved) {
-        saved = @{@"frame": [NSValue valueWithRect:view.frame], @"mask": @(view.autoresizingMask)};
-        objc_setAssociatedObject(view, &SLControlPaintFrameKey, saved, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    view.autoresizingMask = NSViewNotSizable;
-    [view setFrameSize:NSMakeSize(1, 1)];
-    return NSWidth(view.frame) == 1 && NSHeight(view.frame) == 1;
-}
 char *SLMemoryDiagnostic(void) {
     @autoreleasepool {
     if (!memoryStates) return jsonString(@{@"enabled":@NO});
@@ -558,15 +531,7 @@ char *SLMemoryDiagnostic(void) {
     NSMutableArray *windows = [NSMutableArray new];
     for (NSWindow *window in NSApp.windows) {
         collectWebViews(window.contentView,webviews);
-        NSMutableSet *ownedViews = [NSMutableSet new];
-        collectWebViews(window.contentView,ownedViews);
-        NSMutableArray *viewFrames = [NSMutableArray new];
-        for (NSValue *value in ownedViews) {
-            NSView *view = value.nonretainedObjectValue;
-            [viewFrames addObject:@{@"width":@(NSWidth(view.frame)),@"height":@(NSHeight(view.frame)),
-                @"renderCollapsed":@(objc_getAssociatedObject(view, &SLControlPaintFrameKey)!=nil)}];
-        }
-        [windows addObject:@{@"number":@(window.windowNumber),@"class":NSStringFromClass(window.class),@"visible":@(window.visible),@"webviewFrames":viewFrames}];
+        [windows addObject:@{@"number":@(window.windowNumber),@"class":NSStringFromClass(window.class),@"visible":@(window.visible)}];
     }
     return jsonString(@{@"enabled":@YES,@"windowCount":@(NSApp.windows.count),@"windows":windows,
         @"attachedWebViews":@(webviews.count),@"boundStates":@(states.count),@"quickAddBound":@(quickAdds),@"liveStates":@(memoryStates.allObjects.count),

@@ -1,6 +1,5 @@
 // Read-only WindowServer probes: no synthetic input or global event injection.
 #import "../internal/platform/window_darwin.m"
-#import <WebKit/WebKit.h>
 
 static int fullscreenRequests;
 static int quickAddRequests;
@@ -27,29 +26,6 @@ static void check(BOOL passed, NSString *name) {
     if (!passed) failures++;
 }
 static NSInteger route(NSPoint point) { return [NSWindow windowNumberAtPoint:point belowWindowWithWindowNumber:0]; }
-static void checkControlRendering(void) {
-    check(!SLControlRendering(NULL,false),@"missing control window is rejected");
-    NSWindow *control=[[NSWindow alloc] initWithContentRect:NSMakeRect(20,20,400,300) styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO];
-    control.releasedWhenClosed=NO;
-    NSView *root=[[NSView alloc] initWithFrame:NSMakeRect(0,0,400,300)]; control.contentView=root;
-    check(!SLControlRendering((__bridge void *)control,false),@"non-WebKit control content is not resized");
-    WKWebView *view=[[WKWebView alloc] initWithFrame:NSMakeRect(20,30,320,220)];
-    view.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable; [root addSubview:view];
-    NSRect originalView=view.frame, originalWindow=control.frame;
-    [control orderFrontRegardless];
-    check(!SLControlRendering((__bridge void *)control,false) && NSEqualRects(view.frame,originalView),@"visible control cannot collapse its viewport");
-    [control orderOut:nil];
-    check(SLControlRendering((__bridge void *)control,false) && NSWidth(view.frame)==1 && NSHeight(view.frame)==1,@"hidden control viewport shrinks to one point");
-    check(NSEqualRects(control.frame,originalWindow),@"viewport collapse keeps the native window size and position");
-    check(SLControlRendering((__bridge void *)control,false) && SLControlRendering((__bridge void *)control,true) && NSEqualRects(view.frame,originalView),@"repeated collapse preserves the original frame for restore");
-    check(view.autoresizingMask==(NSViewWidthSizable|NSViewHeightSizable) && objc_getAssociatedObject(view,&SLControlPaintFrameKey)==nil,@"restore recovers autoresizing and releases saved state");
-    BOOL reused=YES;
-    for(int cycle=0;cycle<3;cycle++) reused &= SLControlRendering((__bridge void *)control,false) && SLControlRendering((__bridge void *)control,true) && NSEqualRects(view.frame,originalView) && NSEqualRects(control.frame,originalWindow);
-    check(reused,@"repeated hidden viewport cycles reuse the same WebView and geometry");
-    WKWebView *other=[[WKWebView alloc] initWithFrame:NSMakeRect(0,0,10,10)]; [root addSubview:other];
-    check(!SLControlRendering((__bridge void *)control,false) && NSEqualRects(view.frame,originalView) && NSWidth(other.frame)==10,@"ambiguous multi-WebView window is left intact");
-    [control close];
-}
 static NSPoint screenPoint(double x, double y) { return [render convertPointToScreen:NSMakePoint(x,NSHeight(render.frame)-y)]; }
 static void settled(dispatch_block_t block) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,150*NSEC_PER_MSEC),dispatch_get_main_queue(),^{ @autoreleasepool { block(); } });
@@ -66,7 +42,6 @@ static void finish(void) {
 @implementation RoutingDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)note {
     @autoreleasepool {
-    checkControlRendering();
     NSRect area=NSScreen.screens.firstObject.visibleFrame;
     NSRect base=NSMakeRect(NSMidX(area)-250,NSMidY(area)-200,500,400);
     underlying=[[NSWindow alloc] initWithContentRect:base styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO];

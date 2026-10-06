@@ -4,7 +4,7 @@
 
 当前阶段：**macOS 0.1.0 本地预览版 · 已提供 Apple Silicon DMG 安装包**。P0 原生验收仍保留待验收状态。
 
-当前安装包为构建 11，macOS 主窗口隐藏时收起绘制视口并在重开前恢复，详见 [主窗口隐藏内存优化](docs/phase-1-hidden-main-memory.md)。侧栏缩小空白视口，主窗口和 Quick Card 分别按需创建，详见 [侧栏视口内存优化](docs/phase-1-stack-viewport-memory.md) 与 [Quick Card 按需加载](docs/phase-1-quick-card-memory.md)。支持 **Control + Shift + Space 快速添加**，支持简单时间识别，详见 [Quick Add 记录](docs/phase-1-quick-add.md)。设置页可保存 JSON / CSV，详见 [导出记录](docs/phase-1-export.md)。默认显示 Dock 图标，可在“设置 → 外观”关闭；关闭主窗口后仍在后台运行，点击 Dock 恢复窗口。详见 [Dock 行为记录](docs/phase-1-macos-dock.md)。任务页、设置页、快速添加和浮动卡片提供“精致 Mac / 温暖纸色 / 深色石墨”三套可保存主题。详见 [UI 与主题记录](docs/phase-1-ui-themes.md)。侧栏继续保留细窄任务标记、空白透明和悬停展开，原修复见 [透明背景记录](docs/phase-1-macos-transparency.md)。
+当前安装包为构建 13。隐藏主窗口视口的试验已撤回：完整流程未复现内存收益，并发现整理退出空白窗口问题，详见 [全窗口验收与回退](docs/phase-1-full-window-memory.md)。侧栏缩小空白视口，主窗口和 Quick Card 分别按需创建，详见 [侧栏视口内存优化](docs/phase-1-stack-viewport-memory.md) 与 [Quick Card 按需加载](docs/phase-1-quick-card-memory.md)。支持 **Control + Shift + Space 快速添加**，支持简单时间识别，详见 [Quick Add 记录](docs/phase-1-quick-add.md)。设置页可保存 JSON / CSV，详见 [导出记录](docs/phase-1-export.md)。默认显示 Dock 图标，可在“设置 → 外观”关闭；关闭主窗口后仍在后台运行，点击 Dock 恢复窗口。详见 [Dock 行为记录](docs/phase-1-macos-dock.md)。任务页、设置页、快速添加和浮动卡片提供“精致 Mac / 温暖纸色 / 深色石墨”三套可保存主题。详见 [UI 与主题记录](docs/phase-1-ui-themes.md)。侧栏继续保留细窄任务标记、空白透明和悬停展开，原修复见 [透明背景记录](docs/phase-1-macos-transparency.md)。
 
 产品规格见 [Revision 4](docs/sidelet-v1-product-spec-revision-4.md)，Windows 原型验收见 [Phase 0 验证记录](docs/phase-0-spike.md)，Mac 进展见 [macOS 原型记录](docs/phase-0-macos.md)，持久化实现与本机验证见 [SQLite 开发记录](docs/phase-1-sqlite.md)。根据当前开发机器，先完成 macOS / Apple Silicon 版本。
 
@@ -113,7 +113,7 @@ npm run profile:macos -- --pid 12345 --duration 600 --interval 5
 
 coalition 查询使用 Apple XNU 的私有诊断 ABI，仅用于本地采样，不进入应用；若系统接口不兼容，脚本报错，不猜测归属。建议通过 `open` 启动独立应用实例后采样，避免终端启动的多个应用共享归属。进程退出或 PID 被复用时，采样标记为不完整。
 
-当前主窗口隐藏优化与最终构建对照见 [构建 11 记录](docs/phase-1-hidden-main-memory.md)，此前侧栏视口与短时对比见 [构建 10 内存优化](docs/phase-1-stack-viewport-memory.md)，此前 Quick Card 按需加载见 [构建 9 记录](docs/phase-1-quick-card-memory.md)，此前主窗口优化见 [构建 8 记录](docs/phase-1-memory-lifecycle.md)，后续定位及撤回的试验见 [主窗口内存排查](docs/phase-1-main-memory.md)。原型数据见 [macOS 性能记录](docs/phase-0-macos-performance.md)，构建 7 的十分钟空闲、200 次快速添加、完整恢复与内存原因分析见 [构建 7 稳定性记录](docs/phase-1-build7-stability.md)，[构建 2 记录](docs/phase-1-macos-stability.md)保留为历史结果。当前证据可用 `python3 scripts/analyze-macos-stability.py --dir build/results/stability-build7-20261006` 复核，分析工具检查为 `python3 scripts/test-macos-stability-analysis.py`。
+最新全窗口验收及构建 13 回退见 [全窗口记录](docs/phase-1-full-window-memory.md)，已撤回的主窗口隐藏试验见 [构建 11 历史记录](docs/phase-1-hidden-main-memory.md)，此前侧栏视口与短时对比见 [构建 10 内存优化](docs/phase-1-stack-viewport-memory.md)，此前 Quick Card 按需加载见 [构建 9 记录](docs/phase-1-quick-card-memory.md)，此前主窗口优化见 [构建 8 记录](docs/phase-1-memory-lifecycle.md)，后续定位及撤回的试验见 [主窗口内存排查](docs/phase-1-main-memory.md)。原型数据见 [macOS 性能记录](docs/phase-0-macos-performance.md)，构建 7 的十分钟空闲、200 次快速添加、完整恢复与内存原因分析见 [构建 7 稳定性记录](docs/phase-1-build7-stability.md)，[构建 2 记录](docs/phase-1-macos-stability.md)保留为历史结果。当前证据可用 `python3 scripts/analyze-macos-stability.py --dir build/results/stability-build7-20261006` 复核，分析工具检查为 `python3 scripts/test-macos-stability-analysis.py`。
 
 卡片内存专项测试先记录至少 30 秒基线，通过真实界面完成 100 次开关，再观察关闭后 600 秒。`--finish-file` 可指定一个尚不存在的路径，在观察结束后创建该文件，让采样正常结束；`--duration` 仍作为最长采样时间。逐进程记录可由 `scripts/analyze-macos-card-memory.py` 与 UI 循环记录、阶段时间一起分析，输出各类进程的 RSS / footprint 变化及时间序列 CSV。统计程序要求完整的 100 次成功记录和十分钟恢复数据，离线检查运行 `python3 scripts/test-macos-memory-analysis.py`。
 

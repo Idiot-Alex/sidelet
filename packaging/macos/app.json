@@ -3,6 +3,6 @@
   "bundleIdentifier": "io.sidelet.spike",
   "executable": "sidelet",
   "version": "0.1.0",
-  "build": "11",
+  "build": "13",
   "minimumSystemVersion": "13.0"
 }

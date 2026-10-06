@@ -1,6 +1,8 @@
 # macOS 主窗口隐藏视口优化 · 构建 11
 
-2026-10-06，Apple M3 Max / macOS 26.6.2。构建 11 已安装到 `/Applications/Sidelet.app`。证据目录：`build/results/build10-hidden-main-trial-20261006/`，不进入 Git；目录沿用构建 10 对照试验名称，最终发布为构建 11。
+**后续状态：已撤回。** 全窗口验收发现整理退出空白问题，修复候选也未复现整体内存收益。构建 13 恢复构建 10 的窗口行为，下文保留构建 11 的历史局部试验证据，不代表当前安装版。详见 [全窗口验收与回退](phase-1-full-window-memory.md)。
+
+2026-10-06，Apple M3 Max / macOS 26.6.2。构建 11 当时安装到 `/Applications/Sidelet.app`。证据目录：`build/results/build10-hidden-main-trial-20261006/`，不进入 Git；目录沿用构建 10 对照试验名称，最终发布为构建 11。
 
 ## 实现和保留依据
 

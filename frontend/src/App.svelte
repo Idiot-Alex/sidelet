@@ -45,31 +45,6 @@
   let error = $state('');
   let addSession = $state<QuickAddState>({ open:false, saving:false, revision:0, resetVersion:0 });
   let settingsOpen = $state(false);
-  let controlVisible = $state(true);
-  let controlRevision = 0;
-  let controlScroll = { x: 0, y: 0, settings: false };
-  let controlFocus: HTMLElement | null = null;
-  function controlVisibility(value: { visible: boolean; revision: number }) {
-    if (hostPlatform !== 'darwin' || role !== 'control' || value.revision < controlRevision) return;
-    controlRevision = value.revision;
-    const restore = value.visible && !controlVisible;
-    if (!value.visible && controlVisible) {
-      controlScroll = { x: scrollX, y: scrollY, settings: settingsOpen };
-      controlFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    }
-    controlVisible = value.visible;
-    void tick().then(() => {
-      if (controlVisible !== value.visible || controlRevision !== value.revision) return;
-      if (restore) {
-        if (settingsOpen === controlScroll.settings) {
-          if (controlFocus?.isConnected && !controlFocus.closest('[hidden]')) controlFocus.focus({ preventScroll: true });
-          window.scrollTo(controlScroll.x, controlScroll.y);
-        }
-        controlFocus = null;
-      }
-      send(value.visible ? 'control-rendered' : 'control-hidden', { revision: value.revision });
-    });
-  }
  let settingsState = $state<SettingsState>();
   $effect(() => { document.documentElement.dataset.theme = settingsState?.value.appearance.theme ?? 'mac'; });
   $effect(() => { settingsOpen; void tick().then(() => window.scrollTo(0, 0)); });
@@ -255,7 +230,7 @@
     const disposeObserver = trackMemory('ResizeObserver');
     let dispose = () => {};
     let disposed = false;
-    void connect(incoming => { snapshot = incoming; ready = true; now = Date.now(); if (role === 'quick' && incoming.selectedId) selected = incoming.selectedId; }, value => { if (mode !== value) error = ""; mode = value as InputMode; if (mode === 'KeyboardActive') void tick().then(() => keyboardRoot?.focus()); }, config => { side = config.side; offset = config.offset; stackIndex = config.stackIndex; stackCount = config.stackCount; stackId = config.stackId; itemHeight = config.itemHeight; workHeight = config.workHeight; viewportTop = hostPlatform === 'darwin' ? config.viewportTop : 0; layoutRevision = config.layoutRevision; }, message => { error = message; }, presentation => { if (role === "quick" && quickTask !== presentation.todoId) error = ""; quickOpen = presentation.quickOpen; quickSource = presentation.sourceIndex; quickTask = presentation.todoId; quiet = presentation.quiet; arranging = !!presentation.arranging; }, pointer => { nativePointer = pointer; }, status => { notificationStatus = status; now = Date.now(); }, value => { settingsState = value; }, open => { settingsOpen = open; }, value => { addSession = value; }, controlVisibility).then(cleanup => { if (disposed) cleanup(); else dispose = cleanup; }).catch(cause => { error = String(cause); });
+    void connect(incoming => { snapshot = incoming; ready = true; now = Date.now(); if (role === 'quick' && incoming.selectedId) selected = incoming.selectedId; }, value => { if (mode !== value) error = ""; mode = value as InputMode; if (mode === 'KeyboardActive') void tick().then(() => keyboardRoot?.focus()); }, config => { side = config.side; offset = config.offset; stackIndex = config.stackIndex; stackCount = config.stackCount; stackId = config.stackId; itemHeight = config.itemHeight; workHeight = config.workHeight; viewportTop = hostPlatform === 'darwin' ? config.viewportTop : 0; layoutRevision = config.layoutRevision; }, message => { error = message; }, presentation => { if (role === "quick" && quickTask !== presentation.todoId) error = ""; quickOpen = presentation.quickOpen; quickSource = presentation.sourceIndex; quickTask = presentation.todoId; quiet = presentation.quiet; arranging = !!presentation.arranging; }, pointer => { nativePointer = pointer; }, status => { notificationStatus = status; now = Date.now(); }, value => { settingsState = value; }, open => { settingsOpen = open; }, value => { addSession = value; }).then(cleanup => { if (disposed) cleanup(); else dispose = cleanup; }).catch(cause => { error = String(cause); });
     const resize = () => { if (role === 'stack' || role === 'quick') { height = innerHeight; width = innerWidth; } };
     window.addEventListener('resize', resize);
     document.addEventListener('keydown', keyboard);
@@ -283,12 +258,10 @@
     {#if now < snapshot.undoUntil}<div class="undo-toast" data-sidelet><span>已完成</span><button onclick={() => act({ type: 'undo' })}>撤销</button></div>{/if}
   </div>
 {:else if native && snapshot.storage === 'sqlite'}
-  <div data-control-root hidden={!controlVisible}>
   {#if settingsOpen}<SettingsPanel externalError={error} settings={settingsState} {notificationStatus} onClose={() => settingsOpen = false} />{/if}
  <div hidden={settingsOpen}>
   <TodoManager onQuickAdd={() => send('quick-add-open')} onSettings={() => { error = ""; settingsOpen = true; send("settings-refresh"); }} {notificationStatus} onNotificationPermission={() => send("notification-permission")} {arranging} onArrange={() => arrange(!arranging)} onMove={reorder} {snapshot} {ready} {error} {side} {offset} {itemHeight} {quiet} {now} onAction={act} onLayout={(type, payload) => send(type, payload)} onQuiet={toggleQuiet} onHide={() => send('hide-control')} />
  </div>
-  </div>
 {:else}
   <main class="lab">
     <header class="lab-header"><a class="brand" href={native ? '/?view=control' : '/'} aria-label="Sidelet 首页"><span class="brand-mark" aria-hidden="true">s.</span>sidelet</a><span class="phase">PHASE 00 <span>/</span> EDGE WINDOW SPIKE</span><span class="candidate"><span></span>Development Candidate</span></header>
