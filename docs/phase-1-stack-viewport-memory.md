@@ -48,3 +48,5 @@ DMG 校验、签名、安装版二进制一致性通过。普通对照、诊断�
 DMG SHA-256：`1b97ae54ee9909e15119ac7cea47714ad45ba1f72978b41538c0668dd1723f77`。
 
 前一轮 Quick Card 按需加载见 [构建 9 记录](phase-1-quick-card-memory.md)。当前仍为 ad-hoc 签名的 macOS 本地预览版。
+
+构建 10 的完整使用短回归见 [工作流回归记录](phase-1-build10-workflow.md)，覆盖主窗口、快速添加、整理、撤销及浮动卡片复用。
