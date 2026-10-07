@@ -2,17 +2,12 @@ package storage
 
 import (
 	"database/sql"
+	"sidelet/internal/todo"
 	"time"
 )
 
-type Reminder struct {
-	ID        int64
-	TodoID    int64
-	Title     string
-	At        int64
-	SentAt    int64 // OS accepted the request; not proof a banner was displayed.
-	Completed bool
-}
+// Alias preserves the storage API while allowing schedulers to stay independent of SQLite.
+type Reminder = todo.Reminder
 
 // Keep a stable request ID across title edits, completion/undo, and restarts.
 // Changing the effective deadline or explicitly disabling/enabling creates a

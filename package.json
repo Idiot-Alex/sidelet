@@ -2,6 +2,9 @@
   "name": "sidelet",
   "private": true,
   "scripts": {
+    "dev:website": "npm --prefix website run dev",
+    "build:website": "npm --prefix website run build",
+    "check:website": "npm --prefix website run check",
     "dev": "npm --prefix frontend run dev",
     "build:frontend": "npm --prefix frontend run build",
     "build:macos": "bash scripts/build-macos.sh arm64",

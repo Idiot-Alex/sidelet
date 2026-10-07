@@ -36,8 +36,10 @@ func validate(action todo.Action) error {
 			return validationError("备注过长，请缩短后重试。")
 		}
 	}
-	if action.DueAt != nil && *action.DueAt < 0 {
-		return validationError("截止时间无效。")
+	if action.DueAt != nil {
+		if err := todo.ValidateDeadline(*action.DueAt, action.Remind != nil && *action.Remind); err != nil {
+			return validationError(err.Error())
+		}
 	}
 	if action.Priority != nil && (*action.Priority < 0 || *action.Priority > 3) {
 		return validationError("优先级无效。")
@@ -168,14 +170,7 @@ func (s *Store) Apply(action todo.Action, now time.Time) (todo.Snapshot, error) 
 			undoUntil = 0
 		}
 	case "snooze":
-		until := now.Add(30 * time.Minute)
-		if action.Duration == "1h" {
-			until = now.Add(time.Hour)
-		}
-		if action.Duration == "tomorrow" {
-			next := now.AddDate(0, 0, 1)
-			until = time.Date(next.Year(), next.Month(), next.Day(), 9, 0, 0, 0, now.Location())
-		}
+		until, _ := todo.SnoozeUntil(now, action.Duration)
 		result, err = tx.Exec(`UPDATE todos SET snoozed_until=?,updated_at=? WHERE id=?`, until.UnixMilli(), stamp, action.ID)
 		if err == nil {
 			err = requireOne(result)

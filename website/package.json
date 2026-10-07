@@ -1,0 +1,22 @@
+{
+  "name": "sidelet-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare-download.mjs && vite --host 127.0.0.1",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "build": "npm run check && node scripts/prepare-download.mjs && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@wailsio/runtime": "3.0.0-beta.27",
+    "svelte": "5.57.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/node": "24.10.1",
+    "svelte-check": "4.7.6",
+    "typescript": "5.9.3",
+    "vite": "8.3.2"
+  }
+}

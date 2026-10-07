@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidelet · 任务</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">SIDELET</p><h1>今天</h1></div><p id="summary" class="summary">正在载入任务</p></header>
+    <form id="add-form" class="add-form">
+      <label class="sr-only" for="new-title">新任务标题</label>
+      <input id="new-title" name="title" maxlength="120" placeholder="添加一件要做的事" autocomplete="off" required>
+      <label class="sr-only" for="new-priority">新任务重要程度</label>
+      <select id="new-priority"><option value="0">普通</option><option value="2">重要</option><option value="3">紧急</option></select>
+      <button id="add-button" class="primary" type="submit">添加</button>
+    </form>
+    <nav aria-label="任务筛选"><button type="button" data-filter="pending" aria-pressed="true">待办 <span id="pending-count">0</span></button><button type="button" data-filter="done" aria-pressed="false">已完成 <span id="done-count">0</span></button></nav>
+    <p id="status" role="status" aria-live="polite"></p>
+    <section aria-label="任务列表"><div id="tasks"></div><p id="empty" hidden>暂时没有任务，留一点空间。</p></section>
+    <footer><span>独立原型 · 任务在本次运行中保留</span><span><kbd>⌘</kbd> <kbd>1</kbd> 打开任务窗口</span></footer>
+  </main>
+</body>
+</html>

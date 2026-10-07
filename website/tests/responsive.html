@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>Sidelet 响应式检查夹具</title><style>body{font-family:system-ui;background:#d4d9d1;margin:0;padding:20px}main{display:flex;gap:32px;align-items:flex-start}h1{font-size:15px}h2{font-size:12px}iframe{border:0;border-radius:12px;height:812px;display:block;background:#f6f7f3}</style></head><body><h1>实际页面的独立窄屏视口，仅用于测试</h1><main><section><h2>375 px</h2><iframe title="375 像素页面" src="../" width="375"></iframe></section><section><h2>320 px</h2><iframe title="320 像素页面" src="../" width="320"></iframe></section><section><h2>768 px</h2><iframe title="768 像素页面" src="../" width="768"></iframe></section></main><script type="module">
+for (const frame of document.querySelectorAll('iframe')) {
+ frame.addEventListener('load', () => {
+  const doc=frame.contentDocument;
+  const report=document.createElement('p');report.style.fontSize='11px';
+  report.textContent=`视口 ${frame.contentWindow.innerWidth}px，页面宽度 ${doc.documentElement.scrollWidth}px，${doc.documentElement.scrollWidth>frame.contentWindow.innerWidth?'溢出':'无横向溢出'}`;
+  frame.before(report);
+ });
+}
+</script></body></html>

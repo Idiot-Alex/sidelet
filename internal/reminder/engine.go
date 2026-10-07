@@ -4,7 +4,7 @@ package reminder
 
 import (
 	"fmt"
-	"sidelet/internal/storage"
+	"sidelet/internal/todo"
 	"strings"
 	"time"
 )
@@ -20,7 +20,7 @@ type System interface {
 	Remove(ids []string) error
 }
 type Repository interface {
-	Reminders() ([]storage.Reminder, error)
+	Reminders() ([]todo.Reminder, error)
 	MarkReminderSent(int64, time.Time) error
 }
 type Result struct {

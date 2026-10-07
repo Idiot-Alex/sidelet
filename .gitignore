@@ -9,3 +9,5 @@ build/results/
 /spike
 
 build/releases/
+website/dist/
+website/public/downloads/

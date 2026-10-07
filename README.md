@@ -188,6 +188,30 @@ python3 scripts/test-macos-acceptance.py
 
 `--manual-input-confirmed` 是操作者对真实输入来源的声明，只有确实使用真实键鼠才填写；不从 trusted 事件或注册成功推断硬件输入。检查器只认可 Carbon 回调的 `source=global-shortcut`，使用系统前台与 first responder 核对编辑、取消、Esc 恢复和无重新点击的继续输入。间隙 / 透明区点击与滚轮按当时安装的原生矩形分类，滚轮还须改变下层滚动位置；点击其他位置不算 Overlay 穿透证据。报告写入本次 `report.json`，退出码为通过 0、失败 1、待验收 2。报告只覆盖本轮输入场景，不自动升级 P0；Passive 卡片的完整操作、不同下层应用、普通 Space、多屏 / 拔插 / Dock 仍须另外记录。结束时关闭夹具，并从 Sidelet 菜单栏退出。
 
+## 产品介绍与下载官网
+
+独立官网源码位于 `website/`，提供侧栏与卡片互动演示、三套应用主题、网站深浅外观、Mac 预览版下载和常见问题。示例任务只保存在页面内存，不访问桌面数据。
+
+```bash
+npm --prefix website ci
+npm run dev:website
+```
+
+本地地址 `http://127.0.0.1:5174`。`npm run build:website` 生成 `website/dist/`；存在本地 DMG 时自动附带下载和 SHA-256，缺少安装包时显示发布进度。运行与部署说明见 [官网 README](website/README.md)。当前是本地网站预览，尚未公开部署。
+
+## MyGo 原生界面实验
+
+`experiments/mygo-sidebar/` 是独立 Go 模块，固定 MyGo v0.2.16。它使用 Go 绘制侧栏和任务卡片，只操作合成任务，不接入正式应用的数据或依赖。
+
+```bash
+bash experiments/mygo-sidebar/build-macos.sh
+open build/bin/mygo-lab/SideletMyGoLab.app
+```
+
+内存参考、原生输入适配和实机交互结果见 [实验记录](experiments/mygo-sidebar/README.md)。已增加 Web 主窗口 + 原生侧栏的共享任务原型，使用 `-hybrid` 启动；运行、焦点恢复和内存结果见 [混合原型记录](experiments/mygo-sidebar/HYBRID.md)。另有 `-native-main` 全原生任务主窗口，运行与同功能内存对比见 [原生主窗口记录](experiments/mygo-sidebar/NATIVE_MAIN.md)。目前保留为技术验证，不替换 Wails。
+
+`-native-main` 正按正式 Sidelet 的完整界面对齐，复用三主题参数和图标；已补任务编辑器、设置分区及浮动卡片，并接入删除确认、完成撤销、稍后与位置 / 密度控制，以及截止时间、macOS 系统提醒和临时任务清理；第四批接入任务排序、+N 溢出卡片与满屏恢复。整体一致性尚未验收完成，当前差异与截图检查见 [UI 对齐记录](experiments/mygo-sidebar/UI_PARITY.md)。旧内存数据来自简化界面，不能代表当前版本。
+
 ## 构建 Windows 原型
 
 Windows 需要 Go `1.27.1` 或更新版本、Node `24.11.0` 或兼容版本，以及已安装的 WebView2 Runtime。
@@ -234,6 +258,8 @@ internal/todo/              任务与桌面布局共享模型
 internal/storage/           SQLite、迁移与事务式任务操作
 frontend/src/components/    TodoManager / EdgeStack / QuickCard
 frontend/src/lib/           几何计算、预览状态、Wails 消息桥
+website/                   独立产品介绍与下载官网
+experiments/mygo-sidebar/   独立 MyGo 原生主窗口 / 侧栏、Web 对照与内存验证
 scripts/                   Mac / Windows 构建、Mac 原生回归与 Mac / Windows 性能采样
 ```
 
