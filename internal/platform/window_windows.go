@@ -41,6 +41,7 @@ var (
 	setWindowRegion   = user.NewProc("SetWindowRgn")
 	getClientRect     = user.NewProc("GetClientRect")
 	getWindowRect     = user.NewProc("GetWindowRect")
+	getCursorPos      = user.NewProc("GetCursorPos")
 	clientToScreen    = user.NewProc("ClientToScreen")
 	getDPI            = user.NewProc("GetDpiForWindow")
 	monitorFromWindow = user.NewProc("MonitorFromWindow")
@@ -289,7 +290,7 @@ func (w *Window) SetRegions(rects []Rect, viewportWidth, viewportHeight float64)
 	}
 	return nil
 }
-func (w *Window) PlaceQuick(source *Window, anchor Rect, side string) error {
+func (w *Window) PlaceQuick(source *Window, anchor Rect, side string, desiredHeight float64, keepPointer bool) error {
 	display, err := source.Display()
 	if err != nil {
 		return err
@@ -300,21 +301,36 @@ func (w *Window) PlaceQuick(source *Window, anchor Rect, side string) error {
 	area := display.WorkArea
 	margin := 10 * scale
 	width := math.Min(320*scale, area.Width-2*margin)
-	height := math.Min(390*scale, area.Height-2*margin)
+	height := math.Min(desiredHeight*scale, area.Height-2*margin)
 	x := float64(origin.X) + anchor.X*scale - width - 12*scale
 	if side == "left" {
 		x = float64(origin.X) + (anchor.X+anchor.Width)*scale + 12*scale
 	}
 	y := float64(origin.Y) + anchor.Y*scale - 12*scale
+	// Active cards stay open independently of the pointer after editing.
+	if keepPointer && !w.active {
+		var cursor point
+		var old winRect
+		cursorOK, _, _ := getCursorPos.Call(uintptr(unsafe.Pointer(&cursor)))
+		frameOK, _, _ := getWindowRect.Call(w.handle, uintptr(unsafe.Pointer(&old)))
+		if cursorOK != 0 && frameOK != 0 && cursor.X >= old.Left && cursor.X < old.Right && cursor.Y >= old.Top && cursor.Y < old.Bottom {
+			inset := math.Min(8*scale, height/2)
+			y = math.Max(float64(cursor.Y)-height+inset, math.Min(y, float64(cursor.Y)-inset))
+		}
+	}
 	x = math.Max(area.X+margin, math.Min(x, area.X+area.Width-margin-width))
 	y = math.Max(area.Y+margin, math.Min(y, area.Y+area.Height-margin-height))
-	return w.Move(Rect{x, y, width, height})
+	if err := w.Move(Rect{x, y, width, height}); err != nil {
+		return err
+	}
+	return w.SetRegions([]Rect{{X: 0, Y: 0, Width: width / scale, Height: height / scale}}, width/scale, height/scale)
 }
 func (w *Window) RegisterKeyboardShortcut() error {
 	result, _, err := user.NewProc("RegisterHotKey").Call(w.handle, 1, 0x4003, 0x54) // NOREPEAT | CTRL | ALT, T
 	return check(result, err, "RegisterHotKey(Ctrl+Alt+T)")
 }
-func (w *Window) ConfigureQuickAdd() {}
+func (w *Window) ConfigureQuickAdd()  {}
+func (w *Window) ConfigureQuickCard() {}
 func (w *Window) RegisterQuickAddShortcut() error {
 	result, _, err := user.NewProc("RegisterHotKey").Call(w.handle, 2, 0x4006, 0x20) // NOREPEAT | CTRL | SHIFT, SPACE
 	return check(result, err, "RegisterHotKey(Ctrl+Shift+Space)")

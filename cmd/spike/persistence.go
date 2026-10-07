@@ -15,6 +15,18 @@ import (
 // The queue worker performs SQLite IO outside InvokeSync. Only publication and
 // native window changes run on the UI thread, after a successful commit.
 func (c *controller) process(m message) {
+	if c.sharedPopup && m.Window != nil {
+		var accepted bool
+		application.InvokeSync(func() {
+			accepted = c.acceptPopupPacket(m)
+			if !accepted {
+				c.acknowledge(m, errors.New("弹窗已切换，请重新操作。"))
+			}
+		})
+		if !accepted {
+			return
+		}
+	}
 	if m.Type == "quick-add-save" || m.Type == "quick-add-preview" {
 		c.processQuickAdd(m)
 		return

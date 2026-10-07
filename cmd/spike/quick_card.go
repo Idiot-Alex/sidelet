@@ -19,6 +19,10 @@ type quickRequest struct {
 }
 
 func (c *controller) ensureQuickCard() {
+	if c.sharedPopup {
+		c.ensureSharedPopup()
+		return
+	}
 	if c.quick.window != nil {
 		return
 	}
@@ -32,7 +36,7 @@ func (c *controller) ensureQuickCard() {
 
 func (c *controller) openQuickCard(m message) error {
 	c.refreshFullscreen()
-	if c.arranging || c.quiet || c.fullscreen || c.addSession.Open || c.addSession.Saving {
+	if c.drag != nil || c.arranging || c.quiet || c.fullscreen || c.addSession.Open || c.addSession.Saving {
 		return nil
 	}
 	source := c.find(m.Window)
@@ -53,13 +57,13 @@ func (c *controller) openQuickCard(m message) error {
 			}
 		}
 	}
-	c.quickSession.Begin(source.window.Name(), m.Action.ID)
+	c.ensureQuickCard()
+	c.quickSession.Begin(source.window.Name(), c.quick.window.Name(), m.Action.ID)
 	c.quickSession.Presence(source.window.Name(), c.pointers[source.window.Name()], time.Now())
 	c.quickPending = &quickRequest{message: m, source: source, revision: c.quickSession.RequestRevision, started: time.Now()}
 	c.app.Event.Emit("spike:state", c.snapshot.Copy())
 	c.emitPresentation()
 	c.scheduleQuickClose()
-	c.ensureQuickCard()
 	return c.prepareQuickCard()
 }
 
@@ -98,7 +102,7 @@ func (c *controller) prepareQuickCard() error {
 		c.hideQuick(false)
 		return nil
 	}
-	if err := c.quick.native.PlaceQuick(r.source.native, r.message.Anchor, r.source.side); err != nil {
+	if err := c.quick.native.PlaceQuick(r.source.native, r.message.Anchor, r.source.side, spike.QuickCardMaxHeight, false); err != nil {
 		c.hideQuick(false)
 		return err
 	}
@@ -109,7 +113,11 @@ func (c *controller) prepareQuickCard() error {
 	c.quick.window.EmitEvent("spike:state", c.snapshot.Copy())
 	c.quick.window.EmitEvent("spike:config", c.stackConfig(r.source))
 	c.emitPresentation()
-	c.quick.window.EmitEvent("quick:prepare", r.revision)
+	if c.sharedPopup {
+		c.preparePopup("quick", r.revision)
+	} else {
+		c.quick.window.EmitEvent("quick:prepare", r.revision)
+	}
 	return nil
 }
 
@@ -123,6 +131,15 @@ func (c *controller) presentQuickCard(m message) error {
 		c.hideQuick(false)
 		return nil
 	}
+	height := m.CardHeight
+	if r.message.Mode == "Editing" {
+		height = spike.QuickCardMaxHeight
+	}
+	if err := c.placeQuickCard(r, height, false); err != nil {
+		c.hideQuick(false)
+		return err
+	}
+	c.quickPlacement = r
 	c.quickPending = nil
 	c.quick.native.ShowInactive()
 	if c.tracePointer || c.traceFocus {
@@ -139,4 +156,42 @@ func (c *controller) presentQuickCard(m message) error {
 	}
 	c.scheduleQuickClose()
 	return nil
+}
+
+func (c *controller) placeQuickCard(r *quickRequest, height float64, keepPointer bool) error {
+	height = spike.QuickCardHeight(height)
+	if err := c.quick.native.PlaceQuick(r.source.native, r.message.Anchor, r.source.side, height, keepPointer); err != nil {
+		return err
+	}
+	c.quickHeight = height
+	return nil
+}
+
+func (c *controller) resizeQuickCard(m message) error {
+	r := c.quickPlacement
+	if m.Window != c.quick.window || !c.quickSession.Open || c.quickPending != nil || r == nil || m.Revision != c.quickSession.RequestRevision {
+		return nil
+	}
+	if c.sharedPopup && c.popup.View != "quick" {
+		return nil
+	}
+	if c.quick.mode == "Editing" {
+		m.CardHeight = spike.QuickCardMaxHeight
+	}
+	if spike.QuickCardHeight(m.CardHeight) == c.quickHeight {
+		return nil
+	}
+	return c.placeQuickCard(r, m.CardHeight, true)
+}
+
+func (c *controller) finishQuickEditing(m message) error {
+	if m.Window != c.quick.window || !c.quickSession.Open || c.quickPending != nil || c.quick.mode != "Editing" || m.Revision != c.quickSession.RequestRevision {
+		return nil
+	}
+	if c.sharedPopup && c.popup.View != "quick" {
+		return nil
+	}
+	// Saving/cancelling returns to this card. Restore the previous application
+	// only when the card is explicitly closed, not midway through its session.
+	return c.enterMode(c.quick, "KeyboardActive")
 }

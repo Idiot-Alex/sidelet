@@ -1,7 +1,12 @@
 <script lang="ts">
-  let { name, size = 16 }: { name: 'check' | 'plus' | 'settings' | 'layout' | 'moon' | 'hide' | 'back' | 'pin' | 'close' | 'list' | 'download'; size?: number } = $props();
+  let { name, size = 16 }: { name: 'check' | 'plus' | 'settings' | 'layout' | 'moon' | 'hide' | 'back' | 'pin' | 'close' | 'list' | 'download' | 'chevron' | 'edit' | 'more' | 'trash' | 'clock'; size?: number } = $props();
   const paths = {
     check: 'm5 12 4 4L19 6', plus: 'M12 5v14M5 12h14',
+    chevron: 'm6 9 6 6 6-6',
+    edit: 'm15 4 5 5M4 20l5-1L20 8a2 2 0 0 0-4-4L5 15l-1 5Z',
+    more: 'M5 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM19 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z',
+    trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5',
+    clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2',
     download: 'M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5',
     settings: 'M4 7h16M4 17h16M8 4v6M16 14v6',
     layout: 'M4 4h16v16H4zM15 4v16M18 8h-1M18 12h-1M18 16h-1',
@@ -12,4 +17,4 @@
   };
 </script>
 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>
-<style>svg { flex-shrink: 0; vertical-align: middle; }</style>
+<style>svg { display:block; flex-shrink:0; }</style>

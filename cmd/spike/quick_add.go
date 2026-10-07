@@ -55,6 +55,10 @@ func (c *controller) registerQuickAdd(w *platform.Window) {
 }
 
 func (c *controller) createQuickAdd() {
+	if c.sharedPopup {
+		c.ensureSharedPopup()
+		return
+	}
 	url := "/?view=add&platform=" + runtime.GOOS
 	if c.memoryDir != "" {
 		url += "&memory=1"
@@ -89,6 +93,9 @@ func (c *controller) openQuickAdd(source string) error {
 		return nil
 	}
 	if c.addSession.Open {
+		if c.sharedPopup && c.popup.Preparing {
+			return nil
+		}
 		c.add.native.ShowInactive()
 		return c.add.native.Activate()
 	}
@@ -106,6 +113,10 @@ func (c *controller) openQuickAdd(source string) error {
 	area, scale := d.WorkArea, d.Scale
 	margin := math.Min(12*scale, math.Min(area.Width, area.Height)/4)
 	width, height := math.Min(540*scale, area.Width-2*margin), math.Min(260*scale, area.Height-2*margin)
+	if c.sharedPopup {
+		c.exitModes(false)
+		c.hideQuick(false)
+	}
 	if err = c.add.native.Move(platform.Rect{X: area.X + (area.Width-width)/2, Y: area.Y + math.Max(margin, (area.Height-height)*.28), Width: width, Height: height}); err != nil {
 		return err
 	}
@@ -113,8 +124,25 @@ func (c *controller) openQuickAdd(source string) error {
 	c.hideQuick(false)
 	c.addPrevious = previous
 	c.addSession.Begin(time.Now())
+	c.emitQuickAdd()
+	if c.sharedPopup {
+		c.preparePopup("add", c.addSession.Revision)
+		log.Printf("quick-add preparing source=%s revision=%d", source, c.addSession.Revision)
+		return nil
+	}
+	return c.activateQuickAdd(source)
+}
+
+func (c *controller) presentQuickAdd(m message) error {
+	if !c.addSession.Open || c.addSession.Saving || m.Revision != c.addSession.Revision {
+		return nil
+	}
+	return c.activateQuickAdd("shared-popup")
+}
+
+func (c *controller) activateQuickAdd(source string) error {
 	c.add.native.ShowInactive()
-	if err = c.add.native.Activate(); err != nil {
+	if err := c.add.native.Activate(); err != nil {
 		c.addSession.Blur()
 		c.add.native.Hide()
 		return err
@@ -123,7 +151,7 @@ func (c *controller) openQuickAdd(source string) error {
 	c.emitQuickAdd()
 	log.Printf("quick-add opened source=%s revision=%d", source, c.addSession.Revision)
 	if c.traceFocus {
-		log.Printf("quick-add focus captured token=%s", previous.Diagnostic())
+		log.Printf("quick-add focus captured token=%s", c.addPrevious.Diagnostic())
 		c.logFocus("quick-add-open")
 	}
 	return nil
@@ -132,7 +160,7 @@ func (c *controller) openQuickAdd(source string) error {
 // Restore only while Sidelet still owns the foreground. Clicking another app
 // dismisses the popup without stealing focus, and keeps its unfinished input.
 func (c *controller) hideQuickAdd(restore, clear bool) {
-	if c.add == nil || c.add.native == nil {
+	if c.add == nil || c.add.native == nil || (c.sharedPopup && c.popup.View != "add") {
 		return
 	}
 	wasOpen := c.addSession.Open
@@ -144,6 +172,9 @@ func (c *controller) hideQuickAdd(restore, clear bool) {
 		c.addSession.Blur()
 	}
 	canRestore := restore && wasOpen && platform.ForegroundApplicationIsOurs()
+	if c.sharedPopup {
+		c.popup.Close("add")
+	}
 	_ = c.add.native.Passive()
 	c.add.native.Hide()
 	c.add.mode = "Passive"
@@ -198,6 +229,9 @@ func (c *controller) processQuickAdd(m message) {
 		if err == nil {
 			c.acceptPersistentState(state)
 			canRestore := wasOpen && platform.ForegroundApplicationIsOurs()
+			if c.sharedPopup {
+				c.popup.Close("add")
+			}
 			_ = c.add.native.Passive()
 			c.add.native.Hide()
 			c.add.mode = "Passive"

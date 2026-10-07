@@ -7,16 +7,22 @@
   import { dueLabel, dueState, type InputMode, type Todo } from '../lib/model';
   import type { NativePointer } from '../lib/bridge';
 
-  let { todos, now = Date.now(), side, offset, height, width, viewportTop = 0, layoutRevision = 0, itemHeight = 44, mode, selected, locked, nativePointer, onSelect, onOpen, onComplete, onOverflow, onRegions, onPresence, onMetric, arranging = false, orderError = "", onMove, onFinish, onShowAll }:
-    { todos: Todo[]; now?: number; side: Side; offset: number; height: number; width: number; viewportTop?: number; layoutRevision?: number; itemHeight?: number; mode: InputMode; selected: number; locked: number; nativePointer?: NativePointer; onSelect: (id: number) => void; onOpen: (todo: Todo, rect: Rect, editing: boolean) => void; onComplete: (id: number) => void; onOverflow: (rect: Rect) => void; onRegions: (rects: Rect[], revision: number) => void; onPresence?: (inside: boolean) => void; onMetric?: (metric: { delayMs: number; fps: number; frameCount: number }) => void; arranging?: boolean; orderError?: string; onMove?: (id: number, target: DropTarget) => Promise<boolean>; onFinish?: () => void; onShowAll?: () => void } = $props();
+  let { todos, now = Date.now(), side, offset, height, width, viewportTop = 0, layoutRevision = 0, itemHeight = 44, mode, selected, locked, nativePointer, onSelect, onOpen, onComplete, onOverflow, onRegions, onPresence, onMetric, arranging = false, movable = false, orderError = "", onMove, onFinish, onShowAll }:
+    { todos: Todo[]; now?: number; side: Side; offset: number; height: number; width: number; viewportTop?: number; layoutRevision?: number; itemHeight?: number; mode: InputMode; selected: number; locked: number; nativePointer?: NativePointer; onSelect: (id: number) => void; onOpen: (todo: Todo, rect: Rect, editing: boolean) => void; onComplete: (id: number) => void; onOverflow: (rect: Rect) => void; onRegions: (rects: Rect[], revision: number) => void; onPresence?: (inside: boolean) => void; onMetric?: (metric: { delayMs: number; fps: number; frameCount: number }) => void; arranging?: boolean; movable?: boolean; orderError?: string; onMove?: (id: number, target: DropTarget) => Promise<boolean>; onFinish?: () => void; onShowAll?: () => void } = $props();
   let root: HTMLDivElement;
   let expanded = $state(0);
+  let moving = $state(false);
   let hover: ReturnType<typeof setTimeout> | undefined;
   let leave: ReturnType<typeof setTimeout> | undefined;
   let frame = 0;
   const layout = $derived(arranging ? arrangeStackLayout(todos.length, height, offset, itemHeight) : stackLayout(todos.length, height, offset, itemHeight));
-  const active = $derived(mode === 'KeyboardActive' ? selected : locked || expanded);
-  const items = $derived(stackItems(todos, layout.direct, arranging ? 0 : mode === 'KeyboardActive' ? selected : locked));
+  const active = $derived(moving ? 0 : mode === 'KeyboardActive' ? selected : locked || expanded);
+  const items = $derived(stackItems(todos, layout.direct, arranging || moving ? 0 : mode === 'KeyboardActive' ? selected : locked));
+  const dragGeometry = $derived(`${height}:${width}:${itemHeight}:${arranging}:${todos.map(todo => todo.id).join(',')}`);
+  function movingChanged(value: boolean) {
+    moving = value;
+    if (value) { clearTimeout(hover); clearTimeout(leave); expanded = 0; }
+  }
   let previousMode: InputMode = 'Passive';
   let previousLocked = 0;
 
@@ -28,7 +34,7 @@
   });
 
   function enter(id: number) {
-    if (arranging) return;
+    if (arranging || moving) return;
     clearTimeout(leave); clearTimeout(hover);
     if (expanded === id) return;
     const started = performance.now();
@@ -66,7 +72,7 @@
   // This starts Hover even if the pointer stops before WebKit gets another move.
   $effect(() => {
     const pointer = nativePointer;
-    if (arranging || !pointer || !root) return;
+    if (arranging || moving || !pointer || !root) return;
     if (!pointer.inside) { exit(); return; }
     for (const element of root.querySelectorAll<HTMLElement>('[data-todo]')) {
       const rect = localRect(element);
@@ -76,7 +82,7 @@
     }
   });
   $effect(() => {
-    active; todos; width; height; side; offset; itemHeight; arranging; orderError; viewportTop;
+    active; moving; todos; width; height; side; offset; itemHeight; arranging; orderError; viewportTop;
     const revision = layoutRevision;
     let disposed = false;
     void tick().then(() => {
@@ -89,7 +95,7 @@
 
 {#if arranging}
   <div class="stack-drag-handle" style:top={`${layout.top - viewportTop - 42}px`} style:left={side === 'left' ? '0' : 'auto'} style:right={side === 'right' ? '0' : 'auto'} style:width={`${Math.max(0, Math.min(296, width - 20))}px`} data-sidelet>
-    <StackDragHandle anchor={() => localRect(root)} geometryKey={`${height}:${width}:${itemHeight}:${todos.map(todo => todo.id).join(',')}`} disabled={height < 190} />
+    <StackDragHandle anchor={() => localRect(root)} geometryKey={dragGeometry} disabled={height < 190} />
   </div>
 {/if}
 <div bind:this={root} class="edge-stack" class:left={side === 'left'} style:top={`${layout.top - viewportTop}px`} style:--item-height={`${layout.rowHeight}px`} style:width={arranging ? `${Math.max(0, Math.min(296, width - 20))}px` : undefined} data-sidelet>
@@ -97,7 +103,7 @@
     <div style:width={`${Math.max(0, Math.min(296, width - 20))}px`}><TaskOrder todos={items.direct} rowHeight={layout.rowHeight} {onMove} /></div>
   {:else}
   {#each items.direct as todo (todo.id)}
-    <div class="edge-row" role="group" aria-label={todo.title} class:expanded={active === todo.id} class:completed={todo.completed} class:soon={dueState(todo, now) === 'soon'} class:overdue={dueState(todo, now) === 'overdue'} style:width={`${active === todo.id ? Math.max(0, Math.min(296, width - 20)) : 14}px`} data-hit data-todo={todo.id} onpointerenter={() => onPresence?.(true)} onpointerleave={() => onPresence?.(false)}>
+    <div class="edge-row" role="group" aria-label={todo.title} class:expanded={active === todo.id} class:completed={todo.completed} class:soon={dueState(todo, now) === 'soon'} class:overdue={dueState(todo, now) === 'overdue'} style:width={`${active === todo.id ? Math.max(0, Math.min(296, width - 20)) : 14}px`} data-hit data-todo={todo.id} onpointerenter={() => { onPresence?.(true); enter(todo.id); }} onpointerleave={() => { onPresence?.(false); exit(); }}>
       {#if active === todo.id}
         <button class="check" aria-label={`完成${todo.title}`} onpointerenter={() => enter(todo.id)} onpointerleave={exit} onclick={() => onComplete(todo.id)} disabled={todo.completed}>{todo.completed ? '✓' : ''}</button>
       {/if}
@@ -106,13 +112,16 @@
           <span class="edge-title">{todo.completed ? '已完成' : todo.title}</span>
           {#if todo.dueAt}<time>{dueLabel(todo, now)} {new Date(todo.dueAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>{/if}
         {/if}
-        <span class="edge-marker" aria-hidden="true"></span>
       </button>
+      <StackDragHandle compact label={`移动整组任务：${todo.title}`} anchor={() => localRect(root)} geometryKey={dragGeometry} disabled={!movable || mode === 'Editing'} onEngaged={movingChanged} />
     </div>
   {/each}
   {/if}
   {#if layout.overflow > 0}
-    <button class="overflow-tab" data-hit aria-label={`查看其余${layout.overflow}项任务`} onpointerenter={() => { clearTimeout(leave); onPresence?.(true); }} onpointerleave={() => { exit(); onPresence?.(false); }} onclick={event => arranging ? onShowAll?.() : onOverflow(localRect(event.currentTarget))}>+{layout.overflow}</button>
+    <div class="overflow-row" data-hit>
+      <button class="overflow-tab" aria-label={`查看其余${layout.overflow}项任务`} onpointerenter={() => { clearTimeout(leave); onPresence?.(true); }} onpointerleave={() => { exit(); onPresence?.(false); }} onclick={event => arranging ? onShowAll?.() : onOverflow(localRect(event.currentTarget))}>+{layout.overflow}</button>
+      {#if !arranging}<StackDragHandle compact label="移动整组任务：更多任务" anchor={() => localRect(root)} geometryKey={dragGeometry} disabled={!movable} onEngaged={movingChanged} />{/if}
+    </div>
   {/if}
 </div>
 {#if arranging}
@@ -129,23 +138,27 @@
   .arrange-toolbar button { font-size: 11px; color: var(--accent); background: var(--surface-alt); border: 0; border-radius: 3px; padding: 5px; }.arrange-toolbar p { font-size: 10px; margin: 7px 0 0; line-height: 1.4; color: var(--muted); }.arrange-toolbar .error { color: var(--danger); }
   .edge-stack { position: absolute; right: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .edge-stack.left { right: auto; left: 0; align-items: flex-start; }
-  .edge-row { height: var(--item-height); display: flex; align-items: center; border: 1px solid var(--line); background: var(--surface-alt); border-radius: 5px 0 0 5px; overflow: hidden; }
+  .edge-row { position: relative; height: var(--item-height); display: flex; align-items: center; border: 1px solid var(--line); background: var(--surface-alt); border-radius: 5px 0 0 5px; }
   .left .edge-row { border-radius: 0 5px 5px 0; }
   .edge-row.expanded { background: var(--surface); border-color: var(--line); }
   .edge-label { border: 0; background: none; padding: 0; display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; height: 100%; text-align: left; }
+  .edge-row:not(.expanded) .edge-label { display: none; }
+  .edge-label { padding-inline: 4px; }
+  .left .edge-row :global(button.compact), .left .overflow-row :global(button.compact) { order: -1; }
+  .edge-row :global(button.compact) { flex-basis: 12px; width: 12px; border-radius: 0; }
+  .edge-row.expanded :global(button.compact) { flex-basis: 20px; width: 20px; }
+  .soon :global(button.compact) { color: var(--warning); }
+  .overdue :global(button.compact) { color: var(--danger); }
   .edge-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
   .expanded .edge-title { animation: reveal 200ms ease-out; }
   @keyframes reveal { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
   @media (prefers-reduced-motion: reduce) { .expanded .edge-title { animation: none; } }
   time { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .soon .edge-marker { background: var(--warning); }
-  .overdue .edge-marker { background: var(--danger); }
   .soon time { color: var(--warning); } .overdue time { color: var(--danger); }
-  .edge-marker { width: 3px; height: 23px; background: var(--accent); flex-shrink: 0; margin: 0 5px; border-radius: 1px; }
-  .left .edge-marker { order: -1; }
   .check { width: 16px; height: 16px; border: 1px solid var(--line); border-radius: 4px; padding: 0; margin: 0 10px 0 12px; background: var(--surface); color: var(--accent); font-size: 11px; flex-shrink: 0; }
   .check:hover { background: var(--accent-soft); }
   .completed { opacity: 0.65; }
-  .overflow-tab { height: var(--item-height); min-width: 36px; border: 1px solid var(--line); border-radius: 5px 0 0 5px; color: var(--muted); background: var(--surface-alt); padding: 0 7px; font-size: 10px; }
-  .left .overflow-tab { border-radius: 0 5px 5px 0; }
+  .overflow-row { position: relative; display: flex; height: var(--item-height); border: 1px solid var(--line); border-radius: 5px 0 0 5px; background: var(--surface-alt); }
+  .overflow-tab { height: 100%; min-width: 36px; border: 0; border-radius: inherit; color: var(--muted); background: none; padding: 0 7px; font-size: 10px; }
+  .left .overflow-row { border-radius: 0 5px 5px 0; }
 </style>

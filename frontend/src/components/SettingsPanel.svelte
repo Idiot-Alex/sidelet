@@ -1,6 +1,7 @@
 <script lang="ts">
   import AppHeader from './AppHeader.svelte';
   import Icon from './Icon.svelte';
+  import IconText from './IconText.svelte';
   import { request, send, hostPlatform, type NotificationStatus } from '../lib/bridge';
   import { themes, loginLabels, notificationLabels, type SettingsState, type Preferences } from '../lib/settings';
   let { settings, notificationStatus, externalError, onClose }: { settings?: SettingsState; externalError: string; notificationStatus: NotificationStatus; onClose: () => void } = $props();
@@ -37,9 +38,8 @@
 </script>
 
 <main class="settings" data-sidelet>
-  <AppHeader><button class="back-button" disabled={busy || exporting} onclick={onClose}><Icon name="back" />返回我的任务</button></AppHeader>
+  <AppHeader title="设置"><span class="save-status" role="status">{busy ? '正在保存…' : feedback || (!settings ? '正在读取…' : '更改自动保存')}</span><button class="back-button" disabled={busy || exporting} onclick={onClose}><IconText name="back" gap={7}>返回我的任务</IconText></button></AppHeader>
   <div class="settings-content">
-  <div class="intro"><div><p class="eyebrow">为你的习惯，留一点空间</p><h1>设置</h1><p>界面与桌面，按照你喜欢的方式。</p></div><span class="save-status" role="status">{busy ? '正在保存…' : feedback || (!settings ? '正在读取…' : '更改自动保存')}</span></div>
   {#if error || settings?.error || externalError}<p class="error-message" role="alert">{error || settings?.error || externalError}</p>{/if}
   <fieldset disabled={busy || exporting || !settings || !!settings.error}>
     <section aria-labelledby="appearance-heading">
@@ -84,7 +84,7 @@
   <section aria-labelledby="export-heading">
     <h2 id="export-heading">导出任务</h2>
     <p class="hint">导出全部任务，包含已完成、未固定和暂时隐藏的任务。JSON 保留完整任务字段与桌面布局，CSV 适合用表格查看。</p>
-    <div class="actions"><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('json')}><Icon name="download" />导出 JSON</button><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('csv')}><Icon name="download" />导出 CSV</button></div>
+    <div class="actions"><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('json')}><IconText name="download" gap={7}>导出 JSON</IconText></button><button class="export-button" disabled={busy || exporting || !settings} onclick={() => exportTasks('csv')}><IconText name="download" gap={7}>导出 CSV</IconText></button></div>
     <p class="hint">导出的是点击时已保存的数据，不包含未提交的草稿。当前版本暂不支持导入。</p>
     {#if exporting || exportFeedback}<p class="export-feedback" role="status">{exporting ? '请选择保存位置…' : exportFeedback}</p>{/if}
     {#if exportError}<p class="error-message" role="alert">{exportError}</p>{/if}
@@ -95,11 +95,7 @@
 
 <style>
   .settings { min-height:100vh; padding:0 32px 36px; background:var(--app-bg); color:var(--ink); }
-  .settings-content { max-width:850px; margin:0 auto; }
-  .intro { display:flex; justify-content:space-between; align-items:flex-end; padding:30px 0 24px; margin:0; }
-  .eyebrow { font:11px var(--font-ui); color:var(--muted); letter-spacing:.05em; margin:0 0 9px; }
-  h1 { font-family:var(--font-heading); font-size:30px; font-weight:var(--heading-weight); line-height:1.25; margin:0 0 10px; letter-spacing:-.035em; }
-  .intro p:not(.eyebrow) { color:var(--muted); font-size:13px; }
+  .settings-content { max-width:850px; margin:0 auto; padding-top:20px; }
   p { line-height:1.6; color:var(--muted); font-size:12px; margin:5px 0; }
   fieldset { border:0; padding:0; margin:0; min-width:0; }
   section { border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); padding:22px 24px; margin-bottom:16px; }

@@ -34,9 +34,9 @@ export function stackItems<T extends { id: number }>(todos: T[], capacity: numbe
   return { direct, overflow: todos.filter(todo => !ids.has(todo.id)) };
 }
 
-export function quickRect(anchor: Rect, area: Rect, side: Side): Rect {
+export function quickRect(anchor: Rect, area: Rect, side: Side, height = 390): Rect {
   const width = 320;
-  return ensureVisible({ x: side === 'right' ? anchor.x - width - 12 : anchor.x + anchor.width + 12, y: anchor.y - 12, width, height: 390 }, area);
+  return ensureVisible({ x: side === 'right' ? anchor.x - width - 12 : anchor.x + anchor.width + 12, y: anchor.y - 12, width, height }, area);
 }
 
 // Offset always refers to the whole WorkArea, even while the arrange controls

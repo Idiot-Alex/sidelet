@@ -42,6 +42,13 @@ static void finish(void) {
 @implementation RoutingDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)note {
     @autoreleasepool {
+    NSWindow *hiddenControl=[[NSWindow alloc] initWithContentRect:NSMakeRect(220,220,300,160) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    hiddenControl.releasedWhenClosed=NO;
+    BOOL previouslyActive=NSApp.active;
+    check(SLRestoreForeground(getpid(),(uintptr_t)(__bridge void *)hiddenControl),@"hidden owned window focus restore is safely ignored");
+    check(!hiddenControl.visible && NSApp.active==previouslyActive,@"restoring a hidden task window does not reopen or activate it");
+    check(SLRestoreForeground(getpid(),0) && !hiddenControl.visible,@"empty owned focus token does not reveal the task window");
+    [hiddenControl close];
     NSRect area=NSScreen.screens.firstObject.visibleFrame;
     NSRect base=NSMakeRect(NSMidX(area)-250,NSMidY(area)-200,500,400);
     underlying=[[NSWindow alloc] initWithContentRect:base styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO];
@@ -60,6 +67,23 @@ static void finish(void) {
     SLShow((__bridge void *)render);
     settled(^{
         SLWindowState *state=stateFor(render);
+        NSPoint previousPointer=state.pointerScreen;
+        double cardTop=primaryTop()-NSMaxY(render.frame);
+        SLRect smallCard={NSMinX(render.frame),cardTop,300,120};
+        state.pointerScreen=screenPoint(150,220);
+        SLRect kept=SLKeepQuickPointer((__bridge void *)render,smallCard);
+        check(fabs(kept.y-(cardTop+108))<.01,@"shrinking card retains the clicked footer pointer");
+        BOOL previousActive=state.active;
+        state.active=YES;
+        SLRect returnedCard=SLKeepQuickPointer((__bridge void *)render,smallCard);
+        check(fabs(returnedCard.y-cardTop)<.01,@"active card returns to its label anchor after editing despite footer pointer");
+        state.active=previousActive;
+        SLRect expandedCard=SLKeepQuickPointer((__bridge void *)render,(SLRect){smallCard.x,cardTop,300,390});
+        check(fabs(expandedCard.y-cardTop)<.01,@"expansion preserves placement when pointer already fits");
+        state.pointerScreen=screenPoint(-20,220);
+        kept=SLKeepQuickPointer((__bridge void *)render,smallCard);
+        check(fabs(kept.y-cardTop)<.01,@"outside pointer does not relocate the card");
+        state.pointerScreen=previousPointer;
         check(state.inputPanels.count==2,@"two input rectangles, shared render view");
         @autoreleasepool {
             check(memoryPanels.allObjects.count==2 && memoryInputViews.allObjects.count==2 && memoryPanelsCreated==2,@"weak memory registries observe two live helpers without new allocations");
@@ -131,6 +155,13 @@ static void finish(void) {
                         SLRegions((__bridge void *)render,&full,1,300,240); SLShow((__bridge void *)render);
                         settled(^{
                             check(state.directInput && state.inputPanels.count==0,@"full Quick Card needs no helper panels");
+                            SLConfigureQuickAdd((__bridge void *)render);
+                            check(state.quickAdd && [render.title isEqualToString:@"Sidelet · 快速添加"] && state.directInput,@"shared popup switches to Add without changing direct input routing");
+                            SLConfigureQuickCard((__bridge void *)render);
+                            check(!state.quickAdd && [render.title isEqualToString:@"Sidelet · 快速操作"] && state.directInput,@"shared popup returns to Card with its native identity restored");
+                            uint64_t popupToken=state.token; NSView *popupView=state.webview;
+                            for(int cycle=0;cycle<5;cycle++) { SLConfigureQuickAdd((__bridge void *)render); SLConfigureQuickCard((__bridge void *)render); }
+                            check(stateFor(render)==state && state.token==popupToken && state.webview==popupView && state.inputPanels.count==0,@"repeated Add and Card switches reuse one native state and content view");
                             @autoreleasepool {
                                 printf("Memory registry after removal: panels=%lu views=%lu children=%lu\n",(unsigned long)memoryPanels.allObjects.count,(unsigned long)memoryInputViews.allObjects.count,(unsigned long)render.childWindows.count);
                                 // AppKit may hold closed windows until a later

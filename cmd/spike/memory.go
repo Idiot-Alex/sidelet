@@ -66,9 +66,9 @@ func (c *controller) watchMemoryRequests() {
 						}
 					}
 					if c.quick.native != nil {
-						views = append(views, "quick")
+						views = append(views, c.quick.window.Name())
 					}
-					if c.add != nil && c.add.native != nil {
+					if c.add != nil && c.add.native != nil && c.add.window != c.quick.window {
 						views = append(views, "add")
 					}
 					sample["controllerViews"] = views

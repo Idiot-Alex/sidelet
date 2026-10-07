@@ -1,8 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from './Icon.svelte';
+  import IconText from './IconText.svelte';
   import { request, send, type QuickAddState, type ParsedTask } from '../lib/bridge';
-  let { session }: { session: QuickAddState } = $props();
+  let { session, visible = true }: { session: QuickAddState; visible?: boolean } = $props();
   let input = $state('');
   let pin = $state(false);
   let recognize = $state(true);
@@ -17,13 +18,13 @@
     if (session.resetVersion !== resetVersion) {
       resetVersion = session.resetVersion; input = ''; pin = false; recognize = true; error = ''; previewError = ''; preview = undefined;
     }
-    if (session.open && session.revision !== openRevision) {
+    if (visible && session.open && session.revision !== openRevision) {
       openRevision = session.revision; void tick().then(() => { field?.focus(); field?.setSelectionRange(field.value.length, field.value.length); });
     }
   });
   $effect(() => {
     const text = input, enabled = recognize, revision = session.revision;
-    if (!session.open || busy || session.saving || !text.trim()) { preview = undefined; previewError = ''; return; }
+    if (!visible || !session.open || busy || session.saving || !text.trim()) { preview = undefined; previewError = ''; return; }
     let cancelled = false;
     const timer = setTimeout(() => {
       void request('quick-add-preview', { action: { title: text }, enabled, revision }).then(result => {
@@ -56,7 +57,7 @@
 
 <div class="quick-add" role="dialog" aria-label="快速添加任务" tabindex="-1" data-sidelet data-hit onkeydown={key}>
   <form onsubmit={submit}>
-    <header><span class="brand"><Icon name="plus" size={17} />快速添加</span><button type="button" class="close" aria-label="取消快速添加" disabled={busy || session.saving} onclick={cancel}><Icon name="close" size={16} /></button></header>
+    <header><span class="brand"><IconText name="plus" size={17} gap={7}>快速添加</IconText></span><button type="button" class="close" aria-label="取消快速添加" disabled={busy || session.saving} onclick={cancel}><Icon name="close" size={16} /></button></header>
     <label class="input-label" for="quick-add-title">任务标题</label>
     <input id="quick-add-title" aria-label="快速添加任务标题" bind:this={field} bind:value={input} oninput={() => error = ''} maxlength="600" autocomplete="off" placeholder="明天下午3点 联系客户" disabled={busy || session.saving} />
     <div class="preview" aria-live="polite">

@@ -6,6 +6,7 @@ import "time"
 // Revision invalidates delayed close messages after re-entry or reopening.
 type QuickSession struct {
 	Source          string
+	Card            string
 	TodoID          int64
 	Open            bool
 	Revision        uint64
@@ -15,10 +16,10 @@ type QuickSession struct {
 	quickInside     bool
 }
 
-func (s *QuickSession) Begin(source string, todoID int64) {
+func (s *QuickSession) Begin(source, card string, todoID int64) {
 	s.Revision++
 	s.RequestRevision++
-	s.Source, s.TodoID, s.Open = source, todoID, true
+	s.Source, s.Card, s.TodoID, s.Open = source, card, todoID, true
 	s.sourceInside, s.quickInside = true, false
 	s.CloseAt = time.Time{}
 }
@@ -30,7 +31,7 @@ func (s *QuickSession) Presence(window string, inside bool, now time.Time) {
 	switch window {
 	case s.Source:
 		s.sourceInside = inside
-	case "quick":
+	case s.Card:
 		s.quickInside = inside
 	default:
 		return

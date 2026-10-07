@@ -74,6 +74,10 @@ void SLConfigureQuickAdd(void *pointer) {
     NSWindow *window=(__bridge NSWindow *)pointer;
     stateFor(window).quickAdd=YES;window.title=@"Sidelet · 快速添加";
 }
+void SLConfigureQuickCard(void *pointer) {
+    NSWindow *window=(__bridge NSWindow *)pointer;
+    stateFor(window).quickAdd=NO;window.title=@"Sidelet · 快速操作";
+}
 bool SLRegisterQuickAddShortcut(void *pointer) {
     SLWindowState *state=stateFor((__bridge NSWindow *)pointer);
     if(!state){lastFailure=@"quick add requires a bound panel";return false;}
@@ -572,6 +576,22 @@ char *SLDiagnostic(void *pointer) {
     }
     return jsonString(result);
 }
+SLRect SLKeepQuickPointer(void *pointer, SLRect rect) {
+    NSWindow *window = (__bridge NSWindow *)pointer;
+    SLWindowState *state = stateFor(window);
+    // Active cards stay open after editing; restore their task anchor rather
+    // than following the pointer on the editor's footer when they shrink.
+    if (state.active) return rect;
+    NSPoint point = state.pointerScreen;
+    if (window.visible && NSPointInRect(point, window.frame)) {
+        double y = primaryTop() - point.y;
+        // Keep the clicked footer inside the resized card, without moving it
+        // when the pointer already fits. WorkArea clamping stays in Go.
+        double inset = fmin(8, rect.height / 2);
+        rect.y = fmax(y - rect.height + inset, fmin(rect.y, y - inset));
+    }
+    return rect;
+}
 SLRect SLClientOrigin(void *pointer) {
     NSWindow *window = (__bridge NSWindow *)pointer;
     NSView *view = stateFor(window).webview ?: window.contentView;
@@ -579,15 +599,26 @@ SLRect SLClientOrigin(void *pointer) {
     return (SLRect){NSMinX(rect),primaryTop()-NSMaxY(rect),NSWidth(rect),NSHeight(rect)};
 }
 int SLCaptureForeground(void) { return NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier; }
-uintptr_t SLCaptureOwnWindow(void) { return NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == getpid() ? (uintptr_t)(__bridge void *)NSApp.keyWindow : 0; }
+uintptr_t SLCaptureOwnWindow(void) {
+    NSWindow *window = NSApp.keyWindow;
+    return NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == getpid() && window.visible && window.keyWindow ? (uintptr_t)(__bridge void *)window : 0;
+}
 bool SLRestoreForeground(int pid, uintptr_t ownWindow) {
+    if (pid == getpid()) {
+        // A captured main window may have been hidden while the overlay was
+        // opened. Restoring focus must never reveal that hidden window.
+        for (NSWindow *window in NSApp.windows) {
+            if ((uintptr_t)(__bridge void *)window == ownWindow && window.visible && window.canBecomeKeyWindow) {
+                [NSApp activateIgnoringOtherApps:YES];
+                [window makeKeyAndOrderFront:nil];
+                break;
+            }
+        }
+        return true;
+    }
     NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
     if (!app || app.terminated) return false;
-    BOOL restored = [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-    if (pid == getpid() && ownWindow) {
-        for (NSWindow *window in NSApp.windows) if ((uintptr_t)(__bridge void *)window == ownWindow) [window makeKeyAndOrderFront:nil];
-    }
-    return restored;
+    return [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 }
 bool SLForegroundIsOurs(void) {
     if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier!=getpid()) return false;

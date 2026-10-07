@@ -79,7 +79,8 @@ func (w *Window) RegisterKeyboardShortcut() error {
 	}
 	return nil
 }
-func (w *Window) ConfigureQuickAdd() { C.SLConfigureQuickAdd(w.pointer) }
+func (w *Window) ConfigureQuickAdd()  { C.SLConfigureQuickAdd(w.pointer) }
+func (w *Window) ConfigureQuickCard() { C.SLConfigureQuickCard(w.pointer) }
 func (w *Window) RegisterQuickAddShortcut() error {
 	if !bool(C.SLRegisterQuickAddShortcut(w.pointer)) {
 		return fmt.Errorf("Ctrl+Shift+Space registration failed: %s", C.GoString(C.SLLastError()))
@@ -189,7 +190,7 @@ func (w *Window) SetRegions(rects []Rect, width, height float64) error {
 	C.SLRegions(w.pointer, pointer, C.int(len(parts)), C.double(width), C.double(height))
 	return nil
 }
-func (w *Window) PlaceQuick(source *Window, anchor Rect, side string) error {
+func (w *Window) PlaceQuick(source *Window, anchor Rect, side string, desiredHeight float64, keepPointer bool) error {
 	if !finiteRect(anchor) {
 		return fmt.Errorf("non-finite Quick Card anchor")
 	}
@@ -200,15 +201,22 @@ func (w *Window) PlaceQuick(source *Window, anchor Rect, side string) error {
 	origin := C.SLClientOrigin(source.pointer)
 	area := display.WorkArea
 	margin := math.Min(10, math.Min(area.Width, area.Height)/2)
-	width, height := math.Min(320, area.Width-2*margin), math.Min(390, area.Height-2*margin)
+	width, height := math.Min(320, area.Width-2*margin), math.Min(desiredHeight, area.Height-2*margin)
 	x := float64(origin.x) + anchor.X - width - 12
 	if side == "left" {
 		x = float64(origin.x) + anchor.X + anchor.Width + 12
 	}
 	y := float64(origin.y) + anchor.Y - 12
+	if keepPointer {
+		rect := C.SLKeepQuickPointer(w.pointer, C.SLRect{x: C.double(x), y: C.double(y), width: C.double(width), height: C.double(height)})
+		y = float64(rect.y)
+	}
 	x = math.Max(area.X+margin, math.Min(x, area.X+area.Width-margin-width))
 	y = math.Max(area.Y+margin, math.Min(y, area.Y+area.Height-margin-height))
-	return w.Move(Rect{x, y, width, height})
+	if err := w.Move(Rect{x, y, width, height}); err != nil {
+		return err
+	}
+	return w.SetRegions([]Rect{{X: 0, Y: 0, Width: width, Height: height}}, width, height)
 }
 func (w *Window) Close() { C.SLClose(w.pointer); nativeWindows.Delete(w.id) }
 func IsFullscreen() bool { return bool(C.SLIsFullscreen()) }

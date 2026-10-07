@@ -57,6 +57,10 @@ type message struct {
 	Y              float64            `json:"y"`
 	Label          string             `json:"label"`
 	Source         string             `json:"source"`
+	PopupView      string             `json:"popupView"`
+	PopupRevision  uint64             `json:"popupRevision"`
+	CardHeight     float64            `json:"cardHeight"`
+	nativePointer  bool               // Set only by the host callback; never decoded from renderer JSON.
 }
 type overlay struct {
 	window         *application.WebviewWindow
@@ -76,6 +80,8 @@ type overlay struct {
 	layoutRevision uint64
 }
 type controller struct {
+	sharedPopup           bool
+	popup                 spike.PopupSession
 	add                   *overlay
 	addSession            quickadd.Session
 	addPrevious           platform.FocusToken
@@ -102,12 +108,15 @@ type controller struct {
 	previous              platform.FocusToken
 	quiet                 bool
 	arranging             bool
+	arrangeReturnControl  bool
 	drag                  *stackDrag
 	fullscreen            bool
 	watchCleanup          func()
 	showControl           bool
 	tracePointer          bool
 	quickSession          spike.QuickSession
+	quickPlacement        *quickRequest
+	quickHeight           float64
 	quickTimer            *time.Timer
 	fullscreenTimer       *time.Timer
 	pointers              map[string]bool
@@ -128,6 +137,7 @@ func main() {
 	version := flag.Bool("version", false, "print the application version and exit")
 	two := flag.Bool("two-stacks", false, "split the eight fixtures across two Stack windows")
 	show := flag.Bool("main", false, "show the main window on launch")
+	sharedPopup := flag.Bool("shared-popup", runtime.GOOS == "darwin", "reuse one macOS WebView for Quick Add and Quick Card")
 	fixtures := flag.Bool("spike", false, "use eight disposable in-memory tasks instead of the user database")
 	dataDir := flag.String("data-dir", "", "override the normal Sidelet application data directory")
 	logPath := flag.String("log-file", "", "write diagnostic logs to this file")
@@ -184,6 +194,7 @@ func main() {
 	}
 	c := &controller{snapshot: spike.New(time.Now()), queue: newMessageQueue(), done: make(chan struct{}), showControl: *show, tracePointer: *tracePointer, pointers: map[string]bool{}}
 	c.memoryDir = *memoryDir
+	c.sharedPopup = *sharedPopup && runtime.GOOS == "darwin"
 	c.interactionTest = *interactionTest
 	c.traceFocus = *traceFocus || *interactionTest
 	var singleInstance *application.SingleInstanceOptions
@@ -242,7 +253,7 @@ func main() {
 		}
 		c.showControl = *show || c.preferences.Value.Startup.ShowMainWindow || (!c.preferences.Exists && len(c.snapshot.Todos) == 0)
 		log.Printf("startup show-main=%t settings-exists=%t", c.showControl, c.preferences.Exists)
-		windowTitle = "Sidelet · 我的任务"
+		windowTitle = "Sidelet"
 		log.Printf("storage=sqlite schema=%d tasks=%d path=%s", storage.SchemaVersion, len(c.snapshot.Todos), filepath.Join(*dataDir, "sidelet.sqlite3"))
 	}
 	c.controlOptions = application.WebviewWindowOptions{Name: "control", Title: windowTitle, Width: 1120, Height: 800, MinWidth: 820, MinHeight: 600, URL: "/?view=control&platform=" + runtime.GOOS + memoryQuery, Hidden: true, BackgroundColour: application.NewRGB(247, 246, 243)}
@@ -285,6 +296,9 @@ func main() {
 	}
 	c.quick = &overlay{mode: "Passive"}
 	c.quickOptions = overlayOptions("quick", "/?view=quick&platform="+runtime.GOOS+memoryQuery)
+	if c.sharedPopup {
+		c.quickOptions = overlayOptions("popup", "/?view=popup&platform="+runtime.GOOS+memoryQuery)
+	}
 	if c.tracePointer || c.traceFocus {
 		c.quickOptions.URL += "&trace-quick=1"
 	}
@@ -335,6 +349,9 @@ func (c *controller) find(w application.Window) *overlay {
 			return o
 		}
 	}
+	if c.sharedPopup && c.add != nil && c.add.window == w && c.popup.View == "add" {
+		return c.add
+	}
 	if c.quick.window == w {
 		return c.quick
 	}
@@ -359,7 +376,7 @@ func (c *controller) bind(o *overlay) error {
 		Blur:            func() { c.post(message{Type: "blur"}) },
 		CheckFullscreen: func() { c.post(message{Type: "fullscreen-check"}) },
 		Pointer: func(x, y float64, inside bool) {
-			c.post(message{Type: "pointer", Window: o.window, X: x, Y: y, Inside: inside})
+			c.post(message{Type: "pointer", Window: o.window, X: x, Y: y, Inside: inside, nativePointer: true})
 		},
 	})
 	if err != nil {
@@ -412,19 +429,50 @@ func (c *controller) handle(m message) error {
 		if c.add != nil && m.Window == c.add.window && m.Revision == c.addSession.Revision {
 			c.hideQuickAdd(true, true)
 		}
+	case "popup-close":
+		if c.sharedPopup && c.popup.View == "add" {
+			c.hideQuickAdd(true, true)
+		} else {
+			c.hideQuick(true)
+		}
+	case "popup-rendered":
+		if c.sharedPopup && c.popup.Rendered(m.PopupView, m.PopupRevision) {
+			if m.PopupView == "add" {
+				return c.presentQuickAdd(m)
+			}
+			return c.presentQuickCard(m)
+		}
 	case "stack-drag-start":
-		return c.beginStackDrag(m)
+		if err := c.beginStackDrag(m); err != nil {
+			return err
+		}
+		c.acknowledge(m, nil)
 	case "stack-drag-preview":
 		return c.previewStackDrag(m)
 	case "stack-drag-cancel":
 		if c.drag != nil && c.drag.revision == m.Revision && c.drag.overlay.window == m.Window {
-			c.cancelStackDrag()
+			c.cancelStackDragWithRestore(true)
 		}
 	case "notification-event":
 		c.notificationEvent(m)
 	case "memory-view":
 		return c.memoryView(m)
 	case "ready":
+		if c.sharedPopup && m.Window == c.quick.window {
+			if err := c.bind(c.quick); err != nil {
+				return err
+			}
+			c.add.native = c.quick.native
+			c.quickReady = true
+			c.emitQuickAdd()
+			c.post(message{Type: "settings-refresh"})
+			if c.addPendingSource != "" {
+				source := c.addPendingSource
+				c.addPendingSource = ""
+				return c.openQuickAdd(source)
+			}
+			return c.prepareQuickCard()
+		}
 		if c.add != nil && m.Window == c.add.window {
 			if err := c.bindQuickAdd(); err != nil {
 				return err
@@ -530,6 +578,10 @@ func (c *controller) handle(m message) error {
 		return c.openQuickCard(m)
 	case "quick-rendered":
 		return c.presentQuickCard(m)
+	case "quick-size":
+		return c.resizeQuickCard(m)
+	case "quick-edit-finish":
+		return c.finishQuickEditing(m)
 	case "quick-painted":
 		if (c.tracePointer || c.traceFocus) && m.Window == c.quick.window && c.quickSession.Open && m.Revision == c.quickSession.RequestRevision && !c.quickPaintStart.IsZero() {
 			log.Printf("quick frame revision=%d request-to-frame-ms=%.2f", m.Revision, float64(time.Since(c.quickPaintStart).Microseconds())/1000)
@@ -684,7 +736,7 @@ func (c *controller) handle(m message) error {
 	case "hide-control":
 		c.hideControl()
 	case "quit":
-		if c.add != nil && c.add.native != nil {
+		if !c.sharedPopup && c.add != nil && c.add.native != nil {
 			c.add.native.Close()
 		}
 		if c.reminderTimer != nil {
@@ -816,6 +868,7 @@ func (c *controller) updateVisibility() {
 	}
 }
 func (c *controller) enterMode(o *overlay, mode string) error {
+	c.cancelStackDrag()
 	if c.quiet || c.fullscreen || o.native == nil {
 		return nil
 	}
@@ -859,10 +912,11 @@ func (c *controller) exitModes(restore bool) {
 }
 func (c *controller) exitModesExcept(restore bool, keep *overlay) {
 	if keep == nil {
-		c.cancelStackDrag()
+		c.cancelStackDragWithRestore(restore)
 	}
 	if keep == nil && c.arranging {
 		c.arranging = false
+		c.arrangeReturnControl = false
 		c.emitPresentation()
 	}
 	wasActive := false
@@ -901,12 +955,18 @@ func (c *controller) logFocus(boundary string) {
 }
 func (c *controller) hideQuick(restore bool) {
 	c.quickPending = nil
+	c.quickPlacement = nil
 	c.quickSession.Close()
-	c.pointers["quick"] = false
+	if c.quick.window != nil {
+		c.pointers[c.quick.window.Name()] = false
+	}
 	c.scheduleQuickClose()
 	c.emitPresentation()
 	c.exitModes(restore)
-	if c.quick.native != nil {
+	if c.sharedPopup {
+		c.popup.Close("quick")
+	}
+	if c.quick.native != nil && (!c.sharedPopup || c.popup.View != "add") {
 		c.quick.native.Hide()
 	}
 }
@@ -926,7 +986,11 @@ func (c *controller) emitPresentation() {
 
 func (c *controller) setArranging(enabled bool) error {
 	if !enabled {
-		c.exitModes(true)
+		returnControl := c.arranging && c.arrangeReturnControl
+		c.exitModes(!returnControl)
+		if returnControl {
+			c.openControl(nil)
+		}
 		return nil
 	}
 	c.refreshFullscreen()
@@ -940,6 +1004,7 @@ func (c *controller) setArranging(enabled bool) error {
 		c.emitPresentation()
 		return err
 	}
+	c.arrangeReturnControl = c.showControl
 	c.hideControl()
 	c.emitPresentation()
 	return nil
@@ -958,6 +1023,9 @@ func (c *controller) scheduleQuickClose() {
 	})
 }
 func (c *controller) interactionActive() bool {
+	if c.drag != nil {
+		return true
+	}
 	if c.quickPending != nil && c.quickPending.message.Mode == "Editing" {
 		return true
 	}

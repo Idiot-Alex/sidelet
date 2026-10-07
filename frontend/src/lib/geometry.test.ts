@@ -33,6 +33,12 @@ describe('WorkArea geometry', () => {
       expect(rect.x + rect.width).toBeLessThanOrEqual(690);
     }
   });
+  it('uses measured card height when clamping near a display bottom', () => {
+    const area = { x: -700, y: -100, width: 700, height: 500 };
+    const rect = quickRect({ x: -14, y: 360, width: 14, height: 30 }, area, 'right', 160);
+    expect(rect.height).toBe(160);
+    expect(rect.y + rect.height).toBe(390);
+  });
   it('keeps an overflow-only entry inside a work area shorter than one label', () => {
     for (const height of [0, 8, 20, 40, 60]) {
       const layout = stackLayout(8, height, 1, 64);

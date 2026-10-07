@@ -59,4 +59,4 @@ PID 79287 的 resource / jetsam coalition 为 25442 / 25443，独立于正在运
 
 合成资料前后全部表（含序列表）精确相同，设置文件逐字节相同；SQLite 完整性 `ok`、外键无错误。测试通过应用退出快捷键正常退出，最终仅正常安装版 PID 67823 继续运行。本轮没有操作正常应用的任务、窗口、偏好或通知权限。
 
-上述主窗口隐藏试验已完成并发布为 [构建 11](phase-1-hidden-main-memory.md)，保留隐藏时缩小视口和重开前恢复的方案。
+上述主窗口隐藏试验曾发布为 [构建 11](phase-1-hidden-main-memory.md)，后因完整流程收益未复现和窗口恢复问题在 [构建 13](phase-1-full-window-memory.md) 撤回。当前 [构建 14](phase-1-shared-popup-memory.md) 改为共用快速添加与浮动卡片的窗口，不收缩主窗口视口。
