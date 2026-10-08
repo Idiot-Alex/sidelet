@@ -15,7 +15,7 @@ func (s *TasksService) Delete(id int, version uint64) (taskSnapshot, error) {
 			return err
 		}
 		// Tombstones keep IDs and concurrent drafts stable; deleted entries never
-		// appear in snapshots or input regions. This fixture has no persistent store.
+		// appear in snapshots or input regions, including after profile reload.
 		*t = task{Deleted: true, Version: t.Version + 1}
 		if s.m.Opened == id-1 {
 			s.m.close()
@@ -150,7 +150,9 @@ func (s *TasksService) scheduleExpiry() {
 		if revision != s.revision {
 			return
 		}
-		s.m.cleanup()
+		if err := s.m.commit(func() error { return nil }); err != nil {
+			s.nextReminder = s.m.now().Add(time.Minute)
+		}
 		s.revision++
 		if s.notices != nil {
 			s.notices.request()
@@ -168,5 +170,16 @@ func (s *TasksService) enableExpiry() {
 		if s.wake != nil {
 			s.wake.Stop()
 		}
+	})
+}
+
+func (s *TasksService) Theme(id string) (taskSnapshot, error) {
+	return s.mutate("theme", func() error {
+		if productionDesign.Themes[id] == nil {
+			return errors.New("主题无效。")
+		}
+		s.m.UITheme = id
+		s.m.Preferences.Appearance.Theme = id
+		return nil
 	})
 }

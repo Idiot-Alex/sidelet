@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/egoist/mygo"
+	"sidelet/internal/settings"
 	"sidelet/internal/todo"
 	"time"
 	"unicode/utf8"
@@ -18,6 +19,8 @@ const (
 type task struct {
 	DueAt          int64  `json:"dueAt,omitempty"`
 	Remind         bool   `json:"remind,omitempty"`
+	ReminderID     int64  `json:"reminderId,omitempty"`
+	ReminderAt     int64  `json:"reminderAt,omitempty"`
 	ReminderSentAt int64  `json:"reminderSentAt,omitempty"`
 	Temporary      bool   `json:"temporary,omitempty"`
 	CompletedAt    int64  `json:"completedAt,omitempty"`
@@ -31,12 +34,17 @@ type task struct {
 	Unpinned       bool   `json:"unpinned,omitempty"`
 }
 
-// Deliberately owns no Sidelet store, settings or persistent task data.
+// Owns an optional independent experiment profile; never the formal store.
 type model struct {
-	UndoID                              int     `json:"undoId,omitempty"`
-	UndoUntil                           int64   `json:"undoUntil,omitempty"`
-	Offset                              float64 `json:"offset"`
-	ItemHeight                          int     `json:"itemHeight,omitempty"`
+	profile                             *profile
+	storageError                        string
+	Preferences                         settings.Value `json:"preferences"`
+	Quiet                               bool           `json:"quiet,omitempty"`
+	ReminderGeneration                  int64          `json:"reminderGeneration,omitempty"`
+	UndoID                              int            `json:"undoId,omitempty"`
+	UndoUntil                           int64          `json:"undoUntil,omitempty"`
+	Offset                              float64        `json:"offset"`
+	ItemHeight                          int            `json:"itemHeight,omitempty"`
 	clock                               func() time.Time
 	EditError                           string `json:"editError"`
 	draftVersion                        uint64
@@ -59,7 +67,7 @@ type model struct {
 }
 
 func newModel() *model {
-	return &model{Tasks: []task{
+	return &model{Preferences: settings.Defaults(), Tasks: []task{
 		{Title: "整理今天的工作", Note: "这是独立实验中的合成任务。", Priority: 0, Version: 1},
 		{Title: "确认设计稿", Note: "检查中文输入、卡片编辑和取消。", Priority: 2, Version: 1},
 		{Title: "发布前检查", Note: "验证透明区域和窗口焦点。", Priority: 3, Version: 1},
@@ -67,7 +75,7 @@ func newModel() *model {
 }
 
 func (m *model) open(i int) {
-	if m.eligible(i) && !m.Arranging {
+	if m.eligible(i) && !m.Arranging && !m.Quiet {
 		m.OverflowOpen = false
 		m.Opened, m.Hover, m.Editing = i, i, false
 	}
@@ -100,27 +108,44 @@ func (m *model) save() bool {
 		m.EditError = "备注最多 16000 个字。"
 		return false
 	}
-	m.Tasks[m.Opened].Title = title
-	if m.UITheme != "" {
-		m.Tasks[m.Opened].Note = m.DraftNote
+	if err := m.commit(func() error {
+		m.Tasks[m.Opened].Title = title
+		if m.UITheme != "" {
+			m.Tasks[m.Opened].Note = m.DraftNote
+		}
+		m.Tasks[m.Opened].Version++
+		m.cancel()
+		return nil
+	}); err != nil {
+		m.EditError = err.Error()
+		return false
 	}
-	m.Tasks[m.Opened].Version++
-	m.cancel()
 	return true
 }
 
 func (m *model) close() { m.Opened, m.Hover = -1, -1; m.OverflowOpen = false; m.cancel() }
 
-func (m *model) complete() {
-	if m.Opened >= 0 {
+func (m *model) complete() bool {
+	if m.Opened < 0 {
+		return false
+	}
+	if err := m.commit(func() error {
 		m.recordCompletion(m.Opened)
 		m.Tasks[m.Opened].Done = true
 		m.Tasks[m.Opened].Version++
 		m.close()
+		return nil
+	}); err != nil {
+		m.EditError = err.Error()
+		return false
 	}
+	return true
 }
 
 func (m *model) startDrag(x, y int) {
+	if m.Quiet {
+		return
+	}
 	m.Dragging = true
 	m.dragX, m.dragY, m.pointerX, m.pointerY = m.X, m.Y, x, y
 }
@@ -133,26 +158,35 @@ func (m *model) moveDrag(x, y int) {
 	m.Y = max(m.WorkY, min(m.WorkY+max(0, m.WorkHeight-m.stackHeight()), m.dragY+y-m.pointerY))
 }
 
-func (m *model) endDrag() {
+func (m *model) endDrag() bool {
 	if !m.Dragging {
-		return
+		return false
 	}
-	m.Dragging = false
-	if m.X+stackWidth/2 < m.WorkX+m.WorkWidth/2 {
-		m.Side, m.X = "left", m.WorkX
-	} else {
-		m.Side, m.X = "right", m.WorkX+m.WorkWidth-stackWidth
-	}
-	if m.WorkHeight > 0 {
-		center := m.stackHeight() / 2
-		if m.UITheme != "" {
-			center = 10 + int(m.sidebarLayout().Height)/2
-			if m.desktopArrange() {
-				center += 42
-			}
+	err := m.commit(func() error {
+		m.Dragging = false
+		if m.X+stackWidth/2 < m.WorkX+m.WorkWidth/2 {
+			m.Side, m.X = "left", m.WorkX
+		} else {
+			m.Side, m.X = "right", m.WorkX+m.WorkWidth-stackWidth
 		}
-		m.Offset = float64(m.Y-m.WorkY+center) / float64(m.WorkHeight)
+		if m.WorkHeight > 0 {
+			center := m.stackHeight() / 2
+			if m.UITheme != "" {
+				center = 10 + int(m.sidebarLayout().Height)/2
+				if m.desktopArrange() {
+					center += 42
+				}
+			}
+			m.Offset = float64(m.Y-m.WorkY+center) / float64(m.WorkHeight)
+		}
+		return nil
+	})
+	if err != nil {
+		m.cancelDrag()
+		m.EditError = err.Error()
+		return false
 	}
+	return true
 }
 
 func (m *model) cancelDrag() {
@@ -285,7 +319,7 @@ func (m *model) sidebarCount() int {
 	return n
 }
 func (m *model) undoVisible() bool {
-	return m.UITheme != "" && m.UndoID > 0 && m.now().UnixMilli() < m.UndoUntil
+	return !m.Quiet && m.UITheme != "" && m.UndoID > 0 && m.now().UnixMilli() < m.UndoUntil
 }
 func (m *model) undoRect() mygo.Rectangle {
 	x := 8

@@ -32,7 +32,7 @@ type views struct {
 
 func (v *views) webHover(hit int, now time.Time) (int, time.Duration) {
 	m := v.m
-	if m.Dragging || m.Arranging || m.OverflowOpen {
+	if m.Quiet || m.Dragging || m.Arranging || m.OverflowOpen {
 		v.hoverDeadline = time.Time{}
 		return -1, 0
 	}

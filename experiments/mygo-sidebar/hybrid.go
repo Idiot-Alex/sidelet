@@ -37,6 +37,7 @@ type TasksService struct {
 	run                       func(func())
 	changed                   func(string)
 	open                      func(int)
+	applyDock                 func(bool) error
 	revision                  uint64
 	origin                    string
 	wake                      *time.Timer
@@ -88,29 +89,30 @@ func validTitleLimit(title string, limit int) (string, error) {
 func validPriority(priority int) bool { return priority == 0 || priority == 2 || priority == 3 }
 
 func (s *TasksService) mutate(event string, fn func() error) (out taskSnapshot, err error) {
+	s.run(func() { out, err = s.mutateOnMain(event, fn) })
+	return
+}
+
+// Already on the serial UI executor; do not acquire it again.
+func (s *TasksService) mutateOnMain(event string, fn func() error) (taskSnapshot, error) {
 	if s.origin != "" {
 		event = strings.Replace(event, "web-", s.origin+"-", 1)
 	}
-	s.run(func() {
-		if s.m.Dragging {
-			err = errors.New("请先结束侧栏拖动。")
-			return
-		}
-		if err = fn(); err != nil {
-			return
-		}
-		s.m.cleanup()
-		s.revision++
-		s.scheduleExpiry()
-		if s.notices != nil {
-			s.notices.request()
-		}
-		if s.changed != nil {
-			s.changed(event)
-		}
-		out = s.snapshot()
-	})
-	return
+	if s.m.Dragging {
+		return taskSnapshot{}, errors.New("请先结束侧栏拖动。")
+	}
+	if err := s.m.commit(fn); err != nil {
+		return taskSnapshot{}, err
+	}
+	s.revision++
+	s.scheduleExpiry()
+	if s.notices != nil {
+		s.notices.request()
+	}
+	if s.changed != nil {
+		s.changed(event)
+	}
+	return s.snapshot(), nil
 }
 
 func (s *TasksService) Add(title string, priority int) (taskSnapshot, error) {
@@ -246,7 +248,7 @@ func (s *TasksService) SetPinned(id int, pinned bool, version uint64) (taskSnaps
 
 func (s *TasksService) Open(id int) (err error) {
 	s.run(func() {
-		if id < 1 || id > len(s.m.Tasks) || !s.m.eligible(id-1) || s.m.Arranging {
+		if id < 1 || id > len(s.m.Tasks) || !s.m.eligible(id-1) || s.m.Quiet || s.m.Arranging {
 			err = errors.New("任务不存在或已完成。")
 			return
 		}
@@ -263,20 +265,24 @@ func (s *TasksService) Open(id int) (err error) {
 }
 
 type hybridApp struct {
-	service  *TasksService
-	window   *mygo.Window
-	bounds   mygo.Rectangle
-	onState  func(string)
-	quitting bool
-	editCard func()
-	editItem *mygo.MenuItem
-	native   bool
-	view     *nativeTasksView
-	quick    *nativeQuickAdd
+	service   *TasksService
+	window    *mygo.Window
+	bounds    mygo.Rectangle
+	onState   func(string)
+	quitting  bool
+	editCard  func()
+	editItem  *mygo.MenuItem
+	native    bool
+	view      *nativeTasksView
+	quick     *nativeQuickAdd
+	tray      *mygo.Tray
+	quietItem *mygo.MenuItem
 }
 
 func newNativeApp(m *model) *hybridApp {
-	m.UITheme, m.Side, m.Offset = "mac", "right", .35
+	if m.UITheme == "" {
+		m.UITheme, m.Side, m.Offset = "mac", "right", .35
+	}
 	h := &hybridApp{native: true, service: &TasksService{m: m, run: mygo.RunOnMain, origin: "native-main"}}
 	h.service.enableExpiry()
 	h.service.enableNotifications(h)
@@ -332,6 +338,9 @@ func (h *hybridApp) show() {
 				_ = h.window.SetBackgroundColor(productionDesign.Themes[id]["app-bg"])
 			}
 		}
+		h.view.visual = webTheme(h.service.m.UITheme)
+		opts.BackgroundColor = productionDesign.Themes[h.service.m.UITheme]["app-bg"]
+		h.view.onThemeChanged(h.service.m.UITheme)
 		opts.Content = ui.View(h.view.render)
 	} else {
 		opts.URL = "/"
@@ -392,6 +401,13 @@ func (h *hybridApp) publish() {
 }
 
 func (h *hybridApp) nativeChanged(event string) {
+	if h.quietItem != nil {
+		label := "安静模式"
+		if h.service.m.Quiet {
+			label = "恢复显示"
+		}
+		h.quietItem.SetLabel(label)
+	}
 	if slices.Contains([]string{"save", "complete"}, event) {
 		h.service.revision++
 		h.service.scheduleExpiry()

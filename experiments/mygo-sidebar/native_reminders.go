@@ -58,28 +58,29 @@ func newNativeReminders(s *TasksService, backend notificationBackend, prefix str
 	return &nativeReminders{s: s, backend: backend, prefix: prefix, rows: map[int]todo.Reminder{}, jobs: make(chan reminderJob, 1), stop: make(chan struct{})}
 }
 func (n *nativeReminders) reconcile() {
-	for i := range n.s.m.Tasks {
-		t := &n.s.m.Tasks[i]
-		id := i + 1
-		if t.Deleted || !t.Remind || t.DueAt == 0 {
-			delete(n.rows, id)
-			t.ReminderSentAt = 0
-			continue
+	_ = n.s.m.prepareReminders()
+	n.generation = n.s.m.ReminderGeneration
+	n.rows = map[int]todo.Reminder{}
+	for i, t := range n.s.m.Tasks {
+		if !t.Deleted && t.Remind && t.DueAt > 0 {
+			n.rows[i+1] = todo.Reminder{ID: t.ReminderID, TodoID: int64(i + 1), At: t.ReminderAt, Title: t.Title, Completed: t.Done, SentAt: t.ReminderSentAt}
 		}
-		at := todo.EffectiveReminderAt(t.DueAt, t.SnoozedUntil)
-		r, ok := n.rows[id]
-		if !ok || r.At != at {
-			n.generation++
-			r = todo.Reminder{ID: n.generation, TodoID: int64(id), At: at}
-			t.ReminderSentAt = 0
-		}
-		r.Title, r.Completed, r.SentAt = t.Title, t.Done, t.ReminderSentAt
-		n.rows[id] = r
 	}
 }
+
 func (n *nativeReminders) request() {
 	if n.stopped.Load() {
 		return
+	}
+	if n.s.m.profile != nil {
+		if err := n.s.m.commit(func() error { return nil }); err != nil {
+			n.s.nextReminder = n.s.m.now().Add(time.Minute)
+			n.s.scheduleExpiry()
+			if n.s.changed != nil {
+				n.s.changed("native-main-storage-error")
+			}
+			return
+		}
 	}
 	n.reconcile()
 	n.epoch++
@@ -114,14 +115,19 @@ func (n *nativeReminders) worker() {
 	}
 }
 func (n *nativeReminders) accept(job reminderJob, receipts map[int64]int64, result reminder.Result, err error) {
-	for id, r := range n.rows {
-		if at, ok := receipts[r.ID]; ok {
-			t := &n.s.m.Tasks[id-1]
-			t.ReminderSentAt = at
-			r.SentAt = at
-			n.rows[id] = r
+	receiptErr := n.s.m.commit(func() error {
+		for id, r := range n.rows {
+			if at, ok := receipts[r.ID]; ok && n.s.m.Tasks[id-1].ReminderID == r.ID {
+				n.s.m.Tasks[id-1].ReminderSentAt = at
+			}
 		}
+		return nil
+	})
+	n.reconcile()
+	if receiptErr != nil {
+		err = receiptErr
 	}
+
 	if job.epoch == n.epoch {
 		n.s.notificationAuthorization = result.Authorization
 		n.s.notificationDelivered = result.SystemDelivered
@@ -174,6 +180,9 @@ func (n *nativeReminders) close() {
 	if n.unwatch != nil {
 		n.unwatch()
 	}
+	if n.s.m.profile != nil {
+		return
+	}
 	// This experiment owns only its current run's namespace. Never clear other
 	// apps or previous profiles through ClearNotifications.
 	ids := make([]string, 0, n.generation)
@@ -216,12 +225,15 @@ func (x liveNotificationSystem) Remove(ids []string) error {
 }
 func (s *TasksService) enableNotifications(h *hybridApp) {
 	mygo.App.WhenReady(func() {
-		n := newNativeReminders(s, newNotificationBackend(), fmt.Sprintf("sidelet-mygo.%d.", time.Now().UnixNano()))
+		prefix := fmt.Sprintf("sidelet-mygo.%d.", time.Now().UnixNano())
+		if s.m.profile != nil {
+			prefix = "sidelet-mygo.profile." + s.m.profile.saved.ID + "."
+		}
+		n := newNativeReminders(s, newNotificationBackend(), prefix)
 		s.notices = n
 		go n.worker()
 		n.unwatch = n.backend.Watch(func() {
 			if !n.stopped.Load() {
-				s.m.cleanup()
 				n.request()
 				s.scheduleExpiry()
 				if s.changed != nil {

@@ -26,16 +26,28 @@ func main() {
 	traceInput := flag.Bool("trace-input", false, "log delivered mouse events of this lab only; no global monitoring")
 	directInput := flag.Bool("direct-input-fixture", false, "CUA-only render-window input fixture; requires -trace-input and -output; disables overlay hit testing")
 	hybrid := flag.Bool("hybrid", false, "use a Web task window alongside the native sidebar; synthetic in-memory tasks only")
-	nativeMain := flag.Bool("native-main", false, "use a Go-native task window alongside the native sidebar; no WebView, synthetic tasks only")
+	nativeMain := flag.Bool("native-main", false, "use a Go-native task window and sidebar with an independent profile; no WebView")
+	dataDir := flag.String("data-dir", "", "independent native profile directory")
+	memoryOnly := flag.Bool("memory", false, "native UI with synthetic in-memory tasks for diagnostics")
+	forceMain := flag.Bool("main", false, "show the task window regardless of the saved startup preference")
 	mainHidden := flag.Bool("main-hidden", false, "start without a task main window; reopen using File > 打开任务窗口")
 	flag.Parse()
+	if (*dataDir != "" || *memoryOnly) && !*nativeMain {
+		log.Fatal("-data-dir and -memory require -native-main")
+	}
+	if *dataDir != "" && *memoryOnly {
+		log.Fatal("choose -data-dir or -memory")
+	}
 	if *nativeCheck && (!*probe || *probeOnly || *output == "") {
 		log.Fatal("-native-check requires -probe and -output, without -probe-only")
 	}
 	if *directInput && (!*traceInput || *output == "" || *nativeCheck || *probeOnly) {
 		log.Fatal("-direct-input-fixture requires -trace-input and -output, without -native-check or -probe-only")
 	}
-	if *mainHidden && !(*hybrid || *nativeMain) {
+	if *forceMain && *mainHidden {
+		log.Fatal("choose -main or -main-hidden")
+	}
+	if (*forceMain || *mainHidden) && !(*hybrid || *nativeMain) {
 		log.Fatal("-main-hidden requires -hybrid or -native-main")
 	}
 	if *hybrid && *nativeMain {
@@ -76,6 +88,18 @@ func main() {
 	if *hybrid {
 		h = newHybridApp(m)
 	} else if *nativeMain {
+		m.UITheme, m.Side, m.Offset = "mac", "right", .35
+		if !*memoryOnly {
+			dir, err := profileDirectory(*dataDir, *output)
+			if err != nil {
+				log.Fatal(err)
+			}
+			p, err := openProfile(dir, m)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer p.close()
+		}
 		h = newNativeApp(m)
 	}
 	if h != nil {
@@ -106,6 +130,9 @@ func main() {
 		}
 	}
 	logState := func(event string) {
+		if *output == "" && *logPath == "" && !*traceInput {
+			return
+		}
 		data := map[string]any{"at": time.Now().UTC(), "event": event, "pid": os.Getpid(), "model": m, "native": nativeState(), "input": input.state()}
 		if stack != nil {
 			data["stackBounds"], data["stackFocused"] = stack.Bounds(), stack.IsFocused()
@@ -118,6 +145,11 @@ func main() {
 		}
 		if h != nil {
 			data["taskSnapshot"] = h.service.snapshot()
+			data["storageError"] = m.storageError
+			if m.profile != nil {
+				data["profilePath"] = m.profile.path
+				data["profileID"] = m.profile.saved.ID
+			}
 			data["notificationAuthorization"], data["notificationStatus"] = h.service.notificationAuthorization, h.service.notificationStatus
 			data["notificationDelivered"] = h.service.notificationDelivered
 			data["mainRenderer"] = "web"
@@ -139,11 +171,25 @@ func main() {
 	input.onEvent = logState
 	input.pointerPresence = v.presence
 	v.changed = func(event string) {
+		if event == "native-main-quiet" {
+			v.session.Close()
+			v.hoverDeadline = time.Time{}
+			v.order.Epoch++
+			if v.closeTimer != nil {
+				v.closeTimer.Stop()
+			}
+			input.endEdit()
+		}
 		resizeCard()
 		if event == "cancel" || event == "save" || event == "close" {
 			input.endEdit()
 		}
 		if stack != nil {
+			if m.Quiet {
+				stack.Hide()
+			} else if !stack.IsVisible() {
+				stack.ShowInactive()
+			}
 			if !m.cardOpen() && card != nil {
 				card.Hide()
 				input.endEdit()
@@ -256,11 +302,15 @@ func main() {
 				if !m.Dragging {
 					return false
 				}
-				m.endDrag()
+				saved := m.endDrag()
 				v.armClose()
 				stack.SetBounds(mygo.Rectangle{X: m.X, Y: m.Y, Width: stackWidth, Height: m.stackHeight()})
 				input.sync()
-				logState("drag-end")
+				if saved {
+					logState("drag-end")
+				} else {
+					logState("drag-save-failed")
+				}
 				return true
 			}
 			return false
@@ -340,18 +390,28 @@ func main() {
 				}
 			}
 			h.installMenu()
+			if h.native {
+				if err := h.installNativeTray(); err != nil {
+					log.Printf("native tray / Dock setup failed: %v", err)
+					m.storageError = "菜单栏或 Dock 设置暂时不可用，请重试。"
+					mygo.App.SetActivationPolicy(mygo.ActivationPolicyRegular)
+					h.show()
+				}
+			}
 			mygo.App.OnActivate(func(bool) {
-				if h.window == nil && !m.Editing {
+				if !m.Editing {
 					h.show()
 				}
 			})
-			if !*mainHidden {
+			if !*mainHidden && (!h.native || startupMainVisible(m, *forceMain, *mainHidden)) {
 				h.show()
 			}
 		}
 		if *startCard {
-			m.open(0)
-			v.open(0)
+			if ids := m.eligibleIDs(); len(ids) > 0 {
+				m.open(ids[0] - 1)
+				v.open(ids[0] - 1)
+			}
 		}
 		if *nativeCheck {
 			runNativeChecks(input, v, backgroundProbe, *output, func(ok bool) { checkFailed = !ok })

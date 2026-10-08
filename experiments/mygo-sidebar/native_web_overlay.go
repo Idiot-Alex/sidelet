@@ -16,6 +16,9 @@ func (v *views) webStack(c *ui.Context) {
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
 	m, nextHover := v.m, -1
+	if m.Quiet {
+		return
+	}
 	if m.desktopArrange() {
 		v.webArrangeStack(c)
 		return
@@ -73,9 +76,10 @@ func (v *views) webStack(c *ui.Context) {
 				check := ui.ButtonBase(c).Size(16, 16).Radius(8).Border(1, t.Subtle).Label("完成侧栏任务：" + task.Title)
 				if check.Clicked() {
 					m.open(index)
-					m.complete()
-					v.notify("complete")
-					v.closeCard()
+					if m.complete() {
+						v.notify("complete")
+						v.closeCard()
+					}
 				}
 				ui.Text(c, task.Title).Grow(1).FontSize(13).MaxLines(1)
 				if task.DueAt > 0 {
@@ -268,9 +272,10 @@ func (v *views) webCard(c *ui.Context) {
 						if b.Clicked() {
 							switch action.label {
 							case "完成":
-								m.complete()
-								v.notify("complete")
-								v.closeCard()
+								if m.complete() {
+									v.notify("complete")
+									v.closeCard()
+								}
 							case "稍后":
 								v.snoozing = true
 							case "编辑":

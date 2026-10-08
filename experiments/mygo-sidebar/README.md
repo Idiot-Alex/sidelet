@@ -4,10 +4,10 @@
 
 ## 范围与运行
 
-固定依赖 `github.com/egoist/mygo v0.2.16`，独立 `go.mod` / `go.sum`，Go 1.27.1，`CGO_ENABLED=0`。通过本地模块引用复用 `internal/todo` 的时间计算、`internal/reminder.Sync` 的提醒协调和 `internal/spike` 的卡片会话，不引入 Wails、SQLite 或前端运行时。三条合成任务、编辑草稿、完成状态和位置都只保存在进程内存中，重启重置。
+固定依赖 `github.com/egoist/mygo v0.2.16`，独立 `go.mod` / `go.sum`，Go 1.27.1，`CGO_ENABLED=0`。通过本地模块引用复用 `internal/todo` 的时间计算、`internal/reminder.Sync` 的提醒协调和 `internal/spike` 的卡片会话，不引入 Wails、SQLite 或前端运行时。`-native-main` 默认使用独立 JSON 资料，首次为空列表，已提交任务、顺序、主题、布局和提醒回执可重启恢复；历史侧栏 / 混合实验仍使用三条合成内存任务。
 
 ```bash
-# 项目根目录；构建会检查正式 UI 参照并执行实验的 56 项顶层测试及 go vet。
+# 项目根目录；构建会检查正式 UI 参照并执行实验的 74 项顶层测试及 go vet。
 bash experiments/mygo-sidebar/build-macos.sh
 open build/bin/mygo-lab/SideletMyGoLab.app
 ```
@@ -16,7 +16,19 @@ open build/bin/mygo-lab/SideletMyGoLab.app
 
 另已实现 `-hybrid`：同一 MyGo 宿主内使用 Web 主窗口和原生侧栏共享任务，支持双向更新、完成和关闭重开，已验证跨应用焦点恢复。具体范围、运行方式和历史内存采样见 [混合原型记录](HYBRID.md)。`-native-main` 使用全原生主窗口，不创建 WebView；现在按正式 Sidelet 的完整 UI 逐项对齐，包括任务页、设置、三主题和浮动卡片。**整体 UI 一致性尚未验收完成**，已实现内容、禁用能力与截图证据见 [UI 对齐记录](UI_PARITY.md)。[原生主窗口记录](NATIVE_MAIN.md)中的内存比较属于较早的简化界面。默认不传这些选项仍为原生侧栏实验。
 
-应用标识 `io.sidelet.mygo-lab`，显示名 `Sidelet MyGo Lab`。不会覆盖 `/Applications/Sidelet.app`。当前 macOS 包只是本地 ad-hoc 签名实验，未公证、未发布。`-native-main` 支持主窗口 / 侧栏整理排序和 +N 溢出卡片，满屏新增、撤销和恢复不会被拒绝。排序只在本次运行保留。`-native-main` 支持截止时间、可选 macOS 提醒及完成 5 秒后清理的临时任务；提醒回执只在内存中保留，不支持重启恢复。通知权限属于独立实验标识，首次开启需要授权；不自动请求，也不更改正式 Sidelet 的通知设置。Windows 目前仅通过编译检查，通知适配显示为不支持。
+应用标识 `io.sidelet.mygo-lab`，显示名 `Sidelet MyGo Lab`。不会覆盖 `/Applications/Sidelet.app`。当前 macOS 包只是本地 ad-hoc 签名实验，未公证、未发布。`-native-main` 支持主窗口 / 侧栏整理排序和 +N 溢出卡片，满屏新增、撤销和恢复不会被拒绝；支持截止时间、可选 macOS 提醒及完成 5 秒后清理的临时任务。安静模式隐藏桌面标签 / 卡片并撤销鼠标区域，系统提醒继续运行；恢复和重启重新显示。设置页可保存启动窗口偏好、默认值与 macOS Dock 显示，Dock 隐藏时保留独立菜单栏入口。默认值不改变现有任务组；当前仅单组，多组创建尚未迁移。登录启动与导出仍禁用。持久资料不读取正式 SQLite 数据，目录、失败处理和提醒恢复边界见 [持久化记录](PERSISTENCE.md)。通知权限属于独立实验标识，首次开启需要授权；不自动请求，也不更改正式 Sidelet 的通知设置。Windows 目前仅通过编译检查，通知适配显示为不支持。
+
+```bash
+# 全原生主窗口，默认保存到 ~/Library/Application Support/SideletMyGoLab
+open -n build/bin/mygo-lab/SideletMyGoLab.app --args -native-main
+# 使用独立测试资料；再次运行同一命令可恢复
+open -n build/bin/mygo-lab/SideletMyGoLab.app --args \
+  -native-main -data-dir "$PWD/build/results/mygo-manual-profile"
+# 保留三条合成任务的可丢弃内存模式
+open -n build/bin/mygo-lab/SideletMyGoLab.app --args -native-main -memory
+```
+
+`-data-dir` 与 `-memory` 仅用于 `-native-main`，不能同时传入。同一资料目录只允许一个实验进程写入。`-main` 强制打开任务窗口，`-main-hidden` 强制隐藏；两者互斥。正常启动遵循保存的“启动时显示主窗口”，新资料首次仍显示窗口。
 
 自有背景窗口用于检查点击穿透：
 
@@ -30,7 +42,7 @@ open -n build/bin/mygo-lab/SideletMyGoLab.app --args \
 
 `-probe` 打开实验自己的计数器窗口，和正式任务数据无关。收起任务卡片后，在下层按钮上比较侧栏范围内的透明区与范围外的点击。`-card` 可用于启动即显示第一条合成任务卡片；卡片覆盖按钮时不用于侧栏空白穿透测试。
 
-`-output` 把实验应用的数据目录也指向指定目录。仅在此选项启用时监听 SIGUSR1，收到后保存自己的原生内容 PNG、Go 内存统计和焦点状态；不强制 GC，不注入系统输入。`-quit-after 2m` 可限制一次实验的运行时间。
+`-output` 把宿主数据指向指定目录内的 `app-data/`；持久模式未显式传 `-data-dir` 时，任务资料放在该目录的 `profile/`。仅在此选项启用时监听 SIGUSR1，收到后保存自己的原生内容 PNG、Go 内存统计和焦点状态；不强制 GC，不注入系统输入。`-quit-after 2m` 可限制一次实验的运行时间。显式诊断会包含任务内容，普通持久模式不输出完整任务快照。
 
 ## 首轮验证（输入适配前）
 

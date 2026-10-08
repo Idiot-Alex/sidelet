@@ -17,7 +17,7 @@ func (o taskSchedule) apply(t *task) error {
 		return err
 	}
 	if t.DueAt != o.DueAt || t.Remind != o.Remind {
-		t.ReminderSentAt = 0
+		t.ReminderID, t.ReminderAt, t.ReminderSentAt = 0, 0, 0
 	}
 	t.DueAt, t.Remind, t.Temporary = o.DueAt, o.Remind, o.Temporary
 	return nil

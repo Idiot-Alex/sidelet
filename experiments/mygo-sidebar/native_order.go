@@ -42,7 +42,7 @@ func (m *model) eligibleIDs() []int {
 	}
 	return ids
 }
-func (m *model) desktopArrange() bool { return m.Arranging && m.WorkHeight >= 190 }
+func (m *model) desktopArrange() bool { return !m.Quiet && m.Arranging && m.WorkHeight >= 190 }
 func (m *model) sidebarLayout() spike.StackGeometry {
 	area := m.WorkHeight
 	if area <= 0 {
@@ -56,6 +56,9 @@ func (m *model) sidebarLayout() spike.StackGeometry {
 	return spike.StackLayout(m.sidebarCount(), float64(max(0, area)), m.Offset, float64(m.itemHeight()))
 }
 func (m *model) sidebarItems() (direct, overflow []int) {
+	if m.Quiet {
+		return nil, nil
+	}
 	all := m.eligibleIDs()
 	limit := m.sidebarLayout().Direct
 	if m.UITheme == "" {
@@ -78,7 +81,7 @@ func (m *model) sidebarItems() (direct, overflow []int) {
 func (m *model) cardOpen() bool { return m.Opened >= 0 || m.OverflowOpen }
 func (m *model) openOverflow() bool {
 	_, tail := m.sidebarItems()
-	if len(tail) == 0 || m.Arranging || m.Editing {
+	if len(tail) == 0 || m.Quiet || m.Arranging || m.Editing {
 		return false
 	}
 	m.close()
@@ -87,6 +90,9 @@ func (m *model) openOverflow() bool {
 }
 func (s *TasksService) Arrange(enabled bool) (taskSnapshot, error) {
 	return s.mutate("web-arrange", func() error {
+		if enabled && s.m.Quiet {
+			return errors.New("请先恢复桌面显示。")
+		}
 		if s.m.Editing {
 			return errors.New("请先结束卡片编辑。")
 		}

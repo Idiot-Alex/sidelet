@@ -42,7 +42,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 		}
 		hint := func(text string) { ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).LineHeight(1.6).Margin(5, 0) }
 		row := func(title, description string, on, disabled bool) {
-			ui.Row(c).Gap(28).Padding(15, 0).Children(func() {
+			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0).Children(func() {
 				ui.Column(c).Grow(1).Children(func() { ui.Text(c, title).FontSize(13).FontWeight(500); hint(description) })
 				webSwitch(c, &on, title).Disabled(disabled)
 			})
@@ -61,18 +61,63 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			hint("测试资料目录不更改系统登录项，请在正常版本中设置。")
 			buttons("打开系统登录项", "检查登录状态")
 			ui.Box(c).Height(1).Background(t.Border).Margin(15, 0, 8)
-			row("启动时显示主窗口", "关闭后保留菜单栏入口与已固定的桌面任务。", true, true)
+			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0).Children(func() {
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, "启动时显示主窗口").FontSize(13).FontWeight(500)
+					hint("关闭后保留菜单栏入口与已固定的桌面任务。")
+				})
+				on := v.service.m.Preferences.Startup.ShowMainWindow
+				if webSwitch(c, &on, "启动时显示主窗口").Changed() {
+					value := v.service.m.Preferences
+					value.Startup.ShowMainWindow = on
+					_, err := v.service.SavePreferences(value)
+					v.result(err, "")
+				}
+			})
 		})
 		section("新任务组默认值", func() {
 			hint("仅在创建新任务组时使用。现有任务组的位置与密度可在“我的任务”中调整。")
+			prefs := v.service.m.Preferences
+			side := "右侧"
+			if prefs.Edge.DefaultSide == "left" {
+				side = "左侧"
+			}
+			density := "标准"
+			if prefs.Edge.DefaultDensity == "compact" {
+				density = "紧凑"
+			}
+			if prefs.Edge.DefaultDensity == "relaxed" {
+				density = "宽松"
+			}
 			for _, item := range []struct {
-				label, value string
-				options      []string
-			}{{"默认屏幕边缘", "右侧", []string{"左侧", "右侧"}}, {"默认标签密度", "标准", []string{"紧凑", "标准", "宽松"}}} {
-				ui.Row(c).Padding(15, 0).Children(func() {
+				label   string
+				value   *string
+				options []string
+			}{
+				{"默认屏幕边缘", &side, []string{"左侧", "右侧"}}, {"默认标签密度", &density, []string{"紧凑", "标准", "宽松"}},
+			} {
+				ui.Row(c).AlignItems(ui.Center).Padding(15, 0).Children(func() {
 					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
-					value := item.value
-					ui.Select(c, &value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field).Disabled(true)
+					field := ui.Select(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
+					if field.Changed() {
+						value := v.service.m.Preferences
+						if item.label == "默认屏幕边缘" {
+							value.Edge.DefaultSide = "right"
+							if side == "左侧" {
+								value.Edge.DefaultSide = "left"
+							}
+						} else {
+							value.Edge.DefaultDensity = "normal"
+							if density == "紧凑" {
+								value.Edge.DefaultDensity = "compact"
+							}
+							if density == "宽松" {
+								value.Edge.DefaultDensity = "relaxed"
+							}
+						}
+						_, err := v.service.SavePreferences(value)
+						v.result(err, "")
+					}
 				})
 			}
 		})

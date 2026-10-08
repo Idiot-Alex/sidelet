@@ -26,6 +26,9 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	ui.Column(c).Fill().Padding(0, pad, 36).Children(func() {
 		v.webHeader(c)
 		ui.Scroll(c).Grow(1).Key("page").Padding(20, 0, 0).Children(func() {
+			if v.service.m.storageError != "" {
+				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
+			}
 			if v.settingsOpen {
 				v.webSettings(c)
 				return
@@ -90,7 +93,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 		})
 		ui.Row(c).Gap(6).Children(func() {
 			if v.settingsOpen {
-				ui.Text(c, "更改在本次运行中保留").FontSize(11).TextColor(t.Subtle)
+				ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle)
 				b := webButton(c, "返回我的任务", false).Border(0, ui.Transparent).Gap(7)
 				b.Children(func() { webIcon(c, "back", 16); ui.Text(c, "返回我的任务") })
 				if b.Clicked() {
@@ -109,7 +112,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if v.service.m.Arranging {
 				label = "完成整理"
 			}
-			b = webButton(c, label, false).Height(34).Border(0, ui.Transparent).Gap(6)
+			b = webButton(c, label, false).Height(34).Border(0, ui.Transparent).Gap(6).Disabled(v.service.m.Quiet)
 			if v.service.m.Arranging {
 				b.Background(t.Soft).TextColor(t.Accent)
 			}
@@ -123,9 +126,23 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 					v.order.Status = ""
 				}
 			}
-			for _, item := range []struct{ name, icon string }{{"安静模式", "moon"}} {
-				b := webButton(c, item.name, false).Height(34).Border(0, ui.Transparent).Gap(6).Disabled(true)
-				b.Children(func() { webIcon(c, item.icon, 16); ui.Text(c, item.name) })
+			quietLabel := "安静模式"
+			if v.service.m.Quiet {
+				quietLabel = "恢复显示"
+			}
+			b = webButton(c, quietLabel, false).Height(34).Border(0, ui.Transparent).Gap(6)
+			if v.service.m.Quiet {
+				b.Background(t.Soft).TextColor(t.Accent)
+			}
+			b.Children(func() { webIcon(c, "moon", 16); ui.Text(c, quietLabel) })
+			if b.Clicked() {
+				_, err := v.service.SetQuiet(!v.service.m.Quiet)
+				if v.result(err, "") {
+					v.moreID, v.deleteID = 0, 0
+					v.datePickerOpen = false
+					v.order.Epoch++
+					v.order.Status = ""
+				}
 			}
 			ui.Box(c).Size(1, 18).Background(t.Border).Margin(0, 5)
 			b = webIconButton(c, "设置", "settings", 18).Size(34, 34).Disabled(v.service.m.Arranging)
@@ -208,7 +225,7 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 			})
 		}
 		ui.Spacer(c)
-		ui.Text(c, "独立原型 · 合成任务仅在本次运行中保留").FontSize(11).TextColor(t.Subtle).Margin(20, 0, 0)
+		ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle).Margin(20, 0, 0)
 	})
 }
 
@@ -483,24 +500,28 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 					ui.Text(c, item.description).FontSize(11).TextColor(t.TextMuted).Margin(4, 0, 0)
 				})
 				if b.Clicked() {
-					v.visual = preview
-					v.service.m.UITheme = item.id
-					if v.onThemeChanged != nil {
-						v.onThemeChanged(item.id)
-					}
-					if v.service.changed != nil {
-						v.service.changed("theme")
+					_, err := v.service.Theme(item.id)
+					if v.result(err, "") {
+						v.visual = preview
+						if v.onThemeChanged != nil {
+							v.onThemeChanged(item.id)
+						}
 					}
 				}
 			}
 		})
-		ui.Row(c).Gap(28).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(20, 0, 0).Children(func() {
+		ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(20, 0, 0).Children(func() {
 			ui.Column(c).Grow(1).Children(func() {
 				ui.Text(c, "在 Dock 中显示").FontSize(13).FontWeight(500)
 				ui.Text(c, "点击图标打开任务窗口。关闭后仍可从顶部菜单栏进入。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
 			})
-			on := true
-			webSwitch(c, &on, "在 Dock 中显示").Disabled(true)
+			on := v.service.m.Preferences.Appearance.ShowDockIcon
+			if webSwitch(c, &on, "在 Dock 中显示").Disabled(!dockPreferenceAvailable() || v.service.applyDock == nil).Changed() {
+				value := v.service.m.Preferences
+				value.Appearance.ShowDockIcon = on
+				_, err := v.service.SavePreferences(value)
+				v.result(err, "")
+			}
 		})
 	})
 }

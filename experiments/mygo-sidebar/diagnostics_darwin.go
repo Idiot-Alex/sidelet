@@ -43,7 +43,7 @@ func nativeState() map[string]any {
 	app := objc.ID(objc.GetClass("NSApplication")).Send(objc.RegisterName("sharedApplication"))
 	key := app.Send(objc.RegisterName("keyWindow"))
 	responder := key.Send(objc.RegisterName("firstResponder"))
-	return map[string]any{"frontmostPID": int(front.Send(objc.RegisterName("processIdentifier"))), "firstResponderTakesText": responder.Send(objc.RegisterName("respondsToSelector:"), uintptr(objc.RegisterName("insertText:replacementRange:"))) != 0}
+	return map[string]any{"activationPolicy": int(app.Send(objc.RegisterName("activationPolicy"))), "frontmostPID": int(front.Send(objc.RegisterName("processIdentifier"))), "firstResponderTakesText": responder.Send(objc.RegisterName("respondsToSelector:"), uintptr(objc.RegisterName("insertText:replacementRange:"))) != 0}
 }
 
 // Window.Focus alone does not select a native content view as AppKit's

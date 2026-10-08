@@ -113,6 +113,9 @@ type inputRegion struct {
 }
 
 func stackInputRegions(m *model) []inputRegion {
+	if m.Quiet {
+		return nil
+	}
 	regions := make([]inputRegion, 0, len(m.Tasks)+1)
 	if m.desktopArrange() {
 		regions = append(regions, inputRegion{key: "arrange-grip", marker: true, task: overflowIndex, rect: m.arrangeGripRect()})
