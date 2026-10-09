@@ -79,7 +79,9 @@ func buildWebTheme(id string) *visualTheme {
 	t.Accent, t.AccentHover, t.AccentPressed, t.AccentText = color("accent"), color("accent-hover"), color("accent-hover"), color("on-accent")
 	t.Danger, t.Warning, t.Focus = color("danger"), color("warning"), t.Accent
 	t.Radius, t.FontSize = number("control-radius"), 13
+	t.Font = "system-ui, Helvetica Neue, PingFang SC, sans-serif"
 	d := &visualTheme{Theme: t, ID: id, Alt: color("surface-alt"), Field: color("field"), Subtle: color("subtle"), Soft: color("accent-soft"), WarningSoft: color("warning-soft"), DangerSoft: color("danger-soft"), Radius: number("radius"), HeadingWeight: int(number("heading-weight"))}
+	d.HeadingFont = t.Font
 	if id == "paper" {
 		d.HeadingFont = "Iowan Old Style, Songti SC, STSong, Georgia, serif"
 	}
@@ -91,11 +93,11 @@ func webIcon(c *ui.Context, name string, size float32) {
 }
 
 func webButton(c *ui.Context, label string, primary bool) *ui.Element {
-	b := ui.ButtonBase(c).Label(label).FontSize(12).Padding(7, 10).Radius(c.Theme().Radius).Border(1, c.Theme().Border).TextColor(c.Theme().TextMuted)
+	b := ui.ButtonBase(c).Label(label).FontSize(12).LineHeight(4.0/3).Padding(7, 10).Radius(c.Theme().Radius).Border(1, c.Theme().Border).TextColor(c.Theme().TextMuted)
 	if primary {
 		b.Background(c.Theme().Accent).Border(1, c.Theme().Accent).TextColor(c.Theme().AccentText).FontWeight(550)
 		if b.Hovered() || b.Pressed() {
-			b.Background(c.Theme().AccentHover)
+			b.Background(c.Theme().AccentHover).BorderColor(c.Theme().AccentHover)
 		}
 	} else if b.Hovered() || b.Pressed() {
 		b.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
@@ -107,4 +109,25 @@ func webIconButton(c *ui.Context, label, name string, size float32) *ui.Element 
 	b := webButton(c, label, false).Size(28, 28).Padding(0).Border(0, ui.Transparent)
 	b.Children(func() { webIcon(c, name, size) })
 	return b
+}
+
+func webCardButton(c *ui.Context, label string, primary bool) *ui.Element {
+	b := webButton(c, label, primary).Grow(1).Height(36).Padding(0, 5).Gap(5)
+	if !primary {
+		t := webThemeFor(c)
+		b.Background(t.Alt).TextColor(t.Text)
+		if b.Hovered() || b.Pressed() {
+			b.Background(t.Soft)
+		}
+	}
+	return b
+}
+
+func webThemeFor(c *ui.Context) *visualTheme {
+	for _, theme := range webThemes {
+		if theme.Theme == c.Theme() {
+			return theme
+		}
+	}
+	return webTheme("mac")
 }

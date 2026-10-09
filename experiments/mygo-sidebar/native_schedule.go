@@ -59,7 +59,7 @@ func parseDue(text string, original int64, originalText string, zone *time.Locat
 	if text == "" {
 		return 0, nil
 	}
-	for _, format := range []string{"2006-01-02T15:04", "2006-01-02 15:04", "2006/01/02 15:04"} {
+	for _, format := range []string{"2006-01-02T15:04", "2006-01-02 15:04", "2006/01/02 15:04", "2006/1/2 15:04", "2006年1月2日 15:04"} {
 		stamp, err := time.ParseInLocation(format, text, zone)
 		if err == nil && stamp.Format(format) == text {
 			at := stamp.UnixMilli()
@@ -74,5 +74,5 @@ func localDue(at int64, zone *time.Location) string {
 	if at == 0 {
 		return ""
 	}
-	return time.UnixMilli(at).In(zone).Format("2006-01-02T15:04")
+	return time.UnixMilli(at).In(zone).Format("2006/01/02 15:04")
 }

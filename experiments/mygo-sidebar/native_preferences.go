@@ -41,8 +41,8 @@ func (s *TasksService) SavePreferences(value settings.Value) (out taskSnapshot, 
 		if err = value.Validate(); err != nil {
 			return
 		}
-		if value.Startup.Enabled {
-			err = errors.New("实验应用尚未接入登录启动。")
+		if value.Startup.Enabled != s.m.Preferences.Startup.Enabled {
+			err = errors.New("请通过登录启动开关更改系统登录项。")
 			return
 		}
 		if s.m.Dragging {
@@ -78,9 +78,9 @@ func (s *TasksService) SavePreferences(value settings.Value) (out taskSnapshot, 
 	return
 }
 
-func startupMainVisible(m *model, forceShow, forceHidden bool) bool {
+func startupMainVisible(m *model, forceShow, forceHidden bool, atLogin bool) bool {
 	if forceHidden {
 		return false
 	}
-	return forceShow || m.profile == nil || m.profile.fresh || m.Preferences.Startup.ShowMainWindow
+	return forceShow || m.Preferences.Startup.ShowMainWindow || (!atLogin && (m.profile == nil || m.profile.fresh))
 }

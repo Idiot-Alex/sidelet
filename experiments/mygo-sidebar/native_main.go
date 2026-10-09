@@ -52,7 +52,10 @@ type nativeTasksView struct {
 	originalDue                   int64
 	originalDueText               string
 	datePickerOpen                bool
+	pickerCalendarOpen            bool
 	pickerDate                    time.Time
+	pickerHour, pickerMinute      string
+	pickerError                   string
 	formRemind, formTemporary     bool
 	positionOpen                  bool
 	moreID, deleteID              int
@@ -101,6 +104,7 @@ func (v *nativeTasksView) beginEdit(t taskEntry) {
 	v.originalDue, v.originalDueText = t.DueAt, v.formDue
 	v.formRemind, v.formTemporary = t.Remind, t.Temporary
 	v.datePickerOpen = false
+	v.pickerCalendarOpen = false
 	v.optionsOpen = t.Priority != 0 || t.DueAt != 0 || t.Temporary || t.Remind
 	v.focusEdit, v.status, v.failed = true, "", false
 }

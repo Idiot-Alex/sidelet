@@ -7,7 +7,7 @@ import (
 
 func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons ...string) *ui.Element {
 	t := c.Theme()
-	b := ui.CheckboxBase(c, value).Label(label).Gap(8).FontSize(size).TextColor(t.TextMuted)
+	b := ui.CheckboxBase(c, value).Label(label).Gap(8).FontSize(size).LineHeight(4.0 / 3).AlignItems(ui.Center).TextColor(t.TextMuted)
 	b.Children(func() {
 		box := ui.Box(c).Size(14, 14).Radius(4).Border(1, t.TextMuted)
 		if *value {
@@ -23,45 +23,85 @@ func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons .
 
 func webSwitch(c *ui.Context, value *bool, label string) *ui.Element {
 	t := c.Theme()
-	bg, thumb := t.SurfaceHover, t.TextMuted
+	bg, thumb, border := t.SurfaceHover, t.TextMuted, t.Border
+	for _, visual := range webThemes {
+		if visual.Theme == t {
+			thumb = visual.Subtle
+			break
+		}
+	}
 	left := float32(2)
 	if *value {
 		bg, thumb, left = t.Accent, t.AccentText, 15
+		border = t.Accent
 	}
-	b := ui.SwitchBase(c, value).Label(label).Size(32, 19).Radius(20).Border(1, t.Border).Background(bg)
+	b := ui.SwitchBase(c, value).Label(label).Size(32, 19).Radius(20).Border(1, border).Background(bg)
 	b.Children(func() { ui.Box(c).Absolute().Left(left).Top(2).Size(13, 13).Radius(6.5).Background(thumb) })
 	return b
 }
 
 func (v *nativeTasksView) webSettings(c *ui.Context) {
 	t := v.visual
+	width, _ := c.Size()
+	vertical, horizontal := float32(22), float32(24)
+	if width <= 900 {
+		vertical, horizontal = 20, 20
+	}
 	ui.Column(c).WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Gap(16).Children(func() {
+		if v.failed && v.status != "" {
+			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Background(t.DangerSoft).Padding(12, 16).Radius(t.Radius)
+		}
 		v.webAppearance(c)
-		section := func(title string, body func()) {
-			ui.Column(c).Padding(22, 24).Border(1, t.Border).Radius(t.Radius).Background(t.Surface).Children(func() { ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).Margin(0, 0, 14); body() })
+		section := func(title string, body func(), status ...string) {
+			ui.Column(c).Padding(vertical, horizontal).Border(1, t.Border).Radius(t.Radius).Background(t.Surface).Children(func() {
+				ui.Row(c).Gap(8).Margin(0, 0, 14).Children(func() {
+					ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600)
+					if len(status) > 0 {
+						ui.Text(c, status[0]).FontSize(11).Padding(4, 7).Radius(5).TextColor(t.Accent).Background(t.Soft)
+					}
+				})
+				body()
+			})
 		}
 		hint := func(text string) { ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).LineHeight(1.6).Margin(5, 0) }
-		row := func(title, description string, on, disabled bool) {
+		section("启动行为", func() {
+			l := v.service.login
+			status := "unsupported"
+			if l != nil {
+				status = l.status
+			}
 			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0).Children(func() {
-				ui.Column(c).Grow(1).Children(func() { ui.Text(c, title).FontSize(13).FontWeight(500); hint(description) })
-				webSwitch(c, &on, title).Disabled(disabled)
-			})
-		}
-		buttons := func(names ...string) {
-			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
-				for _, name := range names {
-					b := webButton(c, name, false).Padding(8, 12).Background(t.Field).TextColor(t.Text).Disabled(true)
-					b.Children(func() { ui.Text(c, name) })
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, "登录 Mac 后启动 Sidelet").FontSize(13).FontWeight(500)
+					hint("自动在后台运行，让桌面任务和提醒保持可用。")
+					ui.Text(c, "系统状态："+loginLabel(status)).FontSize(11).TextColor(t.TextMuted)
+				})
+				on := loginRegistered(status)
+				if webSwitch(c, &on, "登录 Mac 后启动 Sidelet").Disabled(l == nil || status == "unsupported" || status == "unknown").Changed() {
+					v.result(v.service.ChangeLogin(on), "")
 				}
 			})
-		}
-		section("启动行为", func() {
-			row("登录 Mac 后启动 Sidelet", "自动在后台运行，让桌面任务和提醒保持可用。", false, true)
-			ui.Text(c, "系统状态：原型尚未接入").FontSize(11).TextColor(t.TextMuted)
-			hint("测试资料目录不更改系统登录项，请在正常版本中设置。")
-			buttons("打开系统登录项", "检查登录状态")
-			ui.Box(c).Height(1).Background(t.Border).Margin(15, 0, 8)
-			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0).Children(func() {
+			if status == "requiresApproval" {
+				hint("请在系统登录项中允许 Sidelet MyGo Lab；完成后返回这里检查状态。")
+			}
+			if l != nil && l.error != "" && (!v.failed || v.status != l.error) {
+				ui.Text(c, l.error).FontSize(12).TextColor(t.Danger).LineHeight(1.6).Margin(5, 0)
+			}
+			hint("此开关仅管理 Sidelet MyGo Lab 的登录项。")
+			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
+				for _, name := range []string{"打开系统登录项", "检查登录状态"} {
+					b := webButton(c, name, false).Padding(8, 12).Background(t.Field).TextColor(t.Text).Disabled(l == nil || status == "unsupported")
+					b.Children(func() { ui.Text(c, name) })
+					if b.Clicked() {
+						if name == "检查登录状态" {
+							v.result(v.service.CheckLogin(), "")
+						} else {
+							v.result(v.service.OpenLoginSettings(), "")
+						}
+					}
+				}
+			})
+			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0, 0).Children(func() {
 				ui.Column(c).Grow(1).Children(func() {
 					ui.Text(c, "启动时显示主窗口").FontSize(13).FontWeight(500)
 					hint("关闭后保留菜单栏入口与已固定的桌面任务。")
@@ -89,14 +129,18 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			if prefs.Edge.DefaultDensity == "relaxed" {
 				density = "宽松"
 			}
-			for _, item := range []struct {
+			for i, item := range []struct {
 				label   string
 				value   *string
 				options []string
 			}{
 				{"默认屏幕边缘", &side, []string{"左侧", "右侧"}}, {"默认标签密度", &density, []string{"紧凑", "标准", "宽松"}},
 			} {
-				ui.Row(c).AlignItems(ui.Center).Padding(15, 0).Children(func() {
+				row := ui.Row(c).AlignItems(ui.Center).Padding(15, 0)
+				if i == 1 {
+					row.Padding(15, 0, 0).Margin(8, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0)
+				}
+				row.Children(func() {
 					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
 					field := ui.Select(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
 					if field.Changed() {
@@ -121,12 +165,14 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				})
 			}
 		})
+		notification := map[string]string{"authorized": "已允许", "denied": "未允许", "notDetermined": "尚未请求", "unsupported": "当前平台暂不支持"}[v.service.notificationAuthorization]
+		if notification == "" {
+			notification = "读取中…"
+		}
 		section("系统通知", func() {
 			hint("仅勾选“提醒我”的任务会发送通知，Sidelet 需在后台运行。")
 			if v.service.notificationStatus != "" {
 				hint(v.service.notificationStatus)
-			} else if v.service.notificationAuthorization == "authorized" {
-				hint("系统状态：已允许")
 			}
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				b := webButton(c, "检查通知权限", false).Padding(8, 12).Background(t.Field)
@@ -148,7 +194,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				}
 			})
 			hint("在系统通知列表中选择 Sidelet MyGo Lab，调整横幅和声音。")
-		})
+		}, notification)
 		section("快速添加", func() {
 			if v.service.quickShortcut != nil && v.service.quickShortcut.diagnostic {
 				hint("诊断模式使用 Control + Option + Shift + F19，仅用于独立注册检查。")
@@ -189,7 +235,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Text(c, e.status).FontSize(12).TextColor(color).LineHeight(1.6).Margin(8, 0, 0)
 			}
 		})
-		ui.Text(c, "Sidelet MyGo · UI 对齐原型 · 灰色控件尚未接入系统能力").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
+		ui.Text(c, "Sidelet MyGo · UI 对齐原型").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
 	})
 }
 

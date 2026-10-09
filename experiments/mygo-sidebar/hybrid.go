@@ -49,6 +49,7 @@ type TasksService struct {
 	notificationDelivered     int
 	export                    *nativeExport
 	quickShortcut             *nativeQuickShortcut
+	login                     *nativeLogin
 }
 
 func (s *TasksService) snapshot() taskSnapshot {
@@ -288,6 +289,7 @@ func newNativeApp(m *model) *hybridApp {
 		m.UITheme, m.Side, m.Offset = "mac", "right", .35
 	}
 	h := &hybridApp{native: true, service: &TasksService{m: m, run: mygo.RunOnMain, origin: "native-main"}}
+	h.service.login = &nativeLogin{backend: newLoginBackend()}
 	h.service.enableExpiry()
 	h.service.enableNotifications(h)
 	h.captureQuickFocus = captureQuickForeground
@@ -330,6 +332,10 @@ func (h *hybridApp) show() {
 	}
 	opts := mygo.WindowOptions{Title: "Sidelet · 任务", Width: 760, Height: 600, MinWidth: 560, MinHeight: 460, BackgroundColor: "#f7f8f4"}
 	if h.native {
+		opts.Title = "Sidelet"
+		// Wails sizes the formal task window by its content area. MyGo's
+		// default includes the title bar, shrinking the page by that height.
+		opts.UseContentSize = true
 		opts.Width, opts.Height, opts.MinWidth, opts.MinHeight = 1120, 800, 820, 600
 		h.view = newNativeTasksView(h.service)
 		h.view.onHide = func() {

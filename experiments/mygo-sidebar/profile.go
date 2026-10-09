@@ -57,7 +57,7 @@ func validateProfile(v profileState) error {
 		if err := v.Preferences.Validate(); err != nil {
 			return err
 		}
-		if v.Preferences.Appearance.Theme != v.Theme || v.Preferences.Startup.Enabled {
+		if v.Preferences.Appearance.Theme != v.Theme {
 			return errors.New("资料中的偏好状态无效。")
 		}
 	}

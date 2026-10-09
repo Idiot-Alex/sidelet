@@ -16,14 +16,16 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	c.SetTheme(v.visual.Theme)
 	v.reconcile()
 	width, _ := c.Size()
-	pad, gap, asideWidth, panelPad := float32(32), float32(24), float32(296), float32(20)
+	pad, bottom, gap, asideWidth, panelPad := float32(32), float32(36), float32(24), float32(296), float32(20)
 	if width <= 900 {
 		pad, gap, asideWidth, panelPad = 24, 18, 270, 16
+		bottom = 30
 	}
 	if width <= 650 {
 		pad = 16
+		bottom = 24
 	}
-	ui.Column(c).Fill().Padding(0, pad, 36).Children(func() {
+	ui.Column(c).Fill().Padding(0, pad, bottom).Children(func() {
 		v.webHeader(c)
 		ui.Scroll(c).Grow(1).Key("page").Padding(20, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
@@ -149,6 +151,9 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if b.Clicked() {
 				v.moreID, v.deleteID = 0, 0
 				v.settingsOpen = true
+				if v.service.login != nil {
+					_ = v.service.CheckLogin()
+				}
 			}
 			b = webIconButton(c, "隐藏主窗口", "hide", 18).Size(34, 34)
 			if b.Clicked() && v.onHide != nil {
@@ -165,7 +170,12 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 	}
 	t := v.visual
 	pending := v.service.m.activeCount()
-	ui.Column(c).MinHeight(400).Padding(16, pad, 12).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
+	paddingTop := float32(16)
+	width, _ := c.Size()
+	if width <= 900 {
+		paddingTop = 14
+	}
+	ui.Column(c).MinHeight(400).Padding(paddingTop, pad, 12).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
 		ui.Row(c).Gap(4).Padding(0, 0, 15).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Children(func() {
 			for _, f := range []struct {
 				name      string
@@ -183,6 +193,17 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 					v.filterAll = f.all
 					v.formNote = ""
 				}
+			}
+			if width > 900 {
+				ui.Spacer(c)
+				ui.Row(c).Gap(6).Shrink(0).TextColor(t.Subtle).Children(func() {
+					ui.Box(c).Size(5, 5).Radius(2.5).Background(t.Accent)
+					text := "自动保存在本机"
+					if v.service.m.profile == nil {
+						text = "合成任务 · 不保存"
+					}
+					ui.Text(c, text).FontSize(11).NoWrap()
+				})
 			}
 		})
 		count := 0
@@ -215,22 +236,46 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 		}
 		if count == 0 {
 			ui.Column(c).Padding(50, 10).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(78, 72).Radius(12).Border(1, t.Border).Background(t.Field).Children(func() { webIcon(c, "check", 24) })
+				v.webEmptyArt(c)
 				title := "这里暂时没有任务。"
 				if v.showDone {
 					title = "还没有已完成的任务。"
+				} else if v.service.m.totalCount() == 0 {
+					title = "从一件小事开始"
 				}
-				ui.Text(c, title).Font(t.HeadingFont).FontSize(21).Margin(22, 0, 10)
-				ui.Text(c, "可以切换筛选查看其他任务。").FontSize(12).TextColor(t.TextMuted)
+				ui.Text(c, title).Font(t.HeadingFont).FontSize(21).FontWeight(600).LineHeight(1.375).Margin(22, 0, 10)
+				text := "可以切换筛选查看其他任务。"
+				if v.service.m.totalCount() == 0 {
+					text = "写下接下来想做的事，让它留在视野里。"
+				}
+				ui.Text(c, text).FontSize(12).LineHeight(1.8).TextColor(t.TextMuted)
+				if v.service.m.totalCount() == 0 {
+					b := webButton(c, "写下第一件事", false).Border(0, ui.Transparent).TextColor(t.Accent).Gap(5).Margin(12, 0, 0)
+					b.Children(func() { webIcon(c, "plus", 16); ui.Text(c, "写下第一件事") })
+					if b.Clicked() {
+						v.focusNew = true
+						c.Invalidate()
+					}
+				}
 			})
 		}
-		ui.Spacer(c)
-		ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle).Margin(20, 0, 0)
+	})
+}
+
+func (v *nativeTasksView) webEmptyArt(c *ui.Context) {
+	t := v.visual
+	ui.Box(c).Size(78, 72).Radius(12).Border(1, t.Border).Background(t.Field).Children(func() {
+		for i, width := range []float32{34, 24, 30} {
+			ui.Box(c).Absolute().Left(14).Top(float32(21+i*13)).Size(width, 4).Radius(3).Background(t.Border)
+		}
+		ui.Box(c).Absolute().Right(-9).Bottom(-8).Size(30, 30).Radius(15).Border(2, t.Surface).Background(t.Soft).TextColor(t.Accent).AlignItems(ui.Center).Justify(ui.Center).Children(func() { webIcon(c, "check", 14) })
 	})
 }
 
 func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions bool) {
 	t := v.visual
+	width, _ := c.Size()
+	statusBelow := width > 650 && width <= 850 || width <= 480
 	ui.Row(c).Gap(10).MinHeight(28).AlignItems(ui.Center).Children(func() {
 		label := "完成：" + item.Title
 		if item.Done {
@@ -245,7 +290,7 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			_, err := v.service.SetDone(item.ID, !item.Done, item.Version)
 			v.result(err, "")
 		}
-		b := ui.ButtonBase(c).Label("编辑："+item.Title).Grow(1).Padding(2, 0).Justify(ui.Start).TextColor(t.Text)
+		b := ui.ButtonBase(c).Label("编辑："+item.Title).Grow(1).Shrink(1).MinWidth(0).Padding(2, 0).Justify(ui.Start).TextColor(t.Text)
 		b.Children(func() {
 			x := ui.Text(c, item.Title).FontSize(14).FontWeight(550).LineHeight(1.5).MaxLines(2)
 			if item.Done {
@@ -256,19 +301,8 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			v.beginEdit(item)
 			v.formNote = item.Note
 		}
-		if item.DueAt > 0 {
-			color := t.TextMuted
-			if !item.Done && item.DueAt < v.service.m.now().UnixMilli() {
-				color = t.Danger
-			}
-			ui.Row(c).Gap(4).TextColor(color).Children(func() { webIcon(c, "clock", 12); ui.Text(c, dueText(item.task, v.service.m.now())).FontSize(11) })
-		}
-		if item.Priority != 0 && !item.Done {
-			fg, bg := t.Warning, t.WarningSoft
-			if item.Priority == 3 {
-				fg, bg = t.Danger, t.DangerSoft
-			}
-			ui.Text(c, priorityName(item.Priority)).FontSize(11).LineHeight(1.4).Padding(2, 5).Radius(4).TextColor(fg).Background(bg)
+		if !statusBelow {
+			v.webTaskStatus(c, item, false)
 		}
 		actions := ui.Row(c).Gap(2)
 		if !showActions {
@@ -308,13 +342,16 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			}
 		})
 	})
+	if statusBelow {
+		v.webTaskStatus(c, item, true)
+	}
 	if item.Note != "" {
 		ui.Text(c, item.Note).FontSize(12).LineHeight(1.5).TextColor(t.TextMuted).MaxLines(2).Margin(3, 0, 0, 31)
 	}
 	if !item.Unpinned || item.Remind && !item.Done || item.Temporary || item.SnoozedUntil > v.service.m.now().UnixMilli() {
-		ui.Row(c).Wrap().Gap(10).AlignItems(ui.Center).Margin(3, 0, 0, 31).TextColor(t.TextMuted).Children(func() {
+		ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(3, 0, 0, 31).TextColor(t.TextMuted).Children(func() {
 			if !item.Unpinned {
-				ui.Row(c).Gap(3).Children(func() { webIcon(c, "pin", 11); ui.Text(c, "桌面").FontSize(11).LineHeight(1.5) })
+				ui.Row(c).Gap(3).TextColor(t.Accent).Children(func() { webIcon(c, "pin", 11); ui.Text(c, "桌面").FontSize(11).LineHeight(4.0 / 3) })
 			}
 			if item.Remind && !item.Done {
 				label := "系统提醒已开启"
@@ -342,6 +379,38 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 	}
 }
 
+func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry, below bool) {
+	if item.DueAt == 0 && (item.Priority == 0 || item.Done) {
+		return
+	}
+	t := v.visual
+	status := ui.Row(c).Wrap().GapX(8).GapY(5).AlignItems(ui.Center).Shrink(0)
+	if below {
+		status.Margin(3, 0, 0, 31)
+	} else {
+		status.Justify(ui.End)
+	}
+	status.Children(func() {
+		if item.Priority != 0 && !item.Done {
+			fg, bg := t.Warning, t.WarningSoft
+			if item.Priority == 3 {
+				fg, bg = t.Danger, t.DangerSoft
+			}
+			ui.Text(c, priorityName(item.Priority)).FontSize(11).LineHeight(1.4).NoWrap().Padding(2, 5).Radius(4).TextColor(fg).Background(bg)
+		}
+		if item.DueAt > 0 {
+			color := t.TextMuted
+			if !item.Done && item.DueAt < v.service.m.now().UnixMilli() {
+				color = t.Danger
+			}
+			ui.Row(c).Gap(4).TextColor(color).Children(func() {
+				webIcon(c, "clock", 12)
+				ui.Text(c, dueText(item.task, v.service.m.now())).FontSize(11).LineHeight(4.0 / 3).FontFeatures("tnum").NoWrap()
+			})
+		}
+	})
+}
+
 func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 	t := v.visual
 	ui.Column(c).Padding(pad).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Disabled(v.service.m.Arranging).Children(func() {
@@ -354,7 +423,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 		})
 		ui.Column(c).Key("task-form").Gap(7).Children(func() {
-			ui.Text(c, "标题").FontSize(12).TextColor(t.TextMuted)
+			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
 			value, label := &v.newTitle, "新任务标题"
 			if v.editID > 0 {
 				value, label = &v.draft, "编辑任务标题"
@@ -367,11 +436,13 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			if field.Submitted() {
 				v.webSubmit()
 			}
-			ui.Text(c, "备注").FontSize(12).TextColor(t.TextMuted).Margin(16, 0, 0)
+			// The form column already supplies a 7px gap; label separation is
+			// 16px in TodoManager, rather than the previous 16 + 7.
+			ui.Text(c, "备注").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted).Margin(9, 0, 0)
 			ui.TextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
 		})
 		if v.editID == 0 {
-			webCheckbox(c, &v.formPin, "固定到桌面", 12, "pin").Margin(16, 0, 16)
+			webCheckbox(c, &v.formPin, "固定到桌面", 12, "pin").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
 		}
 		b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
 		b.Children(func() { webIcon(c, "chevron", 10); ui.Text(c, "截止时间与更多选项") })
@@ -405,13 +476,13 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			if v.editID > 0 {
 				text, value = "保存修改", v.draft
 			}
-			b := webButton(c, text, true).Grow(1).Padding(10, 8).Disabled(value == "")
+			b := webButton(c, text, true).Grow(1).Height(36).FixedLineHeight(14).Padding(10, 8).Disabled(value == "")
 			b.Children(func() { ui.Text(c, text) })
 			if b.Clicked() {
 				v.webSubmit()
 			}
 			if v.editID > 0 {
-				b = webButton(c, "取消编辑", false).Grow(1).Padding(10, 8)
+				b = webButton(c, "取消编辑", false).Grow(1).Height(36).FixedLineHeight(14).Padding(10, 8)
 				b.Children(func() { ui.Text(c, "取消编辑") })
 				if b.Clicked() {
 					v.cancelEdit()
@@ -453,15 +524,23 @@ func (v *nativeTasksView) webSubmit() {
 
 func (v *nativeTasksView) webAppearance(c *ui.Context) {
 	t := v.visual
-	ui.Column(c).Label("外观设置").WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Padding(22, 24).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
+	width, _ := c.Size()
+	vertical, horizontal, gap := float32(22), float32(24), float32(16)
+	if width <= 900 {
+		vertical, horizontal, gap = 20, 20, 14
+	}
+	ui.Column(c).Label("外观设置").WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Padding(vertical, horizontal).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
 		ui.Text(c, "外观").Font(t.HeadingFont).FontSize(16).FontWeight(600)
 		ui.Text(c, "同一种风格，贯穿任务窗口与桌面卡片。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0, 18)
-		ui.Row(c).Gap(16).Children(func() {
+		ui.Row(c).Gap(gap).Children(func() {
 			for _, item := range []struct{ id, name, description string }{{"mac", "精致 Mac", "柔和中性色，清爽专注"}, {"paper", "温暖纸色", "温润纸面，书写的节奏"}, {"graphite", "深色石墨", "低调深色，清晰有序"}} {
 				preview := webTheme(item.id)
 				b := ui.ButtonBase(c).Label(item.name).Grow(1).Column().Justify(ui.Start).AlignItems(ui.Stretch)
 				b.Children(func() {
 					frame := ui.Column(c).Height(118).Padding(0, 12).Radius(8).Border(1, preview.Border).Background(preview.Background)
+					if b.Hovered() {
+						frame.Opacity(.85)
+					}
 					if t.ID == item.id {
 						frame.DrawOver(func(p *ui.Painter, r ui.Rect) {
 							p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, t.Accent, 11, 2)
@@ -472,12 +551,11 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 							for i := 0; i < 3; i++ {
 								ui.Box(c).Size(4, 4).Radius(2).Background(preview.Subtle).Opacity(.55)
 							}
-							ui.Spacer(c)
-							ui.Text(c, "Aa").Font(preview.HeadingFont).FontSize(14).TextColor(preview.Text)
 						})
+						ui.Text(c, "Aa").Absolute().Right(15).Top(3).Font(preview.HeadingFont).FontSize(14).TextColor(preview.Text)
 						ui.Row(c).Gap(10).Padding(12, 0, 0).Children(func() {
 							ui.Column(c).Grow(1).Gap(4).Children(func() {
-								ui.Box(c).Size(40, 5).Radius(2).Background(preview.Text).Margin(0, 0, 5)
+								ui.Box(c).WidthPercent(40).Height(5).Radius(2).Background(preview.Text).Margin(0, 0, 5)
 								for i := 0; i < 3; i++ {
 									ui.Box(c).Height(13).Background(preview.Surface).Border(1, preview.Border).Radius(3).Children(func() { ui.Box(c).Absolute().Left(5).Top(3).Size(4, 4).Radius(2).Border(1, preview.Accent) })
 								}
@@ -497,7 +575,7 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 							mark.Background(t.Accent).TextColor(t.AccentText).Children(func() { webIcon(c, "check", 12) })
 						}
 					})
-					ui.Text(c, item.description).FontSize(11).TextColor(t.TextMuted).Margin(4, 0, 0)
+					ui.Text(c, item.description).FontSize(11).LineHeight(1.6).TextColor(t.TextMuted).Margin(4, 0, 5)
 				})
 				if b.Clicked() {
 					_, err := v.service.Theme(item.id)

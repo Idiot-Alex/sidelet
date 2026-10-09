@@ -28,6 +28,8 @@ type views struct {
 	hoverDeadline            time.Time
 	order                    orderUI
 	showAll                  func()
+	cardLayout               webCardLayout
+	cardLayoutVersion        uint64
 }
 
 func (v *views) webHover(hit int, now time.Time) (int, time.Duration) {

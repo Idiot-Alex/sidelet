@@ -98,14 +98,14 @@ func TestDeadlinePickerApplyClearAndNestedEscape(t *testing.T) {
 	}
 	u.Key(0, ui.KeyRight)
 	u.Key(0, ui.KeyEnter)
-	if err := u.Click("17"); err != nil {
+	if err := u.Click("截止时间小时"); err != nil {
 		t.Fatal(err)
 	}
 	u.Key(0, ui.KeyUp)
 	if err := u.Click("确定截止时间"); err != nil {
 		t.Fatal(err)
 	}
-	if v.formDue != "2026-10-08T18:00" || v.datePickerOpen {
+	if v.formDue != "2026/10/08 18:00" || v.datePickerOpen {
 		t.Fatalf("date/time picker not applied: %s", v.formDue)
 	}
 	if err := u.Click("提醒我"); err != nil {
@@ -172,7 +172,7 @@ func TestDeadlineCalendarFitsLaptopWindowAndProtectsEditor(t *testing.T) {
 		_ = u.Click("截止时间与更多选项")
 		_ = u.Click("选择截止日期与时间")
 		_ = u.Click("选择截止日期")
-		r, found := u.Find("November 8, 2026")
+		r, found := u.Find("2026年11月8日")
 		if !found || r.Y < 0 || r.Y+r.H > float32(size[1]) {
 			t.Fatalf("calendar clipped at %v: %+v found=%v", size, r, found)
 		}

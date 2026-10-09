@@ -34,6 +34,11 @@ func main() {
 	forceMain := flag.Bool("main", false, "show the task window regardless of the saved startup preference")
 	mainHidden := flag.Bool("main-hidden", false, "start without a task main window; reopen using File > 打开任务窗口")
 	flag.Parse()
+	// SMAppService launches the main app without diagnostic arguments. A plain
+	// bundle launch must therefore enter the complete native app and its profile.
+	if len(os.Args) == 1 {
+		*nativeMain = true
+	}
 	if *quickShortcutFixture && (!*nativeMain || *output == "" || runtime.GOOS != "darwin") {
 		log.Fatal("-quick-add-test-shortcut requires macOS, -native-main and -output")
 	}
@@ -113,6 +118,11 @@ func main() {
 	if h != nil {
 		v.service = h.service
 		if h.native {
+			// Bootstrap without activation or a Dock flash. The persisted Dock
+			// preference is applied once the menu-bar entry exists in WhenReady.
+			if runtime.GOOS == "darwin" {
+				mygo.App.SetActivationPolicy(mygo.ActivationPolicyAccessory)
+			}
 			v.enableCloseTimer()
 			v.renderPresence = input.directFixture
 		}
@@ -134,6 +144,7 @@ func main() {
 		}
 	}
 	var stack, card, backgroundProbe *mygo.Window
+	openedAtLogin := false
 	cardAnchorY := 0
 	resizeCard := func() {
 		if card == nil || m.UITheme == "" {
@@ -167,6 +178,10 @@ func main() {
 			data["probeBounds"], data["probeFocused"] = backgroundProbe.Bounds(), backgroundProbe.IsFocused()
 		}
 		if h != nil {
+			data["openedAtLogin"] = openedAtLogin
+			if h.service.login != nil {
+				data["loginStatus"], data["loginError"] = h.service.login.status, h.service.login.error
+			}
 			data["taskSnapshot"] = h.service.snapshot()
 			data["storageError"] = m.storageError
 			if m.profile != nil {
@@ -252,6 +267,10 @@ func main() {
 	}
 	mygo.App.OnBeforeQuit(func(_ *mygo.QuitEvent) { input.close() })
 	mygo.App.WhenReady(func() {
+		openedAtLogin = mygo.App.WasOpenedAtLogin()
+		if h != nil && h.native {
+			_ = h.service.CheckLogin()
+		}
 		if *traceInput {
 			stopTrace := startInputTrace()
 			mygo.App.OnBeforeQuit(func(_ *mygo.QuitEvent) { stopTrace() })
@@ -464,13 +483,20 @@ func main() {
 				}
 			}
 			mygo.App.OnActivate(func(bool) {
+				if h.native {
+					_ = h.service.CheckLogin()
+				}
 				if !m.Editing {
 					h.show()
 				}
 			})
-			if !*mainHidden && (!h.native || startupMainVisible(m, *forceMain, *mainHidden)) {
+			if h.native {
+				mygo.App.OnDidBecomeActive(func() { _ = h.service.CheckLogin() })
+			}
+			if !*mainHidden && (!h.native || startupMainVisible(m, *forceMain, *mainHidden, openedAtLogin)) {
 				h.show()
 			}
+			logState("startup-presentation")
 		}
 		if *startCard {
 			if ids := m.eligibleIDs(); len(ids) > 0 {

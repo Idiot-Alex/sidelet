@@ -40,6 +40,7 @@ func (h *hybridApp) installNativeTray() error {
 		{Label: "快速添加", Click: func(*mygo.MenuItem, *mygo.Window) { h.showQuickAdd() }},
 		h.quietItem,
 		{Label: "设置", Click: func(*mygo.MenuItem, *mygo.Window) {
+			_ = h.service.CheckLogin()
 			h.show()
 			h.view.settingsOpen = true
 			h.window.Invalidate()

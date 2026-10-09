@@ -9,6 +9,12 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+type webCardLayout struct {
+	Title, Note, Theme, Due string
+	Priority                int
+	Width                   float32
+}
+
 // Transparent native canvases use the same design tokens as the main window.
 // There is deliberately no painted container behind the individual labels.
 func (v *views) webStack(c *ui.Context) {
@@ -81,7 +87,7 @@ func (v *views) webStack(c *ui.Context) {
 						v.closeCard()
 					}
 				}
-				ui.Text(c, task.Title).Grow(1).FontSize(13).MaxLines(1)
+				ui.Text(c, task.Title).Grow(1).MinWidth(0).FontSize(13).MaxLines(1).Ellipsis("…")
 				if task.DueAt > 0 {
 					label := dueLabel(task, m.now())
 					if label != "" {
@@ -155,24 +161,11 @@ func (v *views) webCard(c *ui.Context) {
 		v.presence(v.sourceInside, c.Root().Hovered())
 	}
 	item := m.Tasks[m.Opened]
-	if !m.Editing {
-		_, titleHeight := c.MeasureText(286, ui.Span{Text: item.Title, Font: t.HeadingFont, Size: 18, Weight: t.HeadingWeight})
-		height := float32(40+26+60) + titleHeight*1.4/1.25
-		if item.Priority != 0 || item.DueAt > 0 {
-			height += 28
-		}
-		if strings.TrimSpace(item.Note) != "" {
-			_, noteHeight := c.MeasureText(286, ui.Span{Text: item.Note, Size: 13})
-			height += 12 + noteHeight*1.65/1.25
-		}
-		if v.snoozing {
-			height += 34
-		}
-		wanted := max(160, min(390, int(math.Ceil(float64(height)))))
-		if m.CardReadHeight != wanted {
-			m.CardReadHeight = wanted
-			v.notify("card-size")
-		}
+	var reading *ui.Element
+	var errorHeight float32
+	footerHeight := float32(61) // 36px controls + 24px padding + top border.
+	if v.snoozing && !m.Editing {
+		footerHeight = 95
 	}
 	ui.Column(c).Fill().Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
 		ui.Row(c).Height(40).Shrink(0).Padding(10, 16, 2).Children(func() {
@@ -181,71 +174,85 @@ func (v *views) webCard(c *ui.Context) {
 				label = "快速编辑"
 			}
 			ui.Text(c, label).FontSize(11).LetterSpacing(.33).TextColor(t.TextMuted).Grow(1)
-			if webIconButton(c, "关闭快速卡片", "close", 16).Clicked() {
+			if webIconButton(c, "关闭快速卡片", "close", 16).Radius(6).Clicked() {
 				v.closeCard()
 			}
 		})
 		if m.Opened < 0 {
 			return
 		}
-		ui.Scroll(c).Grow(1).Padding(10, 16, 16).Children(func() {
-			if m.Editing {
-				ui.Column(c).Key("card-title").Gap(6).Margin(0, 0, 14).Children(func() {
-					ui.Text(c, "任务标题").FontSize(11).TextColor(t.TextMuted)
-					field := ui.TextInput(c, &m.Draft).Label("任务标题").Padding(9).Height(36).Background(t.Field)
-					if v.editorFocusPending {
-						field.Focus()
-						v.editorFocusPending = false
-					}
-					if field.Submitted() && m.save() {
-						v.notify("save")
-					}
-				})
-				ui.Column(c).Key("card-note").Gap(6).Children(func() {
-					ui.Text(c, "备注").FontSize(11).TextColor(t.TextMuted)
-					ui.TextArea(c, &m.DraftNote).Label("卡片备注").Height(120).Padding(9).LineHeight(1.6).Background(t.Field)
-				})
-			} else {
-				ui.Text(c, item.Title).Font(t.HeadingFont).FontSize(18).FontWeight(t.HeadingWeight).LineHeight(1.4)
-				if item.Priority != 0 || item.DueAt > 0 {
-					ui.Row(c).Gap(8).Margin(10, 0, 0).Children(func() {
-						if item.Priority != 0 {
-							fg, bg := t.Warning, t.WarningSoft
-							if item.Priority == 3 {
-								fg, bg = t.Danger, t.DangerSoft
-							}
-							ui.Text(c, priorityName(item.Priority)).FontSize(10).Padding(0, 6).Radius(4).TextColor(fg).Background(bg)
+		ui.Scroll(c).Grow(1).Children(func() {
+			body := ui.Column(c).WidthPercent(100).MinWidth(0).Padding(10, 16, 16)
+			if !m.Editing {
+				width, _ := c.Size()
+				// Bounds is the previous committed layout. A new key waits for
+				// fresh metrics when content, theme or wrapping width changes.
+				layout := webCardLayout{item.Title, item.Note, m.UITheme, dueText(item, m.now()), item.Priority, width}
+				if layout != v.cardLayout {
+					v.cardLayout, v.cardLayoutVersion = layout, v.cardLayoutVersion+1
+				}
+				// An integer key avoids formatting the entire note every frame.
+				body.Key(v.cardLayoutVersion)
+				reading = body.Label("卡片阅读内容")
+			}
+			body.Children(func() {
+				if m.Editing {
+					ui.Column(c).Key("card-title").Gap(6).Margin(0, 0, 14).Children(func() {
+						ui.Text(c, "任务标题").FontSize(11).TextColor(t.TextMuted)
+						field := ui.TextInput(c, &m.Draft).Label("任务标题").Padding(9).Height(36).Background(t.Field)
+						if v.editorFocusPending {
+							field.Focus()
+							v.editorFocusPending = false
 						}
-						if item.DueAt > 0 {
-							color := t.TextMuted
-							if item.DueAt <= m.now().UnixMilli() {
-								color = t.Danger
-							}
-							ui.Row(c).Gap(4).TextColor(color).Children(func() { webIcon(c, "clock", 12); ui.Text(c, dueText(item, m.now())).FontSize(11) })
+						if field.Submitted() && m.save() {
+							v.notify("save")
 						}
 					})
+					ui.Column(c).Key("card-note").Gap(6).Children(func() {
+						ui.Text(c, "备注").FontSize(11).TextColor(t.TextMuted)
+						ui.TextArea(c, &m.DraftNote).Label("卡片备注").Height(120).Padding(9).LineHeight(1.6).Background(t.Field)
+					})
+				} else {
+					ui.Text(c, item.Title).Font(t.HeadingFont).FontSize(18).FontWeight(t.HeadingWeight).LineHeight(1.4)
+					if item.Priority != 0 || item.DueAt > 0 {
+						ui.Row(c).Wrap().GapX(8).GapY(6).Margin(10, 0, 0).Children(func() {
+							if item.Priority != 0 {
+								fg, bg := t.Warning, t.WarningSoft
+								if item.Priority == 3 {
+									fg, bg = t.Danger, t.DangerSoft
+								}
+								ui.Text(c, priorityName(item.Priority)).FontSize(10).FixedLineHeight(18).NoWrap().Padding(0, 6).Radius(4).TextColor(fg).Background(bg)
+							}
+							if item.DueAt > 0 {
+								color := t.TextMuted
+								if item.DueAt <= m.now().UnixMilli() {
+									color = t.Danger
+								}
+								ui.Row(c).Gap(4).TextColor(color).Children(func() {
+									webIcon(c, "clock", 12)
+									ui.Text(c, dueText(item, m.now())).FontSize(11).FixedLineHeight(18).FontFeatures("tnum").NoWrap()
+								})
+							}
+						})
+					}
+					if strings.TrimSpace(item.Note) != "" {
+						ui.Text(c, item.Note).FontSize(13).LineHeight(1.65).TextColor(t.TextMuted).Margin(12, 0, 0)
+					}
 				}
-				if strings.TrimSpace(item.Note) != "" {
-					ui.Text(c, item.Note).FontSize(13).LineHeight(1.65).TextColor(t.TextMuted).Margin(12, 0, 0)
-				}
-			}
+			})
 		})
 		if m.EditError != "" {
-			ui.Text(c, m.EditError).FontSize(12).TextColor(t.Danger).Padding(8, 16)
-		}
-		footerHeight := float32(60)
-		if v.snoozing && !m.Editing {
-			footerHeight = 94
+			errorHeight = ui.Text(c, m.EditError).Key(m.EditError).FontSize(12).TextColor(t.Danger).Padding(8, 16).Bounds().H
 		}
 		ui.Column(c).Height(footerHeight).Shrink(0).Gap(6).Padding(12, 16).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 			ui.Row(c).Gap(6).Children(func() {
 				if m.Editing {
-					b := webButton(c, "保存", true).Grow(1).Height(36).Padding(0, 5).Gap(5).Disabled(strings.TrimSpace(m.Draft) == "")
+					b := webCardButton(c, "保存", true).Disabled(strings.TrimSpace(m.Draft) == "")
 					b.Children(func() { webIcon(c, "check", 14); ui.Text(c, "保存") })
 					if b.Clicked() && m.save() {
 						v.notify("save")
 					}
-					b = webButton(c, "取消", false).Grow(1).Height(36).Padding(0, 5).Background(t.Alt)
+					b = webCardButton(c, "取消", false)
 					b.Children(func() { ui.Text(c, "取消") })
 					if b.Clicked() {
 						m.cancel()
@@ -253,7 +260,7 @@ func (v *views) webCard(c *ui.Context) {
 					}
 				} else if v.snoozing {
 					for _, option := range []struct{ label, duration string }{{"30 分钟", "30m"}, {"1 小时", "1h"}, {"明天 09:00", "tomorrow"}} {
-						b := webButton(c, option.label, false).Grow(1).Height(36).Padding(0, 5).FontSize(12).Background(t.Alt)
+						b := webCardButton(c, option.label, false)
 						b.Children(func() { ui.Text(c, option.label) })
 						if b.Clicked() {
 							v.snooze(option.duration)
@@ -264,10 +271,7 @@ func (v *views) webCard(c *ui.Context) {
 						label, icon string
 						primary     bool
 					}{{"完成", "check", true}, {"稍后", "clock", false}, {"编辑", "edit", false}} {
-						b := webButton(c, action.label, action.primary).Grow(1).Height(36).Padding(0, 5).Gap(5)
-						if !action.primary {
-							b.Background(t.Alt)
-						}
+						b := webCardButton(c, action.label, action.primary)
 						b.Children(func() { webIcon(c, action.icon, 14); ui.Text(c, action.label) })
 						if b.Clicked() {
 							switch action.label {
@@ -299,6 +303,18 @@ func (v *views) webCard(c *ui.Context) {
 			}
 		})
 	})
+	if reading != nil && !m.Editing && m.Opened >= 0 {
+		if height := reading.Bounds().H; height > 0 && (m.EditError == "" || errorHeight > 0) {
+			wanted := max(160, min(390, int(math.Ceil(float64(40+height+footerHeight+2+errorHeight)))))
+			if m.CardReadHeight != wanted {
+				m.CardReadHeight = wanted
+				v.notify("card-size")
+				c.Invalidate()
+			}
+		} else {
+			c.Invalidate()
+		}
+	}
 	if c.Root().Shortcut(0, ui.KeyEscape) {
 		if m.Editing {
 			m.cancel()

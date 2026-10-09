@@ -33,7 +33,7 @@ func TestPreferencesRoundTripDoesNotMoveExistingGroup(t *testing.T) {
 	want := p.saved
 	p.close()
 	restored, _, p2 := profileFixture(t, dir)
-	if !reflect.DeepEqual(want, p2.saved) || restored.Preferences != value || !startupMainVisible(restored, false, false) {
+	if !reflect.DeepEqual(want, p2.saved) || restored.Preferences != value || !startupMainVisible(restored, false, false, false) {
 		t.Fatal("preferences not restored")
 	}
 	if _, err := s.Theme("graphite"); err == nil {
@@ -73,7 +73,7 @@ func TestProfileSchemaOneMigratesWithoutLosingLegacyState(t *testing.T) {
 }
 
 func TestProfileInvalidPreferencesPreserveFile(t *testing.T) {
-	for _, kind := range []string{"version", "edge", "density", "theme", "login"} {
+	for _, kind := range []string{"version", "edge", "density", "theme"} {
 		t.Run(kind, func(t *testing.T) {
 			dir := t.TempDir()
 			_, _, p := profileFixture(t, dir)
@@ -87,8 +87,6 @@ func TestProfileInvalidPreferencesPreserveFile(t *testing.T) {
 				state.Preferences.Edge.DefaultDensity = "invalid"
 			case "theme":
 				state.Preferences.Appearance.Theme = "graphite"
-			case "login":
-				state.Preferences.Startup.Enabled = true
 			}
 			p.close()
 			data, _ := json.Marshal(state)
@@ -172,7 +170,7 @@ func TestStartupPreferenceAndFreshGroupDefaults(t *testing.T) {
 	} {
 		p.fresh = row.fresh
 		m.Preferences.Startup.ShowMainWindow = row.show
-		if got := startupMainVisible(m, row.force, row.hide); got != row.want {
+		if got := startupMainVisible(m, row.force, row.hide, false); got != row.want {
 			t.Fatalf("startup %+v got %v", row, got)
 		}
 	}
