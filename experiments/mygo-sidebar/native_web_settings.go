@@ -16,7 +16,7 @@ func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons .
 		for _, name := range icons {
 			webIcon(c, name, 14)
 		}
-		ui.Text(c, label)
+		ui.Text(c, label).Height(size * 4 / 3).FixedLineHeight(size * 4 / 3)
 	})
 	return b
 }
@@ -142,7 +142,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				}
 				row.Children(func() {
 					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
-					field := ui.Select(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
+					field := webSelect(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
 					if field.Changed() {
 						value := v.service.m.Preferences
 						if item.label == "默认屏幕边缘" {
@@ -264,7 +264,7 @@ func (v *nativeTasksView) webPosition(c *ui.Context) {
 				if m.Side == "right" {
 					side = "右侧"
 				}
-				edge := ui.Select(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
+				edge := webSelect(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
 				if edge.Changed() {
 					value := "left"
 					if side == "右侧" {
@@ -288,7 +288,7 @@ func (v *nativeTasksView) webPosition(c *ui.Context) {
 				if m.itemHeight() == 56 {
 					density = "宽松"
 				}
-				field := ui.Select(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
+				field := webSelect(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
 				if field.Changed() {
 					height := 44
 					if density == "紧凑" {

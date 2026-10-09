@@ -138,7 +138,7 @@ func (v *nativeTasksView) webTimeInput(c *ui.Context) {
 			if i == 1 {
 				label, limit = "截止时间分钟", 60
 			}
-			field := ui.TextInput(c, value).Label(label).Width(40).Height(32).Padding(4).Border(0, ui.Transparent).Background(ui.Transparent).FontSize(13).FontFeatures("tnum")
+			field := webTextInput(c, value).Label(label).Width(40).Height(32).Padding(4).Border(0, ui.Transparent).Background(ui.Transparent).FontSize(13).FontFeatures("tnum")
 			if field.Changed() {
 				v.pickerError = ""
 			}

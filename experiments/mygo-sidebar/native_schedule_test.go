@@ -53,7 +53,7 @@ func TestScheduleDraftValidationPreservationAndClear(t *testing.T) {
 			}
 			_ = u.Click("取消编辑")
 			_ = u.Click("编辑：改标题保留精确时间")
-			if err := u.Click("任务截止时间"); err != nil {
+			if err := u.Click("截止年份"); err != nil {
 				t.Fatal(err)
 			}
 			u.Command("selectAll")

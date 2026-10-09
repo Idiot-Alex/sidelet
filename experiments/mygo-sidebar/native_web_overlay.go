@@ -59,6 +59,11 @@ func (v *views) webStack(c *ui.Context) {
 			handle.Background(ui.Transparent).Border(0, ui.Transparent)
 		}
 		handle.PointerPosition()
+		reveal := ui.Local(handle, "title-reveal", func() edgeTitleReveal { return edgeTitleReveal{} })
+		progress, animating := reveal.frame(m.expanded(i), c.Now(), c.Preferences().ReduceMotion)
+		if animating {
+			c.AnimationFrame()
+		}
 		if v.pointer != nil {
 			handle.HandleInput(func(ev ui.InputEvent) bool { return v.pointer(index, ev) })
 		}
@@ -79,7 +84,7 @@ func (v *views) webStack(c *ui.Context) {
 		if !m.Dragging && (m.Hover == i || m.Opened == i) {
 			body := ui.ButtonBase(c).Key(fmt.Sprintf("preview-%d", i)).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
 			body.Children(func() {
-				check := ui.ButtonBase(c).Size(16, 16).Radius(8).Border(1, t.Subtle).Label("完成侧栏任务：" + task.Title)
+				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
 				if check.Clicked() {
 					m.open(index)
 					if m.complete() {
@@ -87,7 +92,9 @@ func (v *views) webStack(c *ui.Context) {
 						v.closeCard()
 					}
 				}
-				ui.Text(c, task.Title).Grow(1).MinWidth(0).FontSize(13).MaxLines(1).Ellipsis("…")
+				ui.Box(c).Grow(1).MinWidth(0).Height(18).ClipX().Children(func() {
+					ui.Text(c, task.Title).Absolute().Left(8 * (1 - progress)).WidthPercent(100).FontSize(13).Height(18).FixedLineHeight(18).MaxLines(1).Ellipsis("…").Opacity(progress)
+				})
 				if task.DueAt > 0 {
 					label := dueLabel(task, m.now())
 					if label != "" {
@@ -199,7 +206,7 @@ func (v *views) webCard(c *ui.Context) {
 				if m.Editing {
 					ui.Column(c).Key("card-title").Gap(6).Margin(0, 0, 14).Children(func() {
 						ui.Text(c, "任务标题").FontSize(11).TextColor(t.TextMuted)
-						field := ui.TextInput(c, &m.Draft).Label("任务标题").Padding(9).Height(36).Background(t.Field)
+						field := webTextInput(c, &m.Draft).Label("任务标题").Padding(9).Height(36).Background(t.Field)
 						if v.editorFocusPending {
 							field.Focus()
 							v.editorFocusPending = false
@@ -210,7 +217,7 @@ func (v *views) webCard(c *ui.Context) {
 					})
 					ui.Column(c).Key("card-note").Gap(6).Children(func() {
 						ui.Text(c, "备注").FontSize(11).TextColor(t.TextMuted)
-						ui.TextArea(c, &m.DraftNote).Label("卡片备注").Height(120).Padding(9).LineHeight(1.6).Background(t.Field)
+						webTextArea(c, &m.DraftNote).Label("卡片备注").Height(120).Padding(9).LineHeight(1.6).Background(t.Field)
 					})
 				} else {
 					ui.Text(c, item.Title).Font(t.HeadingFont).FontSize(18).FontWeight(t.HeadingWeight).LineHeight(1.4)
@@ -248,7 +255,7 @@ func (v *views) webCard(c *ui.Context) {
 			ui.Row(c).Gap(6).Children(func() {
 				if m.Editing {
 					b := webCardButton(c, "保存", true).Disabled(strings.TrimSpace(m.Draft) == "")
-					b.Children(func() { webIcon(c, "check", 14); ui.Text(c, "保存") })
+					b.Children(func() { webIcon(c, "check", 14); webActionText(c, "保存") })
 					if b.Clicked() && m.save() {
 						v.notify("save")
 					}
@@ -272,7 +279,7 @@ func (v *views) webCard(c *ui.Context) {
 						primary     bool
 					}{{"完成", "check", true}, {"稍后", "clock", false}, {"编辑", "edit", false}} {
 						b := webCardButton(c, action.label, action.primary)
-						b.Children(func() { webIcon(c, action.icon, 14); ui.Text(c, action.label) })
+						b.Children(func() { webIcon(c, action.icon, 14); webActionText(c, action.label) })
 						if b.Clicked() {
 							switch action.label {
 							case "完成":

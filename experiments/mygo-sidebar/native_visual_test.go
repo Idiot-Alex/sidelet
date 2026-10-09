@@ -144,3 +144,44 @@ func TestCardFooterKeepsGeometryAndThemeFeedback(t *testing.T) {
 		})
 	}
 }
+
+func TestFormalKeyboardOutlineAndActionBaseline(t *testing.T) {
+	for _, theme := range []string{"mac", "paper", "graphite"} {
+		t.Run(theme, func(t *testing.T) {
+			theme := webTheme(theme)
+			value := "草稿"
+			u := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(theme.Theme)
+				ui.Column(c).Fill().Padding(20).Gap(20).Children(func() {
+					b := webButton(c, "图标操作", false).Width(160).Height(36).Gap(6)
+					b.Children(func() { webIcon(c, "plus", 16); webActionText(c, "快速添加") })
+					webTextInput(c, &value).Label("输入草稿").Width(160).Height(36)
+				})
+			}, 220, 200)
+			u.SetFocused(true)
+			_ = u.Click("图标操作")
+			button := visualRect(t, u, "图标操作")
+			text := visualRect(t, u, "快速添加")
+			if math.Abs(float64(button.Y+button.H/2-text.Y-text.H/2)) > .5 || text.H != 16 {
+				t.Fatal("action text baseline box not centered", button, text)
+			}
+			pixel := u.Image().RGBAAt(int(button.X-4), int(button.Y+button.H/2))
+			if pixel.R == theme.Focus.R && pixel.G == theme.Focus.G && pixel.B == theme.Focus.B {
+				t.Fatal("pointer click drew keyboard outline")
+			}
+			u.Key(0, ui.KeyTab)
+			if !u.Focused("输入草稿") {
+				t.Fatal("Tab didn't reach input")
+			}
+			field := visualRect(t, u, "输入草稿")
+			pixel = u.Image().RGBAAt(int(field.X-4), int(field.Y+field.H/2))
+			if pixel.R != theme.Focus.R || pixel.G != theme.Focus.G || pixel.B != theme.Focus.B {
+				t.Fatal("missing separated 2px keyboard outline", pixel)
+			}
+			gap := u.Image().RGBAAt(int(field.X-2), int(field.Y+field.H/2))
+			if gap.R == theme.Focus.R && gap.G == theme.Focus.G && gap.B == theme.Focus.B {
+				t.Fatal("outline gap was painted")
+			}
+		})
+	}
+}

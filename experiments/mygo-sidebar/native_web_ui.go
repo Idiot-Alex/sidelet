@@ -97,14 +97,14 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if v.settingsOpen {
 				ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle)
 				b := webButton(c, "返回我的任务", false).Border(0, ui.Transparent).Gap(7).Disabled(v.exportBusy())
-				b.Children(func() { webIcon(c, "back", 16); ui.Text(c, "返回我的任务") })
+				b.Children(func() { webIcon(c, "back", 16); webActionText(c, "返回我的任务") })
 				if b.Clicked() {
 					v.settingsOpen = false
 				}
 				return
 			}
 			b := webButton(c, "快速添加", false).Height(34).Border(0, ui.Transparent).Gap(6).Disabled(v.service.m.Arranging)
-			b.Children(func() { webIcon(c, "plus", 16); ui.Text(c, "快速添加") })
+			b.Children(func() { webIcon(c, "plus", 16); webActionText(c, "快速添加") })
 			if b.Clicked() {
 				if v.onQuickAdd != nil {
 					v.onQuickAdd()
@@ -118,7 +118,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if v.service.m.Arranging {
 				b.Background(t.Soft).TextColor(t.Accent)
 			}
-			b.Children(func() { webIcon(c, "layout", 16); ui.Text(c, label) })
+			b.Children(func() { webIcon(c, "layout", 16); webActionText(c, label) })
 			if b.Clicked() {
 				_, err := v.service.Arrange(!v.service.m.Arranging)
 				if v.result(err, "") {
@@ -136,7 +136,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if v.service.m.Quiet {
 				b.Background(t.Soft).TextColor(t.Accent)
 			}
-			b.Children(func() { webIcon(c, "moon", 16); ui.Text(c, quietLabel) })
+			b.Children(func() { webIcon(c, "moon", 16); webActionText(c, quietLabel) })
 			if b.Clicked() {
 				_, err := v.service.SetQuiet(!v.service.m.Quiet)
 				if v.result(err, "") {
@@ -428,7 +428,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			if v.editID > 0 {
 				value, label = &v.draft, "编辑任务标题"
 			}
-			field := ui.TextInput(c, value).Label(label).Placeholder("接下来想做什么？").Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).Height(38)
+			field := webTextInput(c, value).Label(label).Placeholder("接下来想做什么？").Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).Height(38)
 			if v.focusNew && v.editID == 0 || v.focusEdit && v.editID > 0 {
 				field.Focus()
 				v.focusNew, v.focusEdit = false, false
@@ -439,7 +439,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			// The form column already supplies a 7px gap; label separation is
 			// 16px in TodoManager, rather than the previous 16 + 7.
 			ui.Text(c, "备注").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted).Margin(9, 0, 0)
-			ui.TextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
+			webTextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
 		})
 		if v.editID == 0 {
 			webCheckbox(c, &v.formPin, "固定到桌面", 12, "pin").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
@@ -453,19 +453,19 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
 				ui.Text(c, "截止时间").FontSize(12).TextColor(t.TextMuted)
 				v.webDeadline(c)
-				webCheckbox(c, &v.formRemind, "提醒我", 12).Disabled(v.formDue == "")
+				webCheckbox(c, &v.formRemind, "提醒我", 12).Height(16).Margin(9, 0, 9).Disabled(v.formDue == "")
 				hint := "默认只显示到期状态；设置截止时间后可开启通知。"
 				if v.formRemind {
 					hint = "到截止时间发送系统通知；Sidelet 需在后台运行。"
 				}
-				ui.Text(c, hint).FontSize(12).TextColor(t.TextMuted).LineHeight(1.7).Margin(0, 0, 14)
+				ui.Text(c, hint).FontSize(12).TextColor(t.TextMuted).LineHeight(1.7).Margin(0, 0, 7)
 				ui.Text(c, "重要程度").FontSize(12).TextColor(t.TextMuted)
 				value := &v.newPriority
 				if v.editID > 0 {
 					value = &v.draftPriority
 				}
-				ui.Select(c, value, priorityNames).Label("任务重要程度").Height(36).Background(t.Field)
-				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(12, 0, 0)
+				webSelect(c, value, priorityNames).Label("任务重要程度").Height(36).Background(t.Field)
+				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(9, 0, 0)
 				if v.formTemporary {
 					ui.Text(c, "完成后保留 5 秒撤销时间，随后自动移除。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.7)
 				}

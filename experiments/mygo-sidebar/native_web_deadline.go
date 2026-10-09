@@ -12,16 +12,18 @@ func (v *nativeTasksView) resetScheduleDraft() {
 	v.formRemind, v.formTemporary, v.datePickerOpen = false, false, false
 	v.pickerCalendarOpen = false
 	v.pickerError = ""
+	v.deadline = deadlineSegments{}
 }
 func (v *nativeTasksView) webDeadline(c *ui.Context) {
 	t := v.visual
-	ui.Row(c).Key("deadline-input").Height(36).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).AlignItems(ui.Center).Children(func() {
-		field := ui.TextInput(c, &v.formDue).Label("任务截止时间").Placeholder("年/月/日 --:--").FontSize(12).FontFeatures("tnum").Grow(1).MinWidth(0).Height(34).Padding(8, 5).Border(0, ui.Transparent).Background(ui.Transparent)
-		if field.Changed() && v.formDue == "" {
-			v.formRemind = false
-		}
-		b := webIconButton(c, "选择截止日期与时间", "clock", 14).Size(26, 28).Shrink(0)
-		if b.Clicked() {
+	field := ui.Row(c).Key("deadline-input").Label("任务截止时间").Role(ui.RoleGroup).Height(36).Padding(0, 5).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).AlignItems(ui.Center)
+	field.Children(func() {
+		v.webDeadlineSegments(c, field)
+		// WebKit has no clock glyph on macOS. Keep the remaining field
+		// space as an accessible calendar trigger, also reached by Alt+Down.
+		b := ui.ButtonBase(c).Label("选择截止日期与时间").Grow(1).MinWidth(12).Height(34).FocusRing(true)
+		if b.Clicked() || v.deadline.open {
+			v.deadline.open = false
 			if !v.datePickerOpen {
 				v.pickerCalendarOpen = false
 				v.pickerDate = v.service.m.now().Add(time.Hour).Truncate(time.Minute)
@@ -48,6 +50,7 @@ func (v *nativeTasksView) webDeadline(c *ui.Context) {
 				if b.Clicked() {
 					v.formDue = ""
 					v.formRemind = false
+					v.deadline = deadlineSegments{}
 					v.datePickerOpen = false
 				}
 				b = webButton(c, "确定截止时间", true).Grow(1)

@@ -7,7 +7,7 @@
 固定依赖 `github.com/egoist/mygo v0.2.16`，独立 `go.mod` / `go.sum`，Go 1.27.1，`CGO_ENABLED=0`。通过本地模块引用复用 `internal/todo` 的时间计算、`internal/reminder.Sync` 的提醒协调和 `internal/spike` 的卡片会话以及 `internal/quickadd` 的时间解析与会话，不引入 Wails、SQLite 或前端运行时。`-native-main` 默认使用独立 JSON 资料，首次为空列表，已提交任务、顺序、主题、布局和提醒回执可重启恢复；历史侧栏 / 混合实验仍使用三条合成内存任务。
 
 ```bash
-# 项目根目录；构建会检查正式 UI 参照并执行实验的 101 项顶层测试及 go vet。
+# 项目根目录；构建会检查正式 UI 参照并执行实验的 105 项顶层测试及 go vet。
 bash experiments/mygo-sidebar/build-macos.sh
 open build/bin/mygo-lab/SideletMyGoLab.app
 ```
@@ -148,3 +148,5 @@ Computer Use 的坐标操作直接向应用窗口投递事件，不移动系统�
 MyGo 支持同一应用混用 Web 和 Go 绘制窗口，值得继续探索主窗口 Web、常驻侧栏原生的方案。但 MyGo 与 Wails 各自管理应用事件循环，不能把 `ui.View` 当成现有 Wails WebView 的直接替换项；需要独立评估宿主和原生接口的迁移工作。
 
 参考：[MyGo v0.2.16](https://github.com/egoist/mygo/tree/v0.2.16)、[原生窗口文档](https://github.com/egoist/mygo/blob/v0.2.16/docs/ui/windows.md)。
+
+当前日期输入、键盘焦点和侧栏动画校准见 [第十二批记录](SEGMENTED_UI.md)，完整视觉一致性仍未验收。

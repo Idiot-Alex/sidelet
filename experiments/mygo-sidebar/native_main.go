@@ -49,6 +49,7 @@ type nativeTasksView struct {
 	formNote                      string
 	filterAll                     bool
 	formDue                       string
+	deadline                      deadlineSegments
 	originalDue                   int64
 	originalDueText               string
 	datePickerOpen                bool
