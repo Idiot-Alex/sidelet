@@ -11,7 +11,9 @@ int main(int argc, const char **argv) {
         EventHotKeyRef ref = NULL;
         EventHotKeyID id = {'SLtp',1};
         BOOL quickAdd=argc>3 && !strcmp(argv[3],"quick-add");
-        UInt32 code=quickAdd?kVK_Space:kVK_ANSI_T, modifiers=quickAdd?(controlKey|shiftKey):(controlKey|optionKey);
+        BOOL diagnostic=argc>3 && !strcmp(argv[3],"quick-add-fixture");
+        UInt32 code=diagnostic?kVK_F19:(quickAdd?kVK_Space:kVK_ANSI_T);
+        UInt32 modifiers=diagnostic?(controlKey|optionKey|shiftKey):(quickAdd?(controlKey|shiftKey):(controlKey|optionKey));
         OSStatus result = RegisterEventHotKey(code,modifiers,id,GetApplicationEventTarget(),kEventHotKeyExclusive,&ref);
         printf("shortcut-probe pid=%d code=%d modifiers=%u exclusive=true status=%d\n",getpid(),code,modifiers,(int)result);
         fflush(stdout);

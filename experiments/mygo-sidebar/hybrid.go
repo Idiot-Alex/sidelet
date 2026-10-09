@@ -47,6 +47,8 @@ type TasksService struct {
 	notificationStatus        string
 	notificationAuthorization string
 	notificationDelivered     int
+	export                    *nativeExport
+	quickShortcut             *nativeQuickShortcut
 }
 
 func (s *TasksService) snapshot() taskSnapshot {
@@ -265,18 +267,20 @@ func (s *TasksService) Open(id int) (err error) {
 }
 
 type hybridApp struct {
-	service   *TasksService
-	window    *mygo.Window
-	bounds    mygo.Rectangle
-	onState   func(string)
-	quitting  bool
-	editCard  func()
-	editItem  *mygo.MenuItem
-	native    bool
-	view      *nativeTasksView
-	quick     *nativeQuickAdd
-	tray      *mygo.Tray
-	quietItem *mygo.MenuItem
+	service           *TasksService
+	window            *mygo.Window
+	bounds            mygo.Rectangle
+	onState           func(string)
+	quitting          bool
+	editCard          func()
+	editItem          *mygo.MenuItem
+	native            bool
+	view              *nativeTasksView
+	quick             *nativeQuickAdd
+	tray              *mygo.Tray
+	quietItem         *mygo.MenuItem
+	captureQuickFocus func() quickFocusToken
+	prepareQuickAdd   func()
 }
 
 func newNativeApp(m *model) *hybridApp {
@@ -286,6 +290,12 @@ func newNativeApp(m *model) *hybridApp {
 	h := &hybridApp{native: true, service: &TasksService{m: m, run: mygo.RunOnMain, origin: "native-main"}}
 	h.service.enableExpiry()
 	h.service.enableNotifications(h)
+	h.captureQuickFocus = captureQuickForeground
+	h.service.export = newNativeExport(h.service, func() {
+		if !h.quitting {
+			h.publish()
+		}
+	})
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { h.quitting = true })
 	return h
 }
@@ -328,6 +338,7 @@ func (h *hybridApp) show() {
 			}
 		}
 		h.view.onQuickAdd = h.showQuickAdd
+		h.view.onExport = func(format string) { h.service.export.start(format, h.window) }
 		h.view.onThemeChanged = func(id string) {
 			if id == "graphite" {
 				mygo.Theme.SetSource(mygo.ThemeDark)
@@ -428,6 +439,11 @@ func (h *hybridApp) installMenu() {
 		{Role: mygo.RoleAppMenu},
 		{Label: "File", Submenu: []*mygo.MenuItem{
 			{Label: "打开任务窗口", Accelerator: "CmdOrCtrl+1", Click: func(*mygo.MenuItem, *mygo.Window) { h.show() }},
+			{Label: "快速添加", Click: func(*mygo.MenuItem, *mygo.Window) {
+				if h.native {
+					h.showQuickAdd()
+				}
+			}, Disabled: !h.native},
 			h.editItem,
 			mygo.Separator(), {Role: mygo.RoleClose},
 		}},

@@ -262,6 +262,7 @@ func TestFormalUIQuickAddAndTitleLimit(t *testing.T) {
 	m.UITheme = "mac"
 	q := &nativeQuickAdd{service: testService(m), text: "旧草稿", error: "旧错误", pin: true}
 	q.reset()
+	q.session.Begin(m.now())
 	if q.text != "" || q.error != "" || q.pin || !q.focus {
 		t.Fatal("reopening quick add retained previous draft/options")
 	}

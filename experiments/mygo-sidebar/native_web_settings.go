@@ -150,6 +150,12 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			hint("在系统通知列表中选择 Sidelet MyGo Lab，调整横幅和声音。")
 		})
 		section("快速添加", func() {
+			if v.service.quickShortcut != nil && v.service.quickShortcut.diagnostic {
+				hint("诊断模式使用 Control + Option + Shift + F19，仅用于独立注册检查。")
+			}
+			if v.service.quickShortcut != nil && v.service.quickShortcut.error != "" {
+				ui.Text(c, v.service.quickShortcut.error).FontSize(12).TextColor(t.Danger).LineHeight(1.6).Margin(5, 0)
+			}
 			hint("在任何应用中按 Control + Shift + Space，记下任务。Enter 保存，Esc 取消并返回之前的应用。")
 			hint("支持“明天下午3点 联系客户”等简单时间，默认不固定到桌面、不发送系统通知。")
 			b := webButton(c, "打开快速添加", false).Padding(8, 12).Margin(12, 0, 0).Background(t.Field).TextColor(t.Text)
@@ -162,11 +168,26 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			hint("导出全部任务，包含已完成、未固定和暂时隐藏的任务。JSON 保留完整任务字段与桌面布局，CSV 适合用表格查看。")
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				for _, name := range []string{"导出 JSON", "导出 CSV"} {
-					b := webButton(c, name, false).Padding(8, 12).Gap(7).Background(t.Field).TextColor(t.Text).Disabled(true)
+					b := webButton(c, name, false).Padding(8, 12).Gap(7).Background(t.Field).TextColor(t.Text).Disabled(v.exportBusy() || v.onExport == nil)
 					b.Children(func() { webIcon(c, "download", 16); ui.Text(c, name) })
+					if b.Clicked() {
+						format := "json"
+						if name == "导出 CSV" {
+							format = "csv"
+						}
+						v.onExport(format)
+					}
 				}
 			})
 			hint("导出的是点击时已保存的数据，不包含未提交的草稿。当前版本暂不支持导入。")
+			hint("实验版暂未记录创建和更新时间、屏幕标识，这些字段导出为空值。")
+			if e := v.service.export; e != nil && e.status != "" {
+				color := t.TextMuted
+				if e.failed {
+					color = t.Danger
+				}
+				ui.Text(c, e.status).FontSize(12).TextColor(color).LineHeight(1.6).Margin(8, 0, 0)
+			}
 		})
 		ui.Text(c, "Sidelet MyGo · UI 对齐原型 · 灰色控件尚未接入系统能力").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
 	})

@@ -94,7 +94,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 		ui.Row(c).Gap(6).Children(func() {
 			if v.settingsOpen {
 				ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle)
-				b := webButton(c, "返回我的任务", false).Border(0, ui.Transparent).Gap(7)
+				b := webButton(c, "返回我的任务", false).Border(0, ui.Transparent).Gap(7).Disabled(v.exportBusy())
 				b.Children(func() { webIcon(c, "back", 16); ui.Text(c, "返回我的任务") })
 				if b.Clicked() {
 					v.settingsOpen = false

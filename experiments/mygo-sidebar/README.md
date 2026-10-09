@@ -1,13 +1,13 @@
 # MyGo 原生侧栏实验
 
-2026-10-07。**完成独立原型及 macOS 原生输入适配，暂不替换 Wails。** 首轮发现的透明空白拦截点击和侧栏抢焦点，已通过独立的非激活输入面板处理。后台悬停和打开卡片已有真实事件证据；Computer Use 验证了拖动、拼音输入、保存及连续编辑取消，并修复了事件坐标和重复编辑焦点问题。跨应用焦点恢复、正常输入面板的持续拖动及多屏仍未完整验收。
+2026-10-07。**完成独立原型及 macOS 原生输入适配，暂不替换 Wails。** 首轮发现的透明空白拦截点击和侧栏抢焦点，已通过独立的非激活输入面板处理。后台悬停和打开卡片已有真实事件证据；Computer Use 验证了拖动、拼音输入、保存及连续编辑取消，并修复了事件坐标和重复编辑焦点问题。快速添加的跨应用焦点已在独立输入窗口验证；侧栏 / 卡片的后台交接、正常输入面板的持续拖动及多屏仍未完整验收。
 
 ## 范围与运行
 
-固定依赖 `github.com/egoist/mygo v0.2.16`，独立 `go.mod` / `go.sum`，Go 1.27.1，`CGO_ENABLED=0`。通过本地模块引用复用 `internal/todo` 的时间计算、`internal/reminder.Sync` 的提醒协调和 `internal/spike` 的卡片会话，不引入 Wails、SQLite 或前端运行时。`-native-main` 默认使用独立 JSON 资料，首次为空列表，已提交任务、顺序、主题、布局和提醒回执可重启恢复；历史侧栏 / 混合实验仍使用三条合成内存任务。
+固定依赖 `github.com/egoist/mygo v0.2.16`，独立 `go.mod` / `go.sum`，Go 1.27.1，`CGO_ENABLED=0`。通过本地模块引用复用 `internal/todo` 的时间计算、`internal/reminder.Sync` 的提醒协调和 `internal/spike` 的卡片会话以及 `internal/quickadd` 的时间解析与会话，不引入 Wails、SQLite 或前端运行时。`-native-main` 默认使用独立 JSON 资料，首次为空列表，已提交任务、顺序、主题、布局和提醒回执可重启恢复；历史侧栏 / 混合实验仍使用三条合成内存任务。
 
 ```bash
-# 项目根目录；构建会检查正式 UI 参照并执行实验的 74 项顶层测试及 go vet。
+# 项目根目录；构建会检查正式 UI 参照并执行实验的 90 项顶层测试及 go vet。
 bash experiments/mygo-sidebar/build-macos.sh
 open build/bin/mygo-lab/SideletMyGoLab.app
 ```
@@ -16,7 +16,7 @@ open build/bin/mygo-lab/SideletMyGoLab.app
 
 另已实现 `-hybrid`：同一 MyGo 宿主内使用 Web 主窗口和原生侧栏共享任务，支持双向更新、完成和关闭重开，已验证跨应用焦点恢复。具体范围、运行方式和历史内存采样见 [混合原型记录](HYBRID.md)。`-native-main` 使用全原生主窗口，不创建 WebView；现在按正式 Sidelet 的完整 UI 逐项对齐，包括任务页、设置、三主题和浮动卡片。**整体 UI 一致性尚未验收完成**，已实现内容、禁用能力与截图证据见 [UI 对齐记录](UI_PARITY.md)。[原生主窗口记录](NATIVE_MAIN.md)中的内存比较属于较早的简化界面。默认不传这些选项仍为原生侧栏实验。
 
-应用标识 `io.sidelet.mygo-lab`，显示名 `Sidelet MyGo Lab`。不会覆盖 `/Applications/Sidelet.app`。当前 macOS 包只是本地 ad-hoc 签名实验，未公证、未发布。`-native-main` 支持主窗口 / 侧栏整理排序和 +N 溢出卡片，满屏新增、撤销和恢复不会被拒绝；支持截止时间、可选 macOS 提醒及完成 5 秒后清理的临时任务。安静模式隐藏桌面标签 / 卡片并撤销鼠标区域，系统提醒继续运行；恢复和重启重新显示。设置页可保存启动窗口偏好、默认值与 macOS Dock 显示，Dock 隐藏时保留独立菜单栏入口。默认值不改变现有任务组；当前仅单组，多组创建尚未迁移。登录启动与导出仍禁用。持久资料不读取正式 SQLite 数据，目录、失败处理和提醒恢复边界见 [持久化记录](PERSISTENCE.md)。通知权限属于独立实验标识，首次开启需要授权；不自动请求，也不更改正式 Sidelet 的通知设置。Windows 目前仅通过编译检查，通知适配显示为不支持。
+应用标识 `io.sidelet.mygo-lab`，显示名 `Sidelet MyGo Lab`。不会覆盖 `/Applications/Sidelet.app`。当前 macOS 包只是本地 ad-hoc 签名实验，未公证、未发布。`-native-main` 支持主窗口 / 侧栏整理排序和 +N 溢出卡片，满屏新增、撤销和恢复不会被拒绝；支持截止时间、可选 macOS 提醒及完成 5 秒后清理的临时任务。安静模式隐藏桌面标签 / 卡片并撤销鼠标区域，系统提醒继续运行；恢复和重启重新显示。设置页可保存启动窗口偏好、默认值与 macOS Dock 显示，Dock 隐藏时保留独立菜单栏入口。默认值不改变现有任务组；当前仅单组，多组创建尚未迁移。设置页已接入 JSON / CSV 原生导出，取消、失败与资料目录保护见 [导出记录](EXPORT.md)。快速添加已支持时间预览、全局快捷键、失焦草稿保留和有条件恢复前台，验证范围见 [快速添加记录](QUICK_ADD.md)。登录启动仍禁用。持久资料不读取正式 SQLite 数据，目录、失败处理和提醒恢复边界见 [持久化记录](PERSISTENCE.md)。通知权限属于独立实验标识，首次开启需要授权；不自动请求，也不更改正式 Sidelet 的通知设置。Windows 目前仅通过编译检查，通知适配显示为不支持。
 
 ```bash
 # 全原生主窗口，默认保存到 ~/Library/Application Support/SideletMyGoLab

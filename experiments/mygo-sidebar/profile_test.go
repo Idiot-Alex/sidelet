@@ -293,7 +293,8 @@ func TestProfileFailedEditorCardQuickAddAndDragKeepDrafts(t *testing.T) {
 		t.Fatal("failed completion closed card")
 	}
 	q := &nativeQuickAdd{service: s, text: "快速添加草稿", pin: true}
-	q.submit()
+	q.session.Begin(m.now())
+	q.submit(q.session.Revision)
 	if q.text != "快速添加草稿" || q.error == "" || len(m.Tasks) != 2 {
 		t.Fatal("failed quick add lost draft")
 	}

@@ -60,6 +60,7 @@ type nativeTasksView struct {
 	menuFocus                     bool
 	onHide, onQuickAdd            func()
 	onThemeChanged                func(string)
+	onExport                      func(string)
 	formPin                       bool
 	order                         orderUI
 }

@@ -14,12 +14,13 @@ type overlayInput struct {
 	fallbackWindow  func() *mygo.Window
 }
 
-func newOverlayInput(_ *model) *overlayInput   { return &overlayInput{} }
-func (*overlayInput) bindStack(_ *mygo.Window) {}
-func (*overlayInput) bindCard(_ *mygo.Window)  {}
-func (*overlayInput) sync()                    {}
-func (*overlayInput) close()                   {}
-func (*overlayInput) endEdit()                 {}
-func (*overlayInput) handlesNativeDrag() bool  { return false }
-func (*overlayInput) state() map[string]any    { return map[string]any{"adapter": "unavailable"} }
-func (*overlayInput) beginEdit(w *mygo.Window) { focusEditor(w) }
+func newOverlayInput(_ *model) *overlayInput                 { return &overlayInput{} }
+func (*overlayInput) bindStack(_ *mygo.Window)               {}
+func (*overlayInput) bindCard(_ *mygo.Window)                {}
+func (*overlayInput) sync()                                  {}
+func (*overlayInput) close()                                 {}
+func (*overlayInput) endEdit()                               {}
+func (*overlayInput) handlesNativeDrag() bool                { return false }
+func (*overlayInput) state() map[string]any                  { return map[string]any{"adapter": "unavailable"} }
+func (*overlayInput) beginEdit(w *mygo.Window)               { focusEditor(w) }
+func (*overlayInput) foregroundForQuickAdd() quickFocusToken { return captureQuickForeground() }

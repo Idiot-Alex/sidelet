@@ -22,6 +22,8 @@ func main() {
 	quitAfter := flag.Duration("quit-after", 0, "optional automatic quit, e.g. 2m")
 	probe := flag.Bool("probe", false, "show an owned click-through probe behind the sidebar")
 	probeOnly := flag.Bool("probe-only", false, "show only the owned background/input probe, for a separate fixture process")
+	quickTarget := flag.Int("quick-add-target-pid", 0, "macOS probe-only: request Quick Add from an owned diagnostic lab PID; no key injection")
+	quickShortcutFixture := flag.Bool("quick-add-test-shortcut", false, "macOS native diagnostics only: register Ctrl+Alt+Shift+F19 instead of the normal key")
 	nativeCheck := flag.Bool("native-check", false, "check owned AppKit windows and lifecycle; requires -probe and -output")
 	traceInput := flag.Bool("trace-input", false, "log delivered mouse events of this lab only; no global monitoring")
 	directInput := flag.Bool("direct-input-fixture", false, "CUA-only render-window input fixture; requires -trace-input and -output; disables overlay hit testing")
@@ -32,6 +34,12 @@ func main() {
 	forceMain := flag.Bool("main", false, "show the task window regardless of the saved startup preference")
 	mainHidden := flag.Bool("main-hidden", false, "start without a task main window; reopen using File > 打开任务窗口")
 	flag.Parse()
+	if *quickShortcutFixture && (!*nativeMain || *output == "" || runtime.GOOS != "darwin") {
+		log.Fatal("-quick-add-test-shortcut requires macOS, -native-main and -output")
+	}
+	if *quickTarget != 0 && (!*probeOnly || *output == "" || runtime.GOOS != "darwin" || *quickTarget <= 0) {
+		log.Fatal("-quick-add-target-pid requires macOS, -probe-only and -output")
+	}
 	if (*dataDir != "" || *memoryOnly) && !*nativeMain {
 		log.Fatal("-data-dir and -memory require -native-main")
 	}
@@ -109,6 +117,21 @@ func main() {
 			v.renderPresence = input.directFixture
 		}
 		input.fallbackWindow = func() *mygo.Window { return h.window }
+		if h.native {
+			h.captureQuickFocus = input.foregroundForQuickAdd
+			h.prepareQuickAdd = func() {
+				if m.Dragging {
+					m.cancelDrag()
+					v.notify("drag-cancel-quick-add")
+				}
+				if m.cardOpen() {
+					v.closeCard()
+				}
+				if m.Arranging {
+					_, _ = h.service.Arrange(false)
+				}
+			}
+		}
 	}
 	var stack, card, backgroundProbe *mygo.Window
 	cardAnchorY := 0
@@ -152,6 +175,16 @@ func main() {
 			}
 			data["notificationAuthorization"], data["notificationStatus"] = h.service.notificationAuthorization, h.service.notificationStatus
 			data["notificationDelivered"] = h.service.notificationDelivered
+			if h.service.quickShortcut != nil {
+				data["quickAddShortcutRegistered"], data["quickAddShortcutError"] = h.service.quickShortcut.registered, h.service.quickShortcut.error
+				data["quickAddDiagnosticKey"] = h.service.quickShortcut.diagnostic
+			}
+			if h.quick != nil {
+				data["quickAddSession"], data["quickAddText"], data["quickAddRecognize"], data["quickAddPin"] = h.quick.session, h.quick.text, h.quick.recognize, h.quick.pin
+				if h.quick.window != nil {
+					data["quickAddWindowID"], data["quickAddVisible"] = h.quick.window.ID(), h.quick.window.IsVisible()
+				}
+			}
 			data["mainRenderer"] = "web"
 			if h.native {
 				data["mainRenderer"] = "native"
@@ -235,7 +268,12 @@ func main() {
 		if *probe || *probeOnly {
 			clicks := 0
 			probeText, lastProbeText := "", ""
-			p := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet MyGo 穿透验证", X: m.X, Y: m.Y, Width: 520, Height: 300, Content: ui.View(func(c *ui.Context) {
+			probeHeight := 300
+			if *quickTarget != 0 {
+				probeHeight = 400
+			}
+			var p *mygo.Window
+			p = mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet MyGo 穿透验证", X: m.X, Y: m.Y, Width: 520, Height: probeHeight, Content: ui.View(func(c *ui.Context) {
 				ui.Column(c).Fill().Padding(20).Gap(16).Children(func() {
 					ui.Text(c, "这是实验自己的背景窗口").Bold()
 					if ui.Button(c, fmt.Sprintf("空白穿透计数：%d", clicks)).Height(90).Clicked() {
@@ -244,14 +282,25 @@ func main() {
 					}
 					ui.Text(c, "只点击侧栏没有绘制内容的位置。")
 					ui.TextInput(c, &probeText).Label("后台输入验证").Height(32)
+					if *quickTarget != 0 && ui.Button(c, "打开实验快速添加").Clicked() {
+						focusEditor(p)
+						if err := requestNativeQuickAdd(*quickTarget); err != nil {
+							log.Printf("quick-add diagnostic request failed: %v", err)
+						}
+					}
 					if probeText != lastProbeText {
 						lastProbeText = probeText
 						log.Printf("probe-text %q", probeText)
+						logState("probe-input")
 					}
 				})
 			})})
 			p.OnClosed(func() { log.Print("probe closed") })
 			backgroundProbe = p
+			if *quickTarget != 0 {
+				p.OnFocus(func() { logState("probe-focused") })
+				p.OnBlur(func() { logState("probe-blurred") })
+			}
 			if *probeOnly {
 				focusEditor(p)
 				logState("probe-ready")
@@ -391,6 +440,22 @@ func main() {
 			}
 			h.installMenu()
 			if h.native {
+				h.service.quickShortcut = &nativeQuickShortcut{diagnostic: *quickShortcutFixture}
+				register := registerNativeQuickAddShortcut
+				if *quickShortcutFixture {
+					register = registerNativeQuickAddDiagnosticShortcut
+				}
+				h.service.quickShortcut.register(register, func() { h.openQuickAdd("global-shortcut") })
+				mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+					h.service.quickShortcut.close()
+					if h.quick != nil {
+						h.quick.releaseFocus()
+					}
+				})
+				if *output != "" {
+					stopRequests := watchQuickAddRequests(func() { h.openQuickAdd("fixture-request") })
+					mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { stopRequests() })
+				}
 				if err := h.installNativeTray(); err != nil {
 					log.Printf("native tray / Dock setup failed: %v", err)
 					m.storageError = "菜单栏或 Dock 设置暂时不可用，请重试。"
