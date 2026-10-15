@@ -41,3 +41,5 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 
 最近内存短测见 [测量记录](docs/mygo/MEMORY_20261015.md)。
+
+MyGo SDK 当前固定为 `v0.5.1`；迁移、验证与内存对比见 [升级记录](docs/mygo/UPGRADE_051.md)。

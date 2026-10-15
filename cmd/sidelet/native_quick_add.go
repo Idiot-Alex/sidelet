@@ -190,7 +190,7 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 					q.cancel()
 				}
 			})
-			field := ui.TextInput(c, &q.text).Label("快速添加任务标题").Placeholder("明天下午3点 联系客户").FontSize(19).Height(42).Padding(8, 0).Radius(0).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Background(ui.Transparent).Disabled(busy)
+			field := guardComposition(ui.TextInput(c.Key("quick-add-title"), &q.text)).Label("快速添加任务标题").Placeholder("明天下午3点 联系客户").FontSize(19).Height(42).Padding(8, 0).Radius(0).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Background(ui.Transparent).Disabled(busy)
 			if q.focus {
 				field.Focus()
 				q.focus = false

@@ -39,12 +39,12 @@ func (o *orderUI) commit(s *TasksService, drag orderDrag, target int, after, key
 
 // Two drop zones retain the release location even if the pointer moves again
 // before rendering. MyGo owns pointer capture, Escape and edge auto-scrolling.
-func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, height float32) *ui.Element {
+func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, height float32) ui.Element {
 	t := webTheme(s.m.UITheme)
 	item := s.m.Tasks[id-1]
-	row := ui.Row(c).Key(fmt.Sprintf("order-task-%d", id)).Height(height).Gap(8).AlignItems(ui.Center).Radius(5).Border(1, t.Border).Background(t.Surface)
+	row := ui.Row(c.Key(fmt.Sprintf("order-task-%d", id))).Height(height).Gap(8).AlignItems(ui.Center).Radius(5).Border(1, t.Border).Background(t.Surface)
 	row.Children(func() {
-		handle := ui.ButtonBase(c).Key("handle").Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2)
+		handle := ui.ButtonBase(c.Key("handle")).Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2)
 		payload := ui.Local(handle, "order-drag", func() orderDrag { return orderDrag{} })
 		if !handle.Dragging() {
 			*payload = orderDrag{id, slices.Clone(s.m.eligibleIDs()), o.Epoch, orderLayoutKey(s.m)}
@@ -78,7 +78,7 @@ func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, heig
 		ui.Text(c, item.Title).Grow(1).MinWidth(0).FontSize(12).MaxLines(1)
 		ui.Text(c, fmt.Sprint(position+1)).FontSize(10).TextColor(t.Subtle).Padding(0, 12, 0, 0)
 		for _, after := range []bool{false, true} {
-			zone := ui.Box(c).Key(fmt.Sprint("drop-", after)).Absolute().Left(32).Right(0).HeightPercent(50).Role(ui.RoleNone)
+			zone := ui.Box(c.Key(fmt.Sprint("drop-", after))).Absolute().Left(32).Right(0).HeightPercent(50).Role(ui.RoleNone)
 			if after {
 				zone.Bottom(0)
 			} else {

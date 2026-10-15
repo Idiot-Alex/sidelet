@@ -25,7 +25,7 @@ func (v *nativeTasksView) webUndo(c *ui.Context) {
 func (v *nativeTasksView) webMore(c *ui.Context, item taskEntry) {
 	t := v.visual
 	opening := v.menuFocus
-	panel := ui.Column(c).Key("more-panel").AlignSelf(ui.End).Width(220).Padding(6).Margin(7, 0, 0).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Surface)
+	panel := ui.Column(c.Key("more-panel")).AlignSelf(ui.End).Width(220).Padding(6).Margin(7, 0, 0).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Surface)
 	panel.Children(func() {
 		if v.deleteID == item.ID {
 			ui.Text(c, "删除此任务？").FontSize(12).Padding(5, 8, 9)

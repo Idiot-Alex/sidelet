@@ -157,8 +157,8 @@ func (v *nativeTasksView) renderLab(c *ui.Context) {
 			})
 			ui.Text(c, fmt.Sprintf("%d 项待办", pending)).TextColor(v.theme.TextMuted)
 		})
-		ui.Row(c).Key("new-task").Gap(10).AlignItems(ui.Center).Children(func() {
-			field := ui.TextInput(c, &v.newTitle).Label("新任务标题").Placeholder("添加一个要做的事…").Height(36).Grow(1).AutoFocus()
+		ui.Row(c.Key("new-task")).Gap(10).AlignItems(ui.Center).Children(func() {
+			field := guardComposition(ui.TextInput(c, &v.newTitle)).Label("新任务标题").Placeholder("添加一个要做的事…").Height(36).Grow(1).AutoFocus()
 			if v.focusNew {
 				field.Focus()
 				v.focusNew = false
@@ -186,14 +186,14 @@ func (v *nativeTasksView) renderLab(c *ui.Context) {
 			}
 			ui.Text(c, v.status).FontSize(12).TextColor(color).MaxLines(1)
 		})
-		ui.Scroll(c).Key("task-list").Grow(1).TrackScroll(&v.scroll).Children(func() {
+		ui.Scroll(c.Key("task-list")).Grow(1).TrackScroll(&v.scroll).Children(func() {
 			count := 0
 			for _, t := range snapshot.Tasks {
 				if t.Done != v.showDone {
 					continue
 				}
 				count++
-				ui.Column(c).Key(fmt.Sprintf("task-%d", t.ID)).Padding(12, 0).Gap(10).Children(func() {
+				ui.Column(c.Key(fmt.Sprintf("task-%d", t.ID))).Padding(12, 0).Gap(10).Children(func() {
 					if v.editID == t.ID {
 						v.editor(c)
 					} else {
@@ -222,8 +222,8 @@ func (v *nativeTasksView) renderLab(c *ui.Context) {
 }
 
 func (v *nativeTasksView) editor(c *ui.Context) {
-	ui.Box(c).Key("editor").Children(func() {
-		field := ui.TextInput(c, &v.draft).Label("编辑任务标题").Height(36).AutoFocus()
+	ui.Box(c.Key("editor")).Children(func() {
+		field := guardComposition(ui.TextInput(c, &v.draft)).Label("编辑任务标题").Height(36).AutoFocus()
 		if v.focusEdit {
 			field.Focus()
 			v.focusEdit = false

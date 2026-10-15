@@ -16,7 +16,7 @@ func (v *nativeTasksView) resetScheduleDraft() {
 }
 func (v *nativeTasksView) webDeadline(c *ui.Context) {
 	t := v.visual
-	field := ui.Row(c).Key("deadline-input").Label("任务截止时间").Role(ui.RoleGroup).Height(36).Padding(0, 5).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).AlignItems(ui.Center)
+	field := ui.Row(c.Key("deadline-input")).Label("任务截止时间").Role(ui.RoleGroup).Height(36).Padding(0, 5).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).AlignItems(ui.Center)
 	field.Children(func() {
 		v.webDeadlineSegments(c, field)
 		// WebKit has no clock glyph on macOS. Keep the remaining field
@@ -35,7 +35,7 @@ func (v *nativeTasksView) webDeadline(c *ui.Context) {
 			}
 			v.datePickerOpen = !v.datePickerOpen
 		}
-		ui.PopoverBase(c, b, &v.datePickerOpen, func(panel *ui.Element) {
+		ui.PopoverBase(c, b, &v.datePickerOpen, func(panel ui.Element) {
 			// Leave room below the nested calendar on short laptop windows.
 			panel.AttachTo(b, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8).Width(280).Padding(14).Gap(12).Border(1, t.Border).Radius(t.Radius).Background(t.Surface)
 			ui.Text(c, "截止日期与时间").FontSize(13).FontWeight(550)

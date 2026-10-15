@@ -12,6 +12,7 @@ import (
 // An incomplete date is a draft, never a normalized time.Time. This keeps
 // February 30 and nonexistent DST wall times visible until the user fixes them.
 type deadlineSegments struct {
+	handles         [5]ui.Handle
 	parts           [5]string
 	seen            string
 	ready           bool
@@ -30,7 +31,7 @@ func (v *nativeTasksView) syncDeadlineSegments() {
 	if s.ready && s.seen == v.formDue {
 		return
 	}
-	*s = deadlineSegments{seen: v.formDue, ready: true, focused: -1}
+	*s = deadlineSegments{handles: s.handles, seen: v.formDue, ready: true, focused: -1}
 	if v.formDue == "" {
 		return
 	}
@@ -50,12 +51,13 @@ func (v *nativeTasksView) commitDeadlineSegments() {
 	s.seen = v.formDue
 }
 
-func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field *ui.Element) {
+func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 	v.syncDeadlineSegments()
 	s, t := &v.deadline, v.visual
+	services := c.Services()
 	now := v.service.m.now()
 	ghost := [5]int{now.Year(), int(now.Month()), now.Day(), now.Hour(), now.Minute()}
-	var segments [5]*ui.Element
+	var segments [5]ui.Element
 	anyFocused := false
 	for i, label := range deadlineSegmentLabels {
 		if i > 0 {
@@ -74,7 +76,7 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field *ui.Element) 
 		if i == 0 {
 			width = 30
 		}
-		seg := ui.Box(c).Key(label).Label(label).Role(ui.RoleStepper).Focusable().FocusRing(false).Height(18).Width(width).Shrink(0).Radius(2).AlignItems(ui.Center).Justify(ui.Center).TextCaret(ui.Rect{W: width, H: 18})
+		seg := ui.Box(c.Key(label)).Bind(&s.handles[i]).Label(label).Role(ui.RoleStepper).Focusable().FocusRing(false).Height(18).Width(width).Shrink(0).Radius(2).AlignItems(ui.Center).Justify(ui.Center).TextCaret(ui.Rect{W: width, H: 18})
 		n, _ := strconv.Atoi(s.parts[i])
 		seg.Range(float64(deadlineSegmentMin[i]), float64(deadlineSegmentMax[i]), float64(n)).Step(1).Value(s.parts[i])
 		segments[i] = seg
@@ -102,7 +104,7 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field *ui.Element) 
 	for i, seg := range segments {
 		move := func(next int) {
 			if next >= 0 && next < len(segments) {
-				segments[next].Focus()
+				s.handles[next].Focus()
 				s.focused, s.typed, s.selectAll = next, "", false
 			}
 		}
@@ -152,13 +154,13 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field *ui.Element) 
 					if s.selectAll {
 						text = v.formDue
 					}
-					c.WriteClipboard(text)
+					services.WriteClipboard(text)
 					if ev.Text == "copy" {
 						return true
 					}
 				}
 				if ev.Text == "paste" {
-					text := strings.TrimSpace(c.ReadClipboard())
+					text := strings.TrimSpace(services.ReadClipboard())
 					if _, err := strconv.Atoi(text); err == nil && len(text) <= 4 {
 						digits := 2
 						if i == 0 {
@@ -228,10 +230,10 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field *ui.Element) 
 				if ev.Text == "" || strings.IndexFunc(ev.Text, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
 					return true
 				}
-				if c.Now().Sub(s.typedAt) > time.Second || s.focused != i {
+				if v.service.m.now().Sub(s.typedAt) > time.Second || s.focused != i {
 					s.typed = ""
 				}
-				s.focused, s.selectAll, s.typedAt = i, false, c.Now()
+				s.focused, s.selectAll, s.typedAt = i, false, v.service.m.now()
 				s.typed += ev.Text
 				digits := 2
 				if i == 0 {

@@ -26,7 +26,7 @@ func chineseDay(t time.Time) string { return t.Format("2006年1月2日") }
 
 func (v *nativeTasksView) webDateInput(c *ui.Context) {
 	t := v.visual
-	b := webButton(c, "选择截止日期", false).Key("calendar-field").Height(36).Background(t.Field).TextColor(t.Text).Role(ui.RolePopUpButton).Value(chineseDay(v.pickerDate)).Justify(ui.SpaceBetween)
+	b := webButton(c.Key("calendar-field"), "选择截止日期", false).Height(36).Background(t.Field).TextColor(t.Text).Role(ui.RolePopUpButton).Value(chineseDay(v.pickerDate)).Justify(ui.SpaceBetween)
 	open := &v.pickerCalendarOpen
 	cursor := ui.Local(b, "cursor", func() time.Time { return calendarDay(v.pickerDate) })
 	if b.Clicked() {
@@ -37,11 +37,11 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 		ui.Text(c, chineseDay(v.pickerDate)).FontSize(12).FontFeatures("tnum").NoWrap()
 		webIcon(c, "clock", 14)
 	})
-	ui.PopoverBase(c, b, open, func(panel *ui.Element) {
+	ui.PopoverBase(c, b, open, func(panel ui.Element) {
 		panel.Padding(10).Gap(4).Border(1, t.Border).Radius(t.Radius).Background(t.Surface)
 		cur := *cursor
 		first := time.Date(cur.Year(), cur.Month(), 1, 0, 0, 0, 0, time.UTC)
-		grid := ui.Column(c).Key("calendar-grid").Gap(3).Focusable().Role(ui.RoleTable).Label(first.Format("2006年1月")).AutoFocus()
+		grid := ui.Column(c.Key("calendar-grid")).Gap(3).Focusable().Role(ui.RoleTable).Label(first.Format("2006年1月")).AutoFocus()
 		move := func(day time.Time) { *cursor = day; c.Invalidate() }
 		choose := func(day time.Time) {
 			// The clock draft is separate; choosing a day doesn't normalize a
@@ -129,7 +129,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 
 func (v *nativeTasksView) webTimeInput(c *ui.Context) {
 	t := v.visual
-	ui.Row(c).Key("time-field").Label("选择截止时间").Height(36).Padding(0, 9).Gap(3).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).Children(func() {
+	ui.Row(c.Key("time-field")).Label("选择截止时间").Height(36).Padding(0, 9).Gap(3).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).Children(func() {
 		for i, value := range []*string{&v.pickerHour, &v.pickerMinute} {
 			if i == 1 {
 				ui.Text(c, ":").FontSize(13).TextColor(t.TextMuted)

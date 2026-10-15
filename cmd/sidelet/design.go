@@ -92,7 +92,7 @@ func webIcon(c *ui.Context, name string, size float32) {
 	ui.Icon(c, productionIcons[name]).Size(size, size)
 }
 
-func webButton(c *ui.Context, label string, primary bool) *ui.Element {
+func webButton(c *ui.Context, label string, primary bool) ui.Element {
 	b := ui.ButtonBase(c).Label(label).FontSize(12).LineHeight(4.0/3).Padding(7, 10).Radius(c.Theme().Radius).Border(1, c.Theme().Border).TextColor(c.Theme().TextMuted)
 	webFocus(c, b, c.Theme().Radius)
 	if primary {
@@ -108,7 +108,7 @@ func webButton(c *ui.Context, label string, primary bool) *ui.Element {
 
 // Match theme.css: a 2px keyboard outline separated by a 3px gap.
 // Pointer clicks retain their normal appearance.
-func webFocus(c *ui.Context, e *ui.Element, radius float32) *ui.Element {
+func webFocus(c *ui.Context, e ui.Element, radius float32) ui.Element {
 	e.FocusRing(false).DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if e.FocusVisible() {
 			p.Stroke(ui.Rect{X: r.X - 5, Y: r.Y - 5, W: r.W + 10, H: r.H + 10}, c.Theme().Focus, radius+5, 2)
@@ -117,29 +117,29 @@ func webFocus(c *ui.Context, e *ui.Element, radius float32) *ui.Element {
 	return e
 }
 
-func webTextInput(c *ui.Context, value *string) *ui.Element {
-	return webFocus(c, ui.TextInput(c, value), c.Theme().Radius)
+func webTextInput(c *ui.Context, value *string) ui.Element {
+	return webFocus(c, guardComposition(ui.TextInput(c, value)), c.Theme().Radius)
 }
 
-func webTextArea(c *ui.Context, value *string) *ui.Element {
-	return webFocus(c, ui.TextArea(c, value), c.Theme().Radius)
+func webTextArea(c *ui.Context, value *string) ui.Element {
+	return webFocus(c, guardComposition(ui.TextArea(c, value)), c.Theme().Radius)
 }
 
-func webSelect(c *ui.Context, value *string, options []string) *ui.Element {
+func webSelect(c *ui.Context, value *string, options []string) ui.Element {
 	return webFocus(c, ui.Select(c, value, options), c.Theme().Radius)
 }
 
-func webActionText(c *ui.Context, text string) *ui.Element {
+func webActionText(c *ui.Context, text string) ui.Element {
 	return ui.Text(c, text).Height(16).FixedLineHeight(16)
 }
 
-func webIconButton(c *ui.Context, label, name string, size float32) *ui.Element {
+func webIconButton(c *ui.Context, label, name string, size float32) ui.Element {
 	b := webButton(c, label, false).Size(28, 28).Padding(0).Border(0, ui.Transparent)
 	b.Children(func() { webIcon(c, name, size) })
 	return b
 }
 
-func webCardButton(c *ui.Context, label string, primary bool) *ui.Element {
+func webCardButton(c *ui.Context, label string, primary bool) ui.Element {
 	b := webButton(c, label, primary).FontWeight(400).Grow(1).Height(36).Padding(0, 5).Gap(5)
 	if !primary {
 		t := webThemeFor(c)
@@ -158,4 +158,15 @@ func webThemeFor(c *ui.Context) *visualTheme {
 		}
 	}
 	return webTheme("mac")
+}
+
+// MyGo 0.5.1 queues Enter as an editor command even during composition.
+// Preserve the input method's candidate confirmation without submitting a
+// task or inserting a newline. Capture only the state, never a frame element,
+// because input handlers run between builds.
+func guardComposition(field ui.Element) ui.Element {
+	composing := field.Composing()
+	return field.HandleInput(func(ev ui.InputEvent) bool {
+		return composing && ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEnter
+	})
 }

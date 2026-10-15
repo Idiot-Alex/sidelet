@@ -16,7 +16,7 @@ func (v *views) webOverflowTab(c *ui.Context) bool {
 	if r.Height <= 0 {
 		return false
 	}
-	face := ui.Row(c).Key("overflow-row").Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(5, 0, 0, 5).Border(1, t.Border).Background(t.Alt)
+	face := ui.Row(c.Key("overflow-row")).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(5, 0, 0, 5).Border(1, t.Border).Background(t.Alt)
 	if m.Side == "left" {
 		face.Radius(0, 5, 5, 0)
 	}
@@ -47,7 +47,7 @@ func (v *views) webOverflowTab(c *ui.Context) bool {
 		}
 		if !m.Arranging {
 			grip := m.markerRect(overflowIndex)
-			handle := ui.Box(c).Key("overflow-grip").Label("移动整组任务：更多任务").Absolute().Left(float32(grip.X-r.X)).Top(0).Size(14, float32(r.Height)).Cursor(ui.CursorMove)
+			handle := ui.Box(c.Key("overflow-grip")).Label("移动整组任务：更多任务").Absolute().Left(float32(grip.X-r.X)).Top(0).Size(14, float32(r.Height)).Cursor(ui.CursorMove)
 			handle.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				p.Fill(ui.Rect{X: r.X + r.W/2 - 1.5, Y: r.Y + (r.H-23)/2, W: 3, H: min(23, r.H)}, t.TextMuted, 1.5)
 			})
@@ -84,7 +84,7 @@ func (v *views) webOverflowCard(c *ui.Context) {
 		})
 		ui.Scroll(c).Grow(1).Padding(10, 16, 16).Children(func() {
 			for k, index := range tail {
-				b := ui.ButtonBase(c).Key(fmt.Sprintf("overflow-task-%d", index+1)).Label("查看任务："+m.Tasks[index].Title).Gap(12).Padding(12, 0).TextColor(t.Text).Justify(ui.Start)
+				b := ui.ButtonBase(c.Key(fmt.Sprintf("overflow-task-%d", index+1))).Label("查看任务："+m.Tasks[index].Title).Gap(12).Padding(12, 0).TextColor(t.Text).Justify(ui.Start)
 				if k < len(tail)-1 {
 					b.BorderColor(t.Border).BorderWidth(0, 0, 1, 0)
 				}
@@ -123,7 +123,7 @@ func (v *views) webArrangeStack(c *ui.Context) {
 	}
 	v.webOverflowTab(c)
 	r := m.arrangeGripRect()
-	grip := ui.Row(c).Key("arrange-grip").Label("移动整组任务").Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(5).Border(1, t.Border).Background(t.Alt).Cursor(ui.CursorMove).Padding(0, 10).Gap(9).AlignItems(ui.Center)
+	grip := ui.Row(c.Key("arrange-grip")).Label("移动整组任务").Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(5).Border(1, t.Border).Background(t.Alt).Cursor(ui.CursorMove).Padding(0, 10).Gap(9).AlignItems(ui.Center)
 	grip.Children(func() {
 		ui.Box(c).Size(8, 18).DrawOver(func(p *ui.Painter, r ui.Rect) {
 			for _, dx := range []float32{2, 6} {
@@ -144,7 +144,7 @@ func (v *views) webArrangeStack(c *ui.Context) {
 		grip.HandleInput(func(ev ui.InputEvent) bool { return v.pointer(overflowIndex, ev) })
 	}
 	r = m.arrangeToolbarRect()
-	ui.Column(c).Key("arrange-toolbar").Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Padding(9, 10).Gap(7).Radius(5).Border(1, t.Border).Background(t.Surface).Children(func() {
+	ui.Column(c.Key("arrange-toolbar")).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Padding(9, 10).Gap(7).Radius(5).Border(1, t.Border).Background(t.Surface).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, "整理桌面").FontSize(12).FontWeight(500).Grow(1)
 			b := webButton(c, "全部任务", false).FontSize(11).Padding(5).Border(0, ui.Transparent).Background(t.Alt).TextColor(t.Accent)

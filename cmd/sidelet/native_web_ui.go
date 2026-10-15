@@ -27,7 +27,7 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	}
 	ui.Column(c).Fill().Padding(0, pad, bottom).Children(func() {
 		v.webHeader(c)
-		ui.Scroll(c).Grow(1).Key("page").Padding(20, 0, 0).Children(func() {
+		ui.Scroll(c.Key("page")).Grow(1).Padding(20, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
 			}
@@ -219,7 +219,7 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 				continue
 			}
 			count++
-			row := ui.Column(c).Key(fmt.Sprintf("task-%d", item.ID)).Padding(12, 10).Margin(0, -10).Radius(6)
+			row := ui.Column(c.Key(fmt.Sprintf("task-%d", item.ID))).Padding(12, 10).Margin(0, -10).Radius(6)
 			if count < visibleCount {
 				row.BorderColor(t.Border).BorderWidth(0, 0, 1, 0)
 			}
@@ -422,7 +422,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Box(c).TextColor(t.Accent).Children(func() { webIcon(c, icon, 18) })
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 		})
-		ui.Column(c).Key("task-form").Gap(7).Children(func() {
+		ui.Column(c.Key("task-form")).Gap(7).Children(func() {
 			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
 			value, label := &v.newTitle, "新任务标题"
 			if v.editID > 0 {

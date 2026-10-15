@@ -5,7 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons ...string) *ui.Element {
+func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons ...string) ui.Element {
 	t := c.Theme()
 	b := ui.CheckboxBase(c, value).Label(label).Gap(8).FontSize(size).LineHeight(4.0 / 3).AlignItems(ui.Center).TextColor(t.TextMuted)
 	b.Children(func() {
@@ -21,7 +21,7 @@ func webCheckbox(c *ui.Context, value *bool, label string, size float32, icons .
 	return b
 }
 
-func webSwitch(c *ui.Context, value *bool, label string) *ui.Element {
+func webSwitch(c *ui.Context, value *bool, label string) ui.Element {
 	t := c.Theme()
 	bg, thumb, border := t.SurfaceHover, t.TextMuted, t.Border
 	for _, visual := range webThemes {

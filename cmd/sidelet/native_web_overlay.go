@@ -51,7 +51,7 @@ func (v *views) webStack(c *ui.Context) {
 			}
 			ui.Box(c).Absolute().Left(x).Top(float32(r.Y)).Size(296, float32(m.itemHeight())).Radius(5).Border(1, t.Border).Background(t.Surface)
 		}
-		handle := ui.Box(c).Key(fmt.Sprintf("handle-%d", i)).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(0, 5, 5, 0).Border(1, t.Border).Background(t.Alt).TextColor(dueColor).Cursor(ui.CursorMove).Label(fmt.Sprintf("拖动任务标记 %d", i+1))
+		handle := ui.Box(c.Key(fmt.Sprintf("handle-%d", i))).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(0, 5, 5, 0).Border(1, t.Border).Background(t.Alt).TextColor(dueColor).Cursor(ui.CursorMove).Label(fmt.Sprintf("拖动任务标记 %d", i+1))
 		if m.Side == "right" {
 			handle.Radius(5, 0, 0, 5)
 		}
@@ -82,7 +82,7 @@ func (v *views) webStack(c *ui.Context) {
 			nextHover = i
 		}
 		if !m.Dragging && (m.Hover == i || m.Opened == i) {
-			body := ui.ButtonBase(c).Key(fmt.Sprintf("preview-%d", i)).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
+			body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
 			body.Children(func() {
 				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
 				if check.Clicked() {
@@ -118,7 +118,7 @@ func (v *views) webStack(c *ui.Context) {
 	overflowInside := v.webOverflowTab(c)
 	if m.undoVisible() {
 		r := m.undoRect()
-		ui.Row(c).Key("undo-toast").Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Padding(0, 10).Gap(12).Radius(t.Theme.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
+		ui.Row(c.Key("undo-toast")).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Padding(0, 10).Gap(12).Radius(t.Theme.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
 			ui.Text(c, "已完成").FontSize(12).Grow(1)
 			b := webButton(c, "撤销", false).Border(0, ui.Transparent).Padding(0).Background(ui.Transparent)
 			b.Children(func() { ui.Text(c, "撤销") })
@@ -168,7 +168,7 @@ func (v *views) webCard(c *ui.Context) {
 		v.presence(v.sourceInside, c.Root().Hovered())
 	}
 	item := m.Tasks[m.Opened]
-	var reading *ui.Element
+	var reading ui.Element
 	var errorHeight float32
 	footerHeight := float32(61) // 36px controls + 24px padding + top border.
 	if v.snoozing && !m.Editing {
@@ -188,8 +188,8 @@ func (v *views) webCard(c *ui.Context) {
 		if m.Opened < 0 {
 			return
 		}
-		ui.Scroll(c).Key(fmt.Sprintf("card-body-%d-%t", m.Opened, m.Editing)).Grow(1).MinHeight(0).Children(func() {
-			body := ui.Column(c).WidthPercent(100).MinWidth(0).Padding(10, 16, 16)
+		ui.Scroll(c.Key(fmt.Sprintf("card-body-%d-%t", m.Opened, m.Editing))).Grow(1).MinHeight(0).Children(func() {
+			bodyContext := c
 			if !m.Editing {
 				width, _ := c.Size()
 				// Bounds is the previous committed layout. A new key waits for
@@ -199,12 +199,15 @@ func (v *views) webCard(c *ui.Context) {
 					v.cardLayout, v.cardLayoutVersion = layout, v.cardLayoutVersion+1
 				}
 				// An integer key avoids formatting the entire note every frame.
-				body.Key(v.cardLayoutVersion)
+				bodyContext = c.Key(v.cardLayoutVersion)
+			}
+			body := ui.Column(bodyContext).WidthPercent(100).MinWidth(0).Padding(10, 16, 16)
+			if !m.Editing {
 				reading = body.Label("卡片阅读内容")
 			}
 			body.Children(func() {
 				if m.Editing {
-					ui.Column(c).Key("card-title").Gap(6).Margin(0, 0, 14).Children(func() {
+					ui.Column(c.Key("card-title")).Gap(6).Margin(0, 0, 14).Children(func() {
 						ui.Text(c, "任务标题").FontSize(11).Height(15).FixedLineHeight(15).TextColor(t.TextMuted)
 						field := webTextInput(c, &m.Draft).Label("任务标题").Padding(9).Height(35).Background(t.Field)
 						if v.editorFocusPending {
@@ -215,7 +218,7 @@ func (v *views) webCard(c *ui.Context) {
 							v.notify("save")
 						}
 					})
-					ui.Column(c).Key("card-note").Gap(6).Children(func() {
+					ui.Column(c.Key("card-note")).Gap(6).Children(func() {
 						ui.Text(c, "备注").FontSize(11).Height(15).FixedLineHeight(15).TextColor(t.TextMuted)
 						note := webTextArea(c, &m.DraftNote).Label("卡片备注").Height(124).Padding(9).LineHeight(1.6).Background(t.Field)
 						if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) && m.save() {
@@ -252,7 +255,7 @@ func (v *views) webCard(c *ui.Context) {
 			})
 		})
 		if m.EditError != "" {
-			errorHeight = ui.Text(c, m.EditError).Key(m.EditError).Shrink(0).Role(ui.RoleStatus).FontSize(12).TextColor(t.Danger).Padding(8, 16).Bounds().H
+			errorHeight = ui.Text(c.Key(m.EditError), m.EditError).Shrink(0).Role(ui.RoleStatus).FontSize(12).TextColor(t.Danger).Padding(8, 16).Bounds().H
 		}
 		ui.Column(c).Height(footerHeight).Shrink(0).Gap(6).Padding(12, 16).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 			ui.Row(c).Gap(6).Children(func() {
@@ -313,7 +316,7 @@ func (v *views) webCard(c *ui.Context) {
 			}
 		})
 	})
-	if reading != nil && !m.Editing && m.Opened >= 0 {
+	if reading.Valid() && !m.Editing && m.Opened >= 0 {
 		if height := reading.Bounds().H; height > 0 && (m.EditError == "" || errorHeight > 0) {
 			wanted := max(160, min(390, int(math.Ceil(float64(40+height+footerHeight+2+errorHeight)))))
 			if m.CardReadHeight != wanted {

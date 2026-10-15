@@ -93,7 +93,7 @@ func (v *views) stack(c *ui.Context) {
 		if m.Side == "right" {
 			x = stackWidth - 14
 		}
-		handle := ui.Box(c).Key(fmt.Sprintf("handle-%d", i)).Absolute().Left(x).Top(top).Size(14, 44).
+		handle := ui.Box(c.Key(fmt.Sprintf("handle-%d", i))).Absolute().Left(x).Top(top).Size(14, 44).
 			Radius(5).Background(priorityColor(m.Tasks[i].Priority)).Label(fmt.Sprintf("拖动任务标记 %d", i+1)).Cursor(ui.CursorMove)
 		handle.PointerPosition() // Register pointer tracking, including captured moves.
 		if v.pointer != nil {
@@ -108,7 +108,7 @@ func (v *views) stack(c *ui.Context) {
 				bodyX = 0
 			}
 			// The bridge touches the handle; the painted face has a small inset.
-			body := ui.ButtonBase(c).Key(fmt.Sprintf("preview-%d", i)).Absolute().Left(bodyX).Top(top).Size(stackWidth-14, 44).
+			body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Absolute().Left(bodyX).Top(top).Size(stackWidth-14, 44).
 				Padding(0, 12).Radius(8).Background(ui.Hex("#f7f8f4")).Border(1, ui.Hex("#dce3d9")).FocusRing(false).
 				Label(fmt.Sprintf("打开任务 %d", i+1))
 			body.Children(func() {
@@ -162,8 +162,8 @@ func (v *views) card(c *ui.Context) {
 			return
 		}
 		if m.Editing {
-			ui.Box(c).Key("task-title").Children(func() {
-				field := ui.TextInput(c, &m.Draft).Label("任务标题").Height(36).AutoFocus()
+			ui.Box(c.Key("task-title")).Children(func() {
+				field := guardComposition(ui.TextInput(c, &m.Draft)).Label("任务标题").Height(36).AutoFocus()
 				if v.editorFocusPending {
 					field.Focus()
 					v.editorFocusPending = false
