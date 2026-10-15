@@ -1,7 +1,6 @@
 .tools/
 .cache/
 node_modules/
-frontend/dist/
 build/bin/
 build/results/
 *.log
@@ -11,3 +10,6 @@ build/results/
 build/releases/
 website/dist/
 website/public/downloads/
+
+# Local module boundary keeps historical source snapshots out of Go scans.
+/build/go.mod

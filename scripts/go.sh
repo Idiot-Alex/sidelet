@@ -9,7 +9,7 @@ else
   printf '%s\n' 'Install Go 1.27.1 or newer, then retry.' >&2
   exit 1
 fi
-export GOMODCACHE="$sidelet_root/.cache/go-mod"
+export GOMODCACHE="$sidelet_root/.cache/gomod"
 export GOCACHE="$sidelet_root/.cache/go-build"
 if [[ "$(uname -s)" == Darwin && "${GOOS:-darwin}" == darwin ]]; then
   export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.0}"

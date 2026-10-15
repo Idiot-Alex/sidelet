@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Demo from './Demo.svelte';
-  import QuickCard from '../../frontend/src/components/QuickCard.svelte';
-  import type { Todo } from '../../frontend/src/lib/model';
+  import QuickCard from './demo/components/QuickCard.svelte';
+  import type { Todo } from './demo/lib/model';
 
   const repo = 'https://github.com/Idiot-Alex/sidelet';
   let dark = $state(false);

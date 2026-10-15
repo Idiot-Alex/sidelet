@@ -1,8 +1,8 @@
 {
   "name": "Sidelet",
-  "bundleIdentifier": "io.sidelet.spike",
+  "bundleIdentifier": "io.sidelet.mygo-lab",
   "executable": "sidelet",
-  "version": "0.1.0",
-  "build": "25",
+  "version": "0.2.0",
+  "build": "27",
   "minimumSystemVersion": "13.0"
 }

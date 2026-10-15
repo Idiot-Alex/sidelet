@@ -1,31 +1,26 @@
-Sidelet {{VERSION}} · 本地预览版
+Sidelet {{VERSION}} · MyGo 原生预览版
 适用于 macOS 13 或更新版本，{{PLATFORM}}。
 
 安装
-1. 退出正在运行的旧版 Sidelet。
+1. 退出旧 Sidelet 和 Sidelet MyGo Lab。
 2. 把 Sidelet.app 拖入 Applications（应用程序）。
-3. 从“应用程序”打开 Sidelet，然后推出安装磁盘。
-4. 若主窗口没有显示，点击菜单栏的 Sidelet 图标打开“我的任务”。
+3. 从“应用程序”打开 Sidelet。
 
-开始使用
-• 新任务默认只保存在“我的任务”，明确勾选“固定到桌面”后才出现在屏幕边缘。
-• “整理桌面”可调整顺序和位置；方向键预览整组位置，Enter 保存，Esc 取消。
-• 完成任务后有 5 秒撤销时间。任务卡片的“稍后”可暂时隐藏任务。
-• 设置截止时间并勾选“提醒我”，才会发送系统通知。Sidelet 需要在后台运行。
-• 关闭主窗口只会隐藏窗口；菜单栏“退出 Sidelet”才会停止后台运行。
-• “设置”中可选择登录启动、启动显示主窗口、默认边缘与密度，检查通知权限。
-• 请先安装到应用程序，再开启登录启动。更换安装位置前，先关闭旧位置的登录启动，安装后重新开启。
-• Control + Option + T 进入桌面键盘模式；主窗口 Command + , 打开设置。
+数据
+当前应用使用 SQLite 持久化，沿用 MyGo 原有资料目录：
+~/Library/Application Support/SideletMyGoLab
+数据库：sidelet-native.sqlite3。首次启动自动导入同目录 profile.json 并保留原文件，后续只读取 SQLite。
+请退出应用后备份整个资料目录（含可能存在的 WAL 文件）。
+旧 WebView 的 ~/Library/Application Support/Sidelet/sidelet.sqlite3 不会删除或覆盖，当前版本尚不支持自动导入。
+为保留已有 MyGo 授权，系统应用标识仍为 io.sidelet.mygo-lab；系统列表可能暂时显示旧名称。
 
-升级与数据
-升级不会主动删除用户数据。保留原应用标识及资料目录，无需导入。
-任务数据库：~/Library/Application Support/Sidelet/sidelet.sqlite3
-全局设置：~/Library/Application Support/Sidelet/settings.json
-备份时先退出 Sidelet，再复制整个 Sidelet 资料目录；不要只复制运行中的数据库文件。
-旧开发版可能仍在系统通知列表中显示为 Sidelet Spike，属于同一应用标识。
+使用
+• 在主窗口创建任务，勾选“固定到桌面”后显示侧边标记。
+• 卡片可就地编辑；Command+Enter 保存备注，Esc 取消。
+• 快速添加：Control+Shift+Space。若快捷键被占用，可用菜单栏入口。
+• 提醒需设置截止时间并勾选“提醒我”，且允许系统通知；应用需在后台运行。
+• 菜单栏退出才会停止后台运行。仅使用当前 Sidelet 的设置管理登录启动。
 
-已知限制
-这是本机测试用途的临时签名包，尚未经过 Developer ID 签名和 Apple 公证，不是公开分发版。
-未提供绕过 macOS 安全检查的安装操作。
-真实桌面鼠标穿透和直接拖动、多屏与 Spaces、休眠及真实登录启动仍有待验收项。
-任务提醒的横幅和声音受 macOS 通知及专注模式设置影响。
+限制
+本包为本地 ad-hoc 签名，未 Developer ID 签名或公证。
+Windows 通知、多屏 / Spaces、真实悬停跨窗、旧数据导入、多任务组与部分键盘操作尚未完成验收。

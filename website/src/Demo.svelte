@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import EdgeStack from '../../frontend/src/components/EdgeStack.svelte';
-  import QuickCard from '../../frontend/src/components/QuickCard.svelte';
-  import type { Todo } from '../../frontend/src/lib/model';
-  import { tomorrowMorning } from '../../frontend/src/lib/model';
+  import EdgeStack from './demo/components/EdgeStack.svelte';
+  import QuickCard from './demo/components/QuickCard.svelte';
+  import type { Todo } from './demo/lib/model';
+  import { tomorrowMorning } from './demo/lib/model';
 
   let { theme = 'mac' }: { theme?: 'mac' | 'paper' | 'graphite' } = $props();
   const makeTodos = (): Todo[] => [

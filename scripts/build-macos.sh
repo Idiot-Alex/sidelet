@@ -13,9 +13,9 @@ if [[ "$sidelet_arch" == amd64 ]]; then sidelet_clang_arch=x86_64; fi
 export MACOSX_DEPLOYMENT_TARGET=13.0
 export CGO_CFLAGS="${CGO_CFLAGS:-} -arch $sidelet_clang_arch"
 export CGO_LDFLAGS="${CGO_LDFLAGS:-} -arch $sidelet_clang_arch"
-npm run build:frontend
-bash scripts/go.sh test ./internal/spike ./internal/storage ./internal/reminder ./internal/settings ./internal/exportdata ./internal/quickadd ./internal/integration ./cmd/spike
-bash scripts/go.sh vet ./cmd/spike ./internal/platform
+export CGO_ENABLED=0
+bash scripts/go.sh test ./cmd/sidelet ./internal/...
+bash scripts/go.sh vet ./cmd/sidelet ./internal/...
 
 mkdir -p "$sidelet_root/build/bin"
 sidelet_version="$(python3 scripts/macos-bundle-info.py version)"
@@ -26,9 +26,8 @@ sidelet_work="$(mktemp -d "$sidelet_root/build/bin/.sidelet-build.XXXXXX")"
 trap 'rm -rf "$sidelet_work"' EXIT
 sidelet_staged="$sidelet_work/Sidelet.app"
 mkdir -p "$sidelet_staged/Contents/MacOS" "$sidelet_staged/Contents/Resources" "$sidelet_root/.cache/clang"
-GOOS=darwin GOARCH="$sidelet_arch" CGO_ENABLED=1 bash scripts/go.sh build -tags production -trimpath \
-  -ldflags "-X main.appVersion=$sidelet_version -X main.appBuild=$sidelet_build" \
-  -o "$sidelet_staged/Contents/MacOS/sidelet" ./cmd/spike
+GOOS=darwin GOARCH="$sidelet_arch" CGO_ENABLED=0 bash scripts/go.sh build -trimpath \
+  -ldflags='-s -w' -o "$sidelet_staged/Contents/MacOS/sidelet" ./cmd/sidelet
 swiftc -module-cache-path "$sidelet_root/.cache/clang" scripts/render-macos-icon.swift -o "$sidelet_work/render-icon"
 "$sidelet_work/render-icon" assets/sidelet-icon.svg "$sidelet_work/Sidelet.iconset"
 iconutil -c icns "$sidelet_work/Sidelet.iconset" -o "$sidelet_staged/Contents/Resources/Sidelet.icns"
