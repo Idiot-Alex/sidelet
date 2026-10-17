@@ -232,8 +232,8 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 					}
 				}
 			})
-			hint("导出的是点击时已保存的数据，不包含未提交的草稿。当前版本暂不支持导入。")
-			hint("实验版暂未记录创建和更新时间、屏幕标识，这些字段导出为空值。")
+			hint("导出的是点击时已保存的数据，不包含未提交的草稿。旧版任务可通过迁移工具导入。")
+			hint("旧版导入任务保留原创建和更新时间；其他未记录的时间及屏幕标识导出为空值。")
 			if e := v.service.export; e != nil && e.status != "" {
 				color := t.TextMuted
 				if e.failed {

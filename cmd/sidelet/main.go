@@ -32,7 +32,20 @@ func main() {
 	memoryOnly := flag.Bool("memory", false, "native UI with synthetic in-memory tasks for diagnostics")
 	forceMain := flag.Bool("main", false, "show the task window regardless of the saved startup preference")
 	mainHidden := flag.Bool("main-hidden", false, "start without a task main window; reopen using File > 打开任务窗口")
+	legacySource := flag.String("import-webview", "", "offline import from an old Sidelet data directory; exits after migration")
 	flag.Parse()
+	if *legacySource != "" {
+		if *memoryOnly || *output != "" || !*nativeMain {
+			log.Fatal("-import-webview cannot be combined with diagnostic modes")
+		}
+		result, err := importLegacyProfile(*legacySource, *dataDir, time.Now())
+		if err != nil {
+			log.Fatal(err)
+		}
+		encoded, _ := json.Marshal(result)
+		fmt.Println(string(encoded))
+		return
+	}
 	// SMAppService launches the main app without diagnostic arguments. A plain
 	// bundle launch must therefore enter the complete native app and its profile.
 	if len(os.Args) == 1 {

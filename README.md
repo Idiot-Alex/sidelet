@@ -22,7 +22,7 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 为延续已有 MyGo 任务和授权，本轮保留 bundle ID `io.sidelet.mygo-lab` 与默认资料目录 `SideletMyGoLab`，显示名称为 Sidelet。macOS 下默认目录为 `~/Library/Application Support/SideletMyGoLab`。这两个旧名称是兼容标识，不代表仍存在 WebView 模式。
 
-旧 WebView 的 SQLite 数据不会删除、覆盖或自动迁移；新应用暂不读取旧库。`internal/storage` 提供 SQLite 访问；MyGo 使用独立的原生任务表，旧 WebView 表结构的导入仍需后续实现。源代码删除不等于卸载 `/Applications` 中的旧应用，旧版仍可从 Git 历史找回。
+旧 WebView 的 SQLite 数据不会删除、覆盖或自动迁移。build 30 起支持显式离线导入：先备份旧库，再向空的 MyGo 资料事务写入任务与迁移凭据，重复执行会跳过。命令与保护规则见 [旧版迁移](docs/mygo/LEGACY_MIGRATION.md)。MyGo 使用独立的原生任务表；旧版仍可从 Git 历史找回。
 
 当前数据库为资料目录中的 `sidelet-native.sqlite3`，任务逐条存储，设置、排序和提醒回执与任务在同一事务提交。首次启动自动导入同目录的 `profile.json`（支持版本 1 / 2），原 JSON 保留为备份；之后只读取 SQLite，不会重复导入。数据库损坏或版本不支持时拒绝启动，不回退到旧备份覆盖新数据。备份前退出应用，并复制整个资料目录（包括可能存在的 WAL 文件）。
 
@@ -36,7 +36,7 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 ## 当前边界
 
-已具备任务管理、三主题、侧栏与卡片、快速添加、macOS 提醒和导出。切换主线不代表已完成全部发布验收：Windows 实机、真实鼠标跨窗、多屏 / Spaces、中文输入法候选、部分键盘操作、多任务组和旧数据导入仍需后续处理。
+已具备任务管理、三主题、侧栏与卡片、快速添加、macOS 提醒和导出。切换主线不代表已完成全部发布验收：Windows 实机、真实鼠标跨窗、多屏 / Spaces、中文输入法候选、部分键盘操作和多任务组仍需后续处理；旧版迁移目前支持 schema 2、单任务组、空目标。
 
 SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 

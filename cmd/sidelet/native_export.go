@@ -65,7 +65,7 @@ func nativeExportSnapshot(m *model) todo.Snapshot {
 		}
 		item := todo.Todo{ID: int64(i + 1), Title: t.Title, Description: t.Note, Priority: t.Priority, Temporary: t.Temporary,
 			DueAt: t.DueAt, Remind: t.Remind, RemindAt: t.ReminderAt, ReminderSentAt: t.ReminderSentAt,
-			Completed: t.Done, CompletedAt: t.CompletedAt, SnoozedUntil: t.SnoozedUntil, DisplayMode: "NONE"}
+			CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt, Completed: t.Done, CompletedAt: t.CompletedAt, SnoozedUntil: t.SnoozedUntil, DisplayMode: "NONE"}
 		if !t.Unpinned {
 			item.DisplayMode, item.StackID, item.SortOrder = "EDGE", 1, position
 		}

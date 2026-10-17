@@ -17,6 +17,8 @@ const (
 )
 
 type task struct {
+	CreatedAt      int64  `json:"createdAt,omitempty"`
+	UpdatedAt      int64  `json:"updatedAt,omitempty"`
 	DueAt          int64  `json:"dueAt,omitempty"`
 	Remind         bool   `json:"remind,omitempty"`
 	ReminderID     int64  `json:"reminderId,omitempty"`

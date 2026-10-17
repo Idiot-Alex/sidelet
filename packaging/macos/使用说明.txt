@@ -11,7 +11,12 @@ Sidelet {{VERSION}} · MyGo 原生预览版
 ~/Library/Application Support/SideletMyGoLab
 数据库：sidelet-native.sqlite3。首次启动自动导入同目录 profile.json 并保留原文件，后续只读取 SQLite。
 请退出应用后备份整个资料目录（含可能存在的 WAL 文件）。
-旧 WebView 的 ~/Library/Application Support/Sidelet/sidelet.sqlite3 不会删除或覆盖，当前版本尚不支持自动导入。
+旧 WebView 的 ~/Library/Application Support/Sidelet/sidelet.sqlite3 不会删除或覆盖。
+需要迁移时先退出新旧应用，在终端运行：
+/Applications/Sidelet.app/Contents/MacOS/sidelet -import-webview "$HOME/Library/Application Support/Sidelet"
+仅支持旧 schema 2、单任务组、空 MyGo 目标；已有任务会拒绝覆盖，重复导入会跳过。
+备份保存在新资料目录的 legacy-backups 内，保留旧库、设置和已有空 JSON。
+正常启动仍会按原规则清理过期临时任务。回退旧应用不会反向同步新版编辑，请先导出。
 为保留已有 MyGo 授权，系统应用标识仍为 io.sidelet.mygo-lab；系统列表可能暂时显示旧名称。
 
 使用
@@ -23,4 +28,4 @@ Sidelet {{VERSION}} · MyGo 原生预览版
 
 限制
 本包为本地 ad-hoc 签名，未 Developer ID 签名或公证。
-Windows 通知、多屏 / Spaces、真实悬停跨窗、旧数据导入、多任务组与部分键盘操作尚未完成验收。
+Windows 通知、多屏 / Spaces、真实悬停跨窗、多任务组与部分键盘操作尚未完成验收。

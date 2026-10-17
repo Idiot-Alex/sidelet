@@ -25,6 +25,7 @@ import (
 // Persist only committed domain state. Window coordinates, input drafts,
 // hover, drag previews and arrange mode never enter the database.
 type profileState struct {
+	LegacyImport       *legacyImport  `json:"legacyImport,omitempty"`
 	Preferences        settings.Value `json:"preferences"`
 	Schema             int            `json:"schema"`
 	ID                 string         `json:"profileId"`
@@ -49,10 +50,27 @@ type profile struct {
 }
 
 func (m *model) profileState(id string) profileState {
-	return profileState{m.Preferences, 2, id, slices.Clone(m.Tasks), slices.Clone(m.Order), m.UITheme, m.Side, m.Offset, m.itemHeight(), m.UndoID, m.UndoUntil, m.ReminderGeneration}
+	v := profileState{Preferences: m.Preferences, Schema: 2, ID: id, Tasks: slices.Clone(m.Tasks), Order: slices.Clone(m.Order), Theme: m.UITheme, Side: m.Side, Offset: m.Offset, ItemHeight: m.itemHeight(), UndoID: m.UndoID, UndoUntil: m.UndoUntil, ReminderGeneration: m.ReminderGeneration}
+	if m.profile != nil {
+		v.LegacyImport = m.profile.saved.LegacyImport
+	}
+	return v
 }
 
 func validateProfile(v profileState) error {
+	if marker := v.LegacyImport; marker != nil {
+		hash, err := hex.DecodeString(marker.SHA256)
+		if err != nil || len(hash) != 32 || !filepath.IsAbs(marker.Source) || !filepath.IsAbs(marker.Backup) || marker.ImportedAt <= 0 || len(marker.OriginalIDs) > len(v.Tasks) {
+			return errors.New("旧版导入记录无效。")
+		}
+		seen := map[int64]bool{}
+		for _, id := range marker.OriginalIDs {
+			if id <= 0 || seen[id] {
+				return errors.New("旧版导入编号无效。")
+			}
+			seen[id] = true
+		}
+	}
 	if v.Schema != 1 && v.Schema != 2 {
 		return errors.New("资料版本不受支持，请使用对应版本的应用。")
 	}
@@ -94,7 +112,7 @@ func validateProfile(v profileState) error {
 		if utf8.RuneCountInString(t.Note) > 16000 {
 			return errors.New("资料中的备注过长。")
 		}
-		if !validPriority(t.Priority) || t.SnoozedUntil < 0 || t.CompletedAt < 0 || t.ReminderSentAt < 0 || t.ReminderID < 0 || t.ReminderID > v.ReminderGeneration || t.ReminderAt < 0 {
+		if t.CreatedAt < 0 || t.UpdatedAt < 0 || !validPriority(t.Priority) || t.SnoozedUntil < 0 || t.CompletedAt < 0 || t.ReminderSentAt < 0 || t.ReminderID < 0 || t.ReminderID > v.ReminderGeneration || t.ReminderAt < 0 {
 			return errors.New("资料中的任务字段无效。")
 		}
 		if err := todo.ValidateDeadline(t.DueAt, t.Remind); err != nil {
