@@ -13,6 +13,9 @@ type State struct {
 	Authorization string   `json:"authorization"`
 	Pending       []string `json:"pending"`
 	Delivered     []string `json:"delivered"`
+	// Accepted is a session-only submission ledger when the platform cannot
+	// enumerate notification history. It does not imply a visible notification.
+	Accepted []string `json:"accepted,omitempty"`
 }
 type System interface {
 	State() (State, error)
@@ -54,10 +57,15 @@ func Sync(repo Repository, system System, prefix string, now time.Time) (Result,
 		}
 	}
 	stale := []string{}
-	for _, id := range append(state.Pending, state.Delivered...) {
-		seen[id] = true
-		if strings.HasPrefix(id, prefix) && !alive[id] {
-			stale = append(stale, id)
+	for _, ids := range [][]string{state.Pending, state.Delivered, state.Accepted} {
+		for _, id := range ids {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			if strings.HasPrefix(id, prefix) && !alive[id] {
+				stale = append(stale, id)
+			}
 		}
 	}
 	if len(stale) > 0 {
@@ -77,9 +85,10 @@ func Sync(repo Repository, system System, prefix string, now time.Time) (Result,
 			continue
 		}
 		id := fmt.Sprintf("%s%d", prefix, r.ID)
-		// Recover a crash between OS acceptance and the SQLite acknowledgement.
+		// OS history can recover acceptance across a crash; a session ledger
+		// can recover only a failed SQLite acknowledgement in this process.
 		if !seen[id] {
-			if state.Authorization != "authorized" {
+			if state.Authorization != "authorized" && state.Authorization != "systemManaged" {
 				continue
 			}
 			body := "任务已到提醒时间"

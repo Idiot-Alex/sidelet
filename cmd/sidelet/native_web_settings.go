@@ -165,7 +165,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				})
 			}
 		})
-		notification := map[string]string{"authorized": "已允许", "denied": "未允许", "notDetermined": "尚未请求", "unsupported": "当前平台暂不支持"}[v.service.notificationAuthorization]
+		notification := map[string]string{"authorized": "已允许", "systemManaged": "由系统管理", "denied": "未允许", "notDetermined": "尚未请求", "unsupported": "当前平台暂不支持"}[v.service.notificationAuthorization]
 		if notification == "" {
 			notification = "读取中…"
 		}
@@ -175,8 +175,12 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				hint(v.service.notificationStatus)
 			}
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
-				b := webButton(c, "检查通知权限", false).Padding(8, 12).Background(t.Field)
-				b.Children(func() { ui.Text(c, "检查通知权限") })
+				checkLabel := "检查通知权限"
+				if v.service.notificationAuthorization == "systemManaged" {
+					checkLabel = "刷新提醒状态"
+				}
+				b := webButton(c, checkLabel, false).Padding(8, 12).Background(t.Field)
+				b.Children(func() { ui.Text(c, checkLabel) })
 				if b.Clicked() && v.service.notices != nil {
 					v.service.notices.request()
 				}
@@ -193,7 +197,11 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 					openNotificationSettings()
 				}
 			})
-			hint("在系统通知列表中选择 Sidelet，调整横幅和声音。")
+			if v.service.notificationAuthorization == "systemManaged" {
+				hint("未收到提醒时，可在系统设置中检查通知开关、横幅和声音。")
+			} else {
+				hint("在系统通知列表中选择 Sidelet，调整横幅和声音。")
+			}
 		}, notification)
 		section("快速添加", func() {
 			if v.service.quickShortcut != nil && v.service.quickShortcut.diagnostic {

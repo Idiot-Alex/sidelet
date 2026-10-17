@@ -315,3 +315,21 @@ func TestQuietDoesNotSuppressSystemRemindersOrCreateDuplicates(t *testing.T) {
 		t.Fatal("restoring labels duplicated reminder", err)
 	}
 }
+
+func TestWindowsNotificationSettingsDoNotClaimPermission(t *testing.T) {
+	_, v, u := webUITester(t)
+	v.service.notificationAuthorization = "systemManaged"
+	v.service.notificationStatus = notificationMessage("systemManaged", nil)
+	if err := u.Click("设置"); err != nil {
+		t.Fatal(err)
+	}
+	u.Scroll(600, 600, 0, 600)
+	for _, text := range []string{"由系统管理", "刷新提醒状态", "打开系统通知设置"} {
+		if !u.HasText(text) {
+			t.Fatalf("missing Windows notification setting %q", text)
+		}
+	}
+	if u.HasText("已允许") || u.HasText("开启系统通知") || u.HasText("检查通知权限") {
+		t.Fatal("Windows settings claim permission can be read or requested")
+	}
+}

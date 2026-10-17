@@ -14,7 +14,7 @@ bash scripts/build-windows.sh amd64
 bash scripts/test-regression.sh
 ```
 
-macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，Windows 实机与系统通知仍待完成）。本地 macOS 包为 ad-hoc 签名，未公证。
+macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，已接入原生通知适配，Windows 实机仍待验收）。本地 macOS 包为 ad-hoc 签名，未公证。
 
 测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。
 
@@ -36,7 +36,7 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 ## 当前边界
 
-已具备任务管理、三主题、侧栏与卡片、快速添加、macOS 提醒和导出。切换主线不代表已完成全部发布验收：Windows 实机、真实鼠标跨窗、多屏 / Spaces、中文输入法候选、部分键盘操作和多任务组仍需后续处理；旧版迁移目前支持 schema 2、单任务组、空目标。
+已具备任务管理、三主题、侧栏与卡片、快速添加、macOS 提醒和导出；Windows 通知适配已接入，能力边界与待验收项见 [Windows 通知记录](docs/mygo/WINDOWS_NOTIFICATIONS.md)。切换主线不代表已完成全部发布验收：Windows 实机、真实鼠标跨窗、多屏 / Spaces、中文输入法候选、部分键盘操作和多任务组仍需后续处理；旧版迁移目前支持 schema 2、单任务组、空目标。
 
 SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 

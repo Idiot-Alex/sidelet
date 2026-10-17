@@ -148,7 +148,9 @@ func notificationMessage(authorization string, err error) string {
 	}
 	switch authorization {
 	case "denied":
-		return "系统通知未获允许。请在 macOS 系统设置的通知中允许 Sidelet，然后检查权限。"
+		return "系统通知未获允许。请在系统通知设置中允许 Sidelet，然后检查权限。"
+	case "systemManaged":
+		return "通知显示由 Windows 管理，应用无法读取单独的通知权限。未出现提醒时，请检查系统通知设置及勿扰模式。"
 	case "notDetermined":
 		return "开启系统通知后，勾选“提醒我”的任务才会发送通知。"
 	case "unsupported":
