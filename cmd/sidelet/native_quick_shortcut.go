@@ -11,6 +11,7 @@ type nativeQuickShortcut struct {
 	stop       func()
 	generation uint64
 	diagnostic bool
+	retry      func()
 }
 
 func (s *nativeQuickShortcut) register(register func(func()) (func(), error), open func()) {
@@ -25,7 +26,7 @@ func (s *nativeQuickShortcut) register(register func(func()) (func(), error), op
 		}
 	})
 	if err != nil {
-		s.error = "快捷键注册失败，可能已被其他应用占用。仍可从菜单栏或任务窗口快速添加；解除占用后重启 Sidelet。"
+		s.error = "快捷键注册失败，可能已被其他应用占用。仍可从菜单栏或任务窗口快速添加；请退出其他 Sidelet 实例或解除占用，再点击“重试快捷键”。"
 		log.Printf("native quick-add shortcut failed: %v", err)
 		return
 	}

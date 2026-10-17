@@ -201,6 +201,13 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			}
 			if v.service.quickShortcut != nil && v.service.quickShortcut.error != "" {
 				ui.Text(c, v.service.quickShortcut.error).FontSize(12).TextColor(t.Danger).LineHeight(1.6).Margin(5, 0)
+				retry := webButton(c, "重试快捷键", false).Padding(8, 12).Background(t.Field).Disabled(v.service.quickShortcut.retry == nil)
+				retry.Children(func() { ui.Text(c, "重试快捷键") })
+				if retry.Clicked() && v.service.quickShortcut.retry != nil {
+					v.service.quickShortcut.retry()
+				}
+			} else if v.service.quickShortcut != nil && v.service.quickShortcut.registered {
+				hint("快捷键已启用。")
 			}
 			hint("在任何应用中按 Control + Shift + Space，记下任务。Enter 保存，Esc 取消并返回之前的应用。")
 			hint("支持“明天下午3点 联系客户”等简单时间，默认不固定到桌面、不发送系统通知。")

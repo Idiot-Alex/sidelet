@@ -250,6 +250,31 @@ func TestNativeQuickShortcutConflictCleanupAndStaleCallbacks(t *testing.T) {
 	if !u.HasText(v.service.quickShortcut.error) {
 		t.Fatal("settings hides shortcut error")
 	}
+	shortcut := v.service.quickShortcut
+	attempts := 0
+	shortcut.retry = func() {
+		shortcut.register(func(fn func()) (func(), error) {
+			attempts++
+			if attempts == 1 {
+				return nil, errors.New("still occupied")
+			}
+			return func() {}, nil
+		}, func() {})
+	}
+	u.Frame()
+	if err := u.Click("重试快捷键"); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 1 || shortcut.registered || shortcut.error == "" {
+		t.Fatal("failed retry lost error")
+	}
+	if err := u.Click("重试快捷键"); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 2 || !shortcut.registered || shortcut.error != "" || !u.HasText("快捷键已启用。") {
+		t.Fatal("retry did not recover")
+	}
+	shortcut.close()
 }
 
 func TestNativeQuickAddBoundsStayInsideSmallAndNegativeDisplays(t *testing.T) {

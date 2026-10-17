@@ -459,7 +459,16 @@ func main() {
 				if *quickShortcutFixture {
 					register = registerNativeQuickAddDiagnosticShortcut
 				}
-				h.service.quickShortcut.register(register, func() { h.openQuickAdd("global-shortcut") })
+				h.service.quickShortcut.retry = func() {
+					if h.quitting {
+						return
+					}
+					h.service.quickShortcut.register(register, func() { h.openQuickAdd("global-shortcut") })
+					if h.onState != nil {
+						h.onState("quick-add-shortcut-retry")
+					}
+				}
+				h.service.quickShortcut.retry()
 				mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
 					h.service.quickShortcut.close()
 					if h.quick != nil {
