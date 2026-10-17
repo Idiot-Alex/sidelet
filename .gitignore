@@ -13,3 +13,6 @@ website/public/downloads/
 
 # Local module boundary keeps historical source snapshots out of Go scans.
 /build/go.mod
+
+# Temporary resources generated and removed by the Windows release tool.
+/cmd/sidelet/sidelet_windows_*.syso

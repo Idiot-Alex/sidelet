@@ -12,6 +12,7 @@
     "dev": "bash scripts/go.sh run ./cmd/sidelet",
     "check": "bash scripts/go.sh vet ./cmd/sidelet ./internal/...",
     "test": "bash scripts/go.sh test ./cmd/sidelet ./internal/...",
-    "build:windows": "bash scripts/build-windows.sh amd64"
+    "build:windows": "bash scripts/build-windows.sh amd64",
+    "package:windows": "bash scripts/package-windows.sh amd64"
   }
 }

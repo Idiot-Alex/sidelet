@@ -1,0 +1,33 @@
+Sidelet {{VERSION}} · Windows {{ARCH}} 本地测试包
+
+使用方法
+1. 将 ZIP 完整解压到普通用户可写目录，再运行文件夹中的 Sidelet.exe。
+2. amd64 用于 Intel / AMD 64 位电脑；arm64 用于 Windows on ARM 电脑。
+3. 本包以 Windows 10 / 11 为测试目标，不需要管理员权限或 WebView2。
+4. 包内 build-info.json 记录版本和构建状态，实机验收.md 提供测试步骤。
+
+任务资料
+默认资料目录为 %APPDATA%\SideletMyGoLab，SQLite 文件名为 sidelet-native.sqlite3。
+直接替换 EXE 或删除解压目录不会删除该资料目录。
+备份前请完全退出 Sidelet，复制整个资料目录，包括可能存在的 WAL 文件。
+实机测试请始终使用独立目录：在 PowerShell 中进入解压后的文件夹，执行：
+  .\Sidelet.exe -main -data-dir "$env:TEMP\Sidelet-Windows-Acceptance"
+此目录首次使用为空，可在窗口中添加合成任务；不要导入日常资料。
+
+提醒与退出
+仅勾选“提醒我”的任务发送系统通知；Sidelet 需保持运行。
+通知显示受 Windows 通知设置及勿扰模式影响，接口提交成功不保证显示横幅。
+当前无法读取每个应用的通知权限或完整通知中心历史。
+快捷键默认为 Ctrl + Shift + Space；与其他应用冲突时，在设置页查看状态。
+关闭主窗口后可用全局快捷键打开快速添加；完全退出请使用应用的退出入口。
+
+构建与验证范围
+本包包含嵌入式多尺寸图标、文件版本、产品信息和普通用户运行清单。
+这是本地未签名测试包，尚未通过 Windows 实机验收，不是正式安装器。
+Windows 可能显示未知发布者或安全提示。
+Go 单元测试和 Mac 交叉编译不代表已经验证 Windows 上的交互行为。
+
+下载完整性
+同名 .zip.sha256 文件记录 ZIP 的 SHA-256。解压前可以执行：
+  Get-FileHash .\下载的文件名.zip -Algorithm SHA256
+将结果与 .sha256 文件中的值比对。校验值用于检查文件完整性，不替代发布者签名。
