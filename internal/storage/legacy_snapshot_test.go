@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"sidelet/internal/todo"
@@ -32,7 +33,7 @@ func TestLegacyBackupIncludesWALWithoutRestartCleanup(t *testing.T) {
 		t.Fatal("existing backup accepted")
 	}
 	info, _ := os.Stat(backup)
-	if info.Mode().Perm() != 0600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatal("backup is not private")
 	}
 	if _, err = s.db.Exec("PRAGMA user_version=99"); err != nil {

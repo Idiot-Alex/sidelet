@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 
@@ -27,7 +26,7 @@ func BackupLegacy(directory, backup string) (todo.Snapshot, error) {
 	if !info.Mode().IsRegular() {
 		return todo.Snapshot{}, errors.New("旧数据库必须是普通文件。")
 	}
-	uri := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	uri := sqliteFileURI(path)
 	uri.RawQuery = "mode=ro&_pragma=busy_timeout(3000)"
 	db, err := sql.Open("sqlite", uri.String())
 	if err != nil {
@@ -50,7 +49,11 @@ func BackupLegacy(directory, backup string) (todo.Snapshot, error) {
 
 // ReadLegacyBackup validates and reads one consistent standalone snapshot.
 func ReadLegacyBackup(path string) (todo.Snapshot, error) {
-	uri := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return todo.Snapshot{}, err
+	}
+	uri := sqliteFileURI(path)
 	uri.RawQuery = "mode=ro&immutable=1"
 	db, err := sql.Open("sqlite", uri.String())
 	if err != nil {

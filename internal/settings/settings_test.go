@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ func TestPreferencesRoundTripAndFailedReplace(t *testing.T) {
 		t.Fatal(reopened)
 	}
 	info, _ := os.Stat(file)
-	if info.Mode().Perm() != 0600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatal(info.Mode())
 	}
 	s.replace = func(string, string) error { return errors.New("disk failure") }

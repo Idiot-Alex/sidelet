@@ -63,7 +63,7 @@ func OpenWithDefaults(directory string, now time.Time, side, density string) (*S
 	if err := file.Close(); err != nil {
 		return nil, err
 	}
-	uri := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	uri := sqliteFileURI(path)
 	params := url.Values{}
 	for _, pragma := range []string{"foreign_keys(1)", "busy_timeout(3000)", "journal_mode(WAL)", "synchronous(FULL)"} {
 		params.Add("_pragma", pragma)

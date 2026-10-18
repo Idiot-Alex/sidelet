@@ -39,7 +39,7 @@ func OpenNativeProfile(dir string) (*NativeProfile, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}
+	u := sqliteFileURI(abs)
 	q := url.Values{}
 	for _, p := range []string{"busy_timeout(3000)", "synchronous(FULL)"} {
 		q.Add("_pragma", p)
