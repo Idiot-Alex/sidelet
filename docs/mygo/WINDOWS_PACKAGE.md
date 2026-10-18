@@ -1,6 +1,6 @@
 # Windows 发布包基础
 
-更新：2026-10-18；版本 0.2.0，build 31。产物为本地未签名测试包，Windows 实机验收尚未完成。
+更新：2026-10-18；版本 0.2.0，build 34。产物为未签名测试包；Windows x64 / ARM64 原生 CI 已通过，普通用户交互实机验收尚未完成。
 
 ## 构建与打包
 
@@ -20,9 +20,9 @@ Windows PowerShell，已安装相应 Go 工具链：
 .\scripts\package-windows.ps1 -Arch arm64
 ```
 
-两个平台的脚本调用同一个 Go 打包工具。PowerShell 入口尚未在 Windows 上运行；本轮验证的是 Mac 上的共用工具与交叉编译。首次构建需下载固定版本的构建工具依赖，不需要安装 Windows SDK、资源编译器、NSIS、Python 或 Node.js。
+两个平台的脚本调用同一个 Go 打包工具。PowerShell 入口及产物进程启停、SQLite 恢复已在原生 Windows x64 / ARM64 CI 上运行通过，见 [CI 记录](WINDOWS_CI.md)。首次构建需下载固定版本的构建工具依赖，不需要安装 Windows SDK、资源编译器、NSIS、Python 或 Node.js。
 
-裸 EXE 写到 `build/bin/Sidelet-<arch>.exe`。ZIP 写到 `build/releases/Sidelet-0.2.0-build31-windows-<arch>-local.zip`，同目录有 `.zip.sha256`。
+裸 EXE 写到 `build/bin/Sidelet-<arch>.exe`。ZIP 写到 `build/releases/Sidelet-0.2.0-build34-windows-<arch>-local.zip`，同目录有 `.zip.sha256`。
 
 ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 
@@ -35,7 +35,7 @@ ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 
 ## 图标与版本
 
-版本号和构建号继续读取现有的 `packaging/macos/app.json`；这个历史路径现在同时供两平台打包使用。产品版本为 `0.2.0`，四段文件版本为 `0.2.0.31`。构建号超出 Windows 单段 16 位范围时拒绝构建，避免静默截断。
+版本号和构建号继续读取现有的 `packaging/macos/app.json`；这个历史路径现在同时供两平台打包使用。产品版本为 `0.2.0`，四段文件版本为 `0.2.0.34`。构建号超出 Windows 单段 16 位范围时拒绝构建，避免静默截断。
 
 `assets/sidelet-icon.svg` 为图标源文件，`assets/sidelet-icon.png` 是其确定性渲染的 1024px 副本，供跨平台构建直接读取。修改 SVG 后可在 Mac 上重新生成 PNG：
 
@@ -60,7 +60,8 @@ cp .cache/windows-icon.iconset/icon_512x512@2x.png assets/sidelet-icon.png
 - Go vet：应用的 Windows amd64 / arm64 目标和打包工具通过。
 - 原有桌面及 internal 单元测试：通过。
 - amd64 / arm64 EXE 与 ZIP 生成：通过；从最终 EXE 读取资源并逐字节核对图标、清单、VERSIONINFO；ZIP 重新读取内容及 SHA-256 校验通过。
-- Windows 原生打包入口、系统图标显示、运行和交互：未测。两种架构的完整实机验收均待完成。
+- Windows 原生打包入口、文件版本 API、打包 EXE 的正常启动 / 退出与 SQLite 保存恢复：两种架构的 CI 均通过。
+- Windows 实际图标显示、鼠标、输入法、通知等交互及普通用户权限：仍待实机验收。
 
 `bash scripts/test-regression.sh` 已包含独立打包工具模块的测试与 vet。Windows 当前提醒能力边界见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。本轮没有制作安装器、Authenticode 签名或发布官网的下载链接。
 

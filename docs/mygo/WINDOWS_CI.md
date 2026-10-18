@@ -27,11 +27,12 @@ bash scripts/go.sh test -count=1 -timeout=2m ./cmd/sidelet -run '^TestPackagedAp
 
 ## 验证状态与边界
 
-本地桌面 / internal 测试、Go vet、工作流 YAML 解析通过；Mac 上打包 EXE 的两次启动 / 退出、SQLite 清理写入及恢复检查通过。首轮原生 Windows x64 / ARM64 已执行，均发现 SQLite URI 把 `C:` 当成主机名的问题，导致资料库无法打开；另有两处 Unix 文件模式断言不适用于 Windows。现已统一修正原生库、旧库及迁移读取路径的盘符格式，并让权限断言按平台执行，新增盘符 / Unicode / 特殊字符路径回归。build 34 的远程复验待完成后记录。
+本地桌面 / internal 测试、Go vet、工作流 YAML 解析通过；Mac 上打包 EXE 的两次启动 / 退出、SQLite 清理写入及恢复检查通过。首轮原生 Windows x64 / ARM64 已执行，均发现 SQLite URI 把 `C:` 当成主机名的问题，导致资料库无法打开；另有两处 Unix 文件模式断言不适用于 Windows。现已统一修正原生库、旧库及迁移读取路径的盘符格式，并让权限断言按平台执行，新增盘符 / Unicode / 特殊字符路径回归。build 34 的[原生 Windows 复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39103900224)已全部通过：x64 3 分 23 秒，ARM64 3 分 47 秒；测试、vet、PowerShell 打包、Windows 版本资源 API、ZIP 校验及打包 EXE 的两次启动 / 退出与 SQLite 持久化恢复均通过。验证源码提交为 `97c161f`。两架构包及校验文件已从 CI 下载、复验并存入本地 `build/releases/`。
 
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。鼠标跨窗、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：
+
 - <https://docs.github.com/en/actions/reference/runners/github-hosted-runners>
 - <https://github.com/actions/setup-go>
 - <https://github.com/actions/upload-artifact>

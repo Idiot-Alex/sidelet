@@ -15,7 +15,7 @@ bash scripts/package-windows.sh amd64
 bash scripts/test-regression.sh
 ```
 
-macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，已接入原生通知适配，Windows 实机仍待验收）。本地 macOS 包为 ad-hoc 签名，未公证。Windows 构建会嵌入 Sidelet 多尺寸图标、文件版本、产品信息和运行清单；`package-windows.sh` / `package-windows.ps1` 生成 ZIP 与 SHA-256，命令和实机验收见 [Windows 打包记录](docs/mygo/WINDOWS_PACKAGE.md)。
+macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，已通过 x64 / ARM64 原生 CI，完整交互仍待实机验收）。本地 macOS 包为 ad-hoc 签名，未公证。Windows 构建会嵌入 Sidelet 多尺寸图标、文件版本、产品信息和运行清单；`package-windows.sh` / `package-windows.ps1` 生成 ZIP 与 SHA-256，命令和实机验收见 [Windows 打包记录](docs/mygo/WINDOWS_PACKAGE.md)。
 
 测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。
 
