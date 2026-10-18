@@ -1,0 +1,82 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows.yml'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'packaging/**'
+      - 'assets/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    paths:
+      - '.github/workflows/windows.yml'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'packaging/**'
+      - 'assets/**'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native Windows (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/windows-release/go.sum
+      - name: Test, package and launch the packaged application
+        run: ./scripts/test-windows-ci.ps1 -Arch '${{ matrix.arch }}'
+      - name: Save packages
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Sidelet-windows-${{ matrix.arch }}
+          path: |
+            build/releases/*-windows-${{ matrix.arch }}-local.zip
+            build/releases/*-windows-${{ matrix.arch }}-local.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Save synthetic diagnostics even when tests fail
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Windows-diagnostics-${{ matrix.arch }}
+          path: build/results/windows-ci-${{ matrix.arch }}/
+          if-no-files-found: warn
+          retention-days: 7

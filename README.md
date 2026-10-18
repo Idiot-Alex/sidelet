@@ -43,4 +43,6 @@ SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 
 最近内存短测见 [测量记录](docs/mygo/MEMORY_20261015.md)。
 
+Windows 自动测试与产物位于仓库 Actions，运行范围和验收边界见 [CI 记录](docs/mygo/WINDOWS_CI.md)。
+
 MyGo SDK 当前固定为 `v0.5.1`；迁移、验证与内存对比见 [升级记录](docs/mygo/UPGRADE_051.md)。
