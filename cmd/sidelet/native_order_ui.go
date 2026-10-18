@@ -44,7 +44,7 @@ func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, heig
 	item := s.m.Tasks[id-1]
 	row := ui.Row(c.Key(fmt.Sprintf("order-task-%d", id))).Height(height).Gap(8).AlignItems(ui.Center).Radius(5).Border(1, t.Border).Background(t.Surface)
 	row.Children(func() {
-		handle := ui.ButtonBase(c.Key("handle")).Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2)
+		handle := ui.ButtonBase(c.Key("handle")).Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2).Tooltip("拖动调整顺序，也可按 Option / Alt + ↑ / ↓")
 		payload := ui.Local(handle, "order-drag", func() orderDrag { return orderDrag{} })
 		if !handle.Dragging() {
 			*payload = orderDrag{id, slices.Clone(s.m.eligibleIDs()), o.Epoch, orderLayoutKey(s.m)}

@@ -251,13 +251,13 @@ func TestFormalQuietAndPreferencesUIKeepsMainDraft(t *testing.T) {
 			}
 			u.Command("selectAll")
 			u.Type("保留主窗口草稿")
-			if err := u.Click("安静模式"); err != nil {
+			if err := u.Click("隐藏标签"); err != nil {
 				t.Fatal(err)
 			}
-			if !m.Quiet || v.draft != "保留主窗口草稿" || !u.HasText("恢复显示") {
+			if !m.Quiet || v.draft != "保留主窗口草稿" || !u.HasText("显示标签") {
 				t.Fatal("quiet lost main editor")
 			}
-			if err := u.Click("恢复显示"); err != nil {
+			if err := u.Click("显示标签"); err != nil {
 				t.Fatal(err)
 			}
 			if m.Quiet || v.draft != "保留主窗口草稿" {

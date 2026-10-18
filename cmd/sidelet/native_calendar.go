@@ -35,7 +35,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 	}
 	b.Expanded(*open).Children(func() {
 		ui.Text(c, chineseDay(v.pickerDate)).FontSize(12).FontFeatures("tnum").NoWrap()
-		webIcon(c, "clock", 14)
+		webIcon(c, "calendar", 14)
 	})
 	ui.PopoverBase(c, b, open, func(panel ui.Element) {
 		panel.Padding(10).Gap(4).Border(1, t.Border).Radius(t.Radius).Background(t.Surface)
@@ -74,14 +74,14 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 		}
 		grid.Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
-				previous := webButton(c, "上个月", false).Size(28, 28).Padding(0)
+				previous := webButton(c, "上个月", false).Size(28, 28).Padding(0).Tooltip("上个月")
 				previous.Children(func() { ui.Text(c, "‹").FontSize(18) })
 				if previous.Clicked() {
 					move(calendarMonth(cur, -1))
 					grid.Focus()
 				}
 				ui.Text(c, first.Format("2006年1月")).Grow(1).TextAlign(ui.Center).FontSize(13).FontWeight(550)
-				next := webButton(c, "下个月", false).Size(28, 28).Padding(0)
+				next := webButton(c, "下个月", false).Size(28, 28).Padding(0).Tooltip("下个月")
 				next.Children(func() { ui.Text(c, "›").FontSize(18) })
 				if next.Clicked() {
 					move(calendarMonth(cur, 1))

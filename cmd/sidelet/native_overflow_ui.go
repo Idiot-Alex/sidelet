@@ -90,7 +90,7 @@ func (v *views) webOverflowCard(c *ui.Context) {
 				}
 				b.Children(func() {
 					ui.Text(c, m.Tasks[index].Title).Grow(1).MinWidth(0).FontSize(12).LineHeight(1.5)
-					webIcon(c, "chevron", 14)
+					webIcon(c, "chevron-right", 14)
 				})
 				if b.Clicked() {
 					m.open(index)

@@ -32,7 +32,7 @@ func nativeTrayIcon() []byte {
 }
 
 func (h *nativeApp) installNativeTray() error {
-	h.quietItem = &mygo.MenuItem{Label: "安静模式", Click: func(*mygo.MenuItem, *mygo.Window) {
+	h.quietItem = &mygo.MenuItem{Label: "隐藏标签", Click: func(*mygo.MenuItem, *mygo.Window) {
 		_, _ = h.service.SetQuiet(!h.service.m.Quiet)
 	}}
 	menu := mygo.NewMenu([]*mygo.MenuItem{

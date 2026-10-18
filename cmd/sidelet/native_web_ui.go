@@ -118,7 +118,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 			if v.service.m.Arranging {
 				b.Background(t.Soft).TextColor(t.Accent)
 			}
-			b.Children(func() { webIcon(c, "layout", 16); webActionText(c, label) })
+			b.Children(func() { webIcon(c, "arrange", 16); webActionText(c, label) })
 			if b.Clicked() {
 				_, err := v.service.Arrange(!v.service.m.Arranging)
 				if v.result(err, "") {
@@ -128,15 +128,15 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 					v.order.Status = ""
 				}
 			}
-			quietLabel := "安静模式"
+			quietLabel, quietIcon := "隐藏标签", "eye-off"
 			if v.service.m.Quiet {
-				quietLabel = "恢复显示"
+				quietLabel, quietIcon = "显示标签", "eye"
 			}
 			b = webButton(c, quietLabel, false).Height(34).Border(0, ui.Transparent).Gap(6)
 			if v.service.m.Quiet {
 				b.Background(t.Soft).TextColor(t.Accent)
 			}
-			b.Children(func() { webIcon(c, "moon", 16); webActionText(c, quietLabel) })
+			b.Children(func() { webIcon(c, quietIcon, 16); webActionText(c, quietLabel) })
 			if b.Clicked() {
 				_, err := v.service.SetQuiet(!v.service.m.Quiet)
 				if v.result(err, "") {
@@ -147,7 +147,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 				}
 			}
 			ui.Box(c).Size(1, 18).Background(t.Border).Margin(0, 5)
-			b = webIconButton(c, "设置", "settings", 18).Size(34, 34).Disabled(v.service.m.Arranging)
+			b = webIconTextButton(c, "设置", "设置", "settings", 17).Height(34).Disabled(v.service.m.Arranging)
 			if b.Clicked() {
 				v.moreID, v.deleteID = 0, 0
 				v.settingsOpen = true
@@ -155,7 +155,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 					_ = v.service.CheckLogin()
 				}
 			}
-			b = webIconButton(c, "隐藏主窗口", "hide", 18).Size(34, 34)
+			b = webIconTextButton(c, "隐藏主窗口", "隐藏窗口", "hide", 17).Height(34)
 			if b.Clicked() && v.onHide != nil {
 				v.onHide()
 			}
@@ -278,10 +278,12 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 	statusBelow := width > 650 && width <= 850 || width <= 480
 	ui.Row(c).Gap(10).MinHeight(28).AlignItems(ui.Center).Children(func() {
 		label := "完成：" + item.Title
+		tip := "标记为完成"
 		if item.Done {
 			label = "恢复：" + item.Title
+			tip = "恢复为未完成"
 		}
-		check := ui.ButtonBase(c).Label(label).Size(20, 20).Radius(10).Border(1, t.Subtle)
+		check := ui.ButtonBase(c).Label(label).Size(20, 20).Radius(10).Border(1, t.Subtle).Tooltip(tip)
 		if item.Done {
 			check.Background(t.Accent).TextColor(t.AccentText).Border(1, t.Accent)
 			check.Children(func() { webIcon(c, "check", 13) })
@@ -315,10 +317,12 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 				v.formNote = item.Note
 			}
 			label := "取消桌面固定：" + item.Title
+			caption, icon := "移出桌面", "desktop-remove"
 			if item.Unpinned {
 				label = "固定到桌面：" + item.Title
+				caption, icon = "放到桌面", "desktop-add"
 			}
-			b = webIconButton(c, label, "pin", 15)
+			b = webIconTextButton(c, label, caption, icon, 15)
 			if !item.Unpinned {
 				b.TextColor(t.Accent)
 			}
@@ -351,7 +355,7 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 	if !item.Unpinned || item.Remind && !item.Done || item.Temporary || item.SnoozedUntil > v.service.m.now().UnixMilli() {
 		ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(3, 0, 0, 31).TextColor(t.TextMuted).Children(func() {
 			if !item.Unpinned {
-				ui.Row(c).Gap(3).TextColor(t.Accent).Children(func() { webIcon(c, "pin", 11); ui.Text(c, "桌面").FontSize(11).LineHeight(4.0 / 3) })
+				ui.Row(c).Gap(3).TextColor(t.Accent).Children(func() { webIcon(c, "desktop", 12); ui.Text(c, "桌面").FontSize(11).LineHeight(4.0 / 3) })
 			}
 			if item.Remind && !item.Done {
 				label := "系统提醒已开启"
@@ -442,7 +446,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			webTextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
 		})
 		if v.editID == 0 {
-			webCheckbox(c, &v.formPin, "固定到桌面", 12, "pin").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
+			webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
 		}
 		b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
 		b.Children(func() {

@@ -134,8 +134,19 @@ func webActionText(c *ui.Context, text string) ui.Element {
 }
 
 func webIconButton(c *ui.Context, label, name string, size float32) ui.Element {
-	b := webButton(c, label, false).Size(28, 28).Padding(0).Border(0, ui.Transparent)
+	// Keep the full task context in the accessible label, but show a concise
+	// action in the tooltip instead of repeating a potentially long title.
+	tip, _, _ := strings.Cut(label, "：")
+	b := webButton(c, label, false).Size(28, 28).Padding(0).Border(0, ui.Transparent).Tooltip(tip)
 	b.Children(func() { webIcon(c, name, size) })
+	return b
+}
+
+// Use visible text where the action is specific to Sidelet and an icon alone
+// cannot convey it. Keep the contextual accessibility label and hover help.
+func webIconTextButton(c *ui.Context, label, caption, name string, size float32) ui.Element {
+	b := webButton(c, label, false).Height(28).Padding(4, 7).Gap(5).Border(0, ui.Transparent).Tooltip(caption)
+	b.Children(func() { webIcon(c, name, size); webActionText(c, caption) })
 	return b
 }
 

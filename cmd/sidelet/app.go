@@ -384,9 +384,9 @@ func (h *nativeApp) publish() {
 
 func (h *nativeApp) nativeChanged(event string) {
 	if h.quietItem != nil {
-		label := "安静模式"
+		label := "隐藏标签"
 		if h.service.m.Quiet {
-			label = "恢复显示"
+			label = "显示标签"
 		}
 		h.quietItem.SetLabel(label)
 	}

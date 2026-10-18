@@ -84,7 +84,7 @@ func (v *views) webStack(c *ui.Context) {
 		if !m.Dragging && (m.Hover == i || m.Opened == i) {
 			body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
 			body.Children(func() {
-				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
+				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title).Tooltip("标记为完成")
 				if check.Clicked() {
 					m.open(index)
 					if m.complete() {
