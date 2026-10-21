@@ -42,11 +42,12 @@
 
 低版本安装包是测试夹具：复用本轮程序并附加可区分的 PE 尾部数据、设置较低的安装器版本。它验证安装器替换与版本判断，不冒充历史发布包或旧数据库迁移验证。
 
-本地 Go 发布工具测试与 vet、桌面 / internal 测试通过。最终源码 `444fa28` 的 [Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39641218820) 两架构全部通过：x64 2 分 8 秒，ARM64 3 分 14 秒，包含上面列出的完整安装器生命周期检查。两种安装包与 ZIP 已下载并重新核对 SHA-256；ZIP 清单、CRC、版本、架构和干净源码提交也已复验，产物保存在 `build/releases/`，校验记录在 `build/results/windows-installer-ci-39641218820/verified.json`。
+本地 Go 发布工具测试与 vet、桌面 / internal 测试通过。验证源码 `83d0bb2` 的 [Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39642384601) 两架构全部通过：x64 2 分 37 秒，ARM64 3 分 11 秒，包含上面列出的完整安装器生命周期检查。两种安装包与 ZIP 已下载并重新核对 SHA-256；ZIP 清单、CRC、版本、架构和干净源码提交也已复验，产物保存在 `build/releases/`，校验记录在 `build/results/windows-installer-ci-39642384601/verified.json`。
 
 托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：
+
 - https://nsis.sourceforge.io/Docs/Chapter3.html
 - https://nsis.sourceforge.io/Docs/Chapter4.html
 - https://nsis.sourceforge.io/Docs/AppendixD.html

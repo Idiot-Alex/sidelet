@@ -30,7 +30,7 @@ bash scripts/go.sh test -count=1 -timeout=2m ./cmd/sidelet -run '^TestPackagedAp
 
 本地桌面 / internal 测试、Go vet、工作流 YAML 解析通过；Mac 上打包 EXE 的两次启动 / 退出、SQLite 清理写入及恢复检查通过。首轮原生 Windows x64 / ARM64 已执行，均发现 SQLite URI 把 `C:` 当成主机名的问题，导致资料库无法打开；另有两处 Unix 文件模式断言不适用于 Windows。现已统一修正原生库、旧库及迁移读取路径的盘符格式，并让权限断言按平台执行，新增盘符 / Unicode / 特殊字符路径回归。build 34 的[原生 Windows 复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39103900224)已全部通过：x64 3 分 23 秒，ARM64 3 分 47 秒；测试、vet、PowerShell 打包、Windows 版本资源 API、ZIP 校验及打包 EXE 的两次启动 / 退出与 SQLite 持久化恢复均通过。验证源码提交为 `97c161f`。两架构包及校验文件已从 CI 下载、复验并存入本地 `build/releases/`。
 
-build 35 的 [安装器复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39641218820) 已通过两架构全部步骤，验证源码 `444fa28`。包含按用户安装、运行中升级 / 卸载拦截、合成低版本升级、同版本覆盖、拒绝降级，以及卸载保留 SQLite、重新安装恢复中文任务。两架构 ZIP、安装器和校验文件已下载并复验。
+build 35 的 [安装器复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39642384601) 已通过两架构全部步骤，验证源码 `83d0bb2`。包含按用户安装、运行中升级 / 卸载拦截、合成低版本升级、同版本覆盖、拒绝降级，以及卸载保留 SQLite、重新安装恢复中文任务。两架构 ZIP、安装器和校验文件已下载并复验。
 
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。鼠标跨窗、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
