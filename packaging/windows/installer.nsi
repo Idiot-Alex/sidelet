@@ -137,10 +137,10 @@ Section "Install"
   WriteRegStr HKCU "${APPKEY}" "Publisher" "Sidelet"
   WriteRegStr HKCU "${APPKEY}" "DisplayVersion" "${VERSION}.${BUILD}"
   WriteRegStr HKCU "${APPKEY}" "Architecture" "${ARCH}"
-  WriteRegStr HKCU "${APPKEY}" "DisplayIcon" '$"$INSTDIR\Sidelet.exe$",0'
+  WriteRegStr HKCU "${APPKEY}" "DisplayIcon" '"$INSTDIR\Sidelet.exe",0'
   WriteRegStr HKCU "${APPKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "${APPKEY}" "UninstallString" '$"$INSTDIR\Uninstall.exe$"'
-  WriteRegStr HKCU "${APPKEY}" "QuietUninstallString" '$"$INSTDIR\Uninstall.exe$" /S'
+  WriteRegStr HKCU "${APPKEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKCU "${APPKEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
   WriteRegDWORD HKCU "${APPKEY}" "NoModify" 1
   WriteRegDWORD HKCU "${APPKEY}" "NoRepair" 1
   IfErrors failed
