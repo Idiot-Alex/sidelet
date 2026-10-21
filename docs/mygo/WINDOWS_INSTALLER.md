@@ -17,6 +17,7 @@
 
 ## 用户流程与保护
 
+- 安装向导支持简体中文和英文提示。
 - 安装到 `%LOCALAPPDATA%\Programs\Sidelet`，请求普通用户权限，注册当前用户的开始菜单快捷方式及 Windows 应用卸载入口。
 - SQLite 继续位于 `%APPDATA%\SideletMyGoLab`；升级、卸载不读取、修改或删除该资料目录。
 - 覆盖升级要求原应用已退出；运行中或 EXE 被锁定时返回错误 10，不终止进程。并行安装/卸载返回 11。
@@ -41,7 +42,9 @@
 
 低版本安装包是测试夹具：复用本轮程序并附加可区分的 PE 尾部数据、设置较低的安装器版本。它验证安装器替换与版本判断，不冒充历史发布包或旧数据库迁移验证。
 
-当前实现已完成，本地 Go 发布工具测试与 vet 通过；Windows 两架构生命周期验证结果待 CI 更新。托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
+本地 Go 发布工具测试与 vet、桌面 / internal 测试通过。最终源码 `444fa28` 的 [Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39641218820) 两架构全部通过：x64 2 分 8 秒，ARM64 3 分 14 秒，包含上面列出的完整安装器生命周期检查。两种安装包与 ZIP 已下载并重新核对 SHA-256；ZIP 清单、CRC、版本、架构和干净源码提交也已复验，产物保存在 `build/releases/`，校验记录在 `build/results/windows-installer-ci-39641218820/verified.json`。
+
+托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：
 - https://nsis.sourceforge.io/Docs/Chapter3.html
