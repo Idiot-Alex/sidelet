@@ -183,6 +183,18 @@ func run(root, arch string, pack bool) error {
 	if err = os.Rename(tmp.Name(), exe); err != nil {
 		return err
 	}
+	// Reuse the executable's exact multi-resolution icon for the installer.
+	icon, err := rs.GetIcon(winres.ID(1))
+	if err != nil {
+		return err
+	}
+	var ico bytes.Buffer
+	if err = icon.SaveICO(&ico); err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(binDir, "Sidelet-"+arch+".ico"), ico.Bytes(), 0644); err != nil {
+		return err
+	}
 	fmt.Printf("Verified %s (version %s, build %s)\n", exe, info.Version, info.Build)
 	if pack {
 		return packageZIP(root, arch, exe, info)

@@ -61,6 +61,10 @@ jobs:
             tools/windows-release/go.sum
       - name: Test, package and launch the packaged application
         run: ./scripts/test-windows-ci.ps1 -Arch '${{ matrix.arch }}'
+      - name: Build and exercise per-user installer
+        run: |
+          ./scripts/build-windows-installer.ps1 -Arch '${{ matrix.arch }}' -SkipBuild
+          ./scripts/test-windows-installer.ps1 -Arch '${{ matrix.arch }}'
       - name: Save packages
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -69,6 +73,8 @@ jobs:
           path: |
             build/releases/*-windows-${{ matrix.arch }}-local.zip
             build/releases/*-windows-${{ matrix.arch }}-local.zip.sha256
+            build/releases/*-windows-${{ matrix.arch }}-local-setup.exe
+            build/releases/*-windows-${{ matrix.arch }}-local-setup.exe.sha256
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
