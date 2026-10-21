@@ -23,15 +23,41 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Sidelet contributors"
 !define MUI_ICON "${ICON}"
 !define MUI_UNICON "${ICON}"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "Install Sidelet for your Windows account. No administrator permission is required.$\r$\n$\r$\nClose Sidelet before upgrading. Your tasks and settings are kept when upgrading or uninstalling."
+!define MUI_WELCOMEPAGE_TEXT "$(Welcome)"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
-!define MUI_UNCONFIRMPAGE_TEXT_TOP "Remove Sidelet from this account? Tasks and settings in AppData will be kept. Close Sidelet before continuing."
+!define MUI_UNCONFIRMPAGE_TEXT_TOP "$(ConfirmRemove)"
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "SimpChinese"
+LangString Welcome ${LANG_ENGLISH} "Install Sidelet for your Windows account. No administrator permission is required.$\r$\n$\r$\nClose Sidelet before upgrading. Your tasks and settings are kept when upgrading or uninstalling."
+LangString Welcome ${LANG_SIMPCHINESE} "将 Sidelet 安装到当前 Windows 账户，无需管理员权限。$\r$\n$\r$\n升级前请退出 Sidelet。升级和卸载都会保留任务与设置。"
+LangString ConfirmRemove ${LANG_ENGLISH} "Remove Sidelet from this account? Tasks and settings in AppData will be kept. Close Sidelet before continuing."
+LangString ConfirmRemove ${LANG_SIMPCHINESE} "要从当前账户卸载 Sidelet 吗？任务与设置将保留。请先退出 Sidelet。"
+LangString Busy ${LANG_ENGLISH} "Another Sidelet installer is running."
+LangString Busy ${LANG_SIMPCHINESE} "另一个 Sidelet 安装或卸载程序正在运行，请等待其完成。"
+LangString WindowsVersion ${LANG_ENGLISH} "Sidelet requires Windows 10 or later."
+LangString WindowsVersion ${LANG_SIMPCHINESE} "Sidelet 需要 Windows 10 或更新版本。"
+LangString Windows64 ${LANG_ENGLISH} "Sidelet requires 64-bit Windows."
+LangString Windows64 ${LANG_SIMPCHINESE} "Sidelet 需要 64 位 Windows。"
+LangString UseX64 ${LANG_ENGLISH} "Use the x64 installer on this computer."
+LangString UseX64 ${LANG_SIMPCHINESE} "请在此电脑上使用 x64 安装包。"
+LangString CloseApp ${LANG_ENGLISH} "Please quit Sidelet before upgrading or uninstalling. Your data has not been changed."
+LangString CloseApp ${LANG_SIMPCHINESE} "请先退出 Sidelet，再升级或卸载。安装程序尚未修改任务数据。"
+LangString ExistingPath ${LANG_ENGLISH} "Sidelet is already installed in $0. Uninstall it before changing the installation folder."
+LangString ExistingPath ${LANG_SIMPCHINESE} "Sidelet 已安装到 $0。更换安装目录前请先卸载，任务数据会保留。"
+LangString OtherArch ${LANG_ENGLISH} "Uninstall the other architecture first. Your tasks will be kept."
+LangString OtherArch ${LANG_SIMPCHINESE} "请先卸载另一种架构的 Sidelet，任务数据会保留。"
+LangString Downgrade ${LANG_ENGLISH} "A newer Sidelet version is installed. Downgrades are not supported."
+LangString Downgrade ${LANG_SIMPCHINESE} "已安装更新版本的 Sidelet，不支持覆盖降级。"
+LangString InstallFailed ${LANG_ENGLISH} "Installation could not finish. Close Sidelet and run setup again."
+LangString InstallFailed ${LANG_SIMPCHINESE} "安装未完成。请退出 Sidelet 后重新运行安装程序。"
+LangString OldUninstaller ${LANG_ENGLISH} "This uninstaller no longer matches the registered installation."
+LangString OldUninstaller ${LANG_SIMPCHINESE} "此卸载程序与当前安装记录不一致，请从 Windows 应用列表卸载 Sidelet。"
+LangString RemoveFailed ${LANG_ENGLISH} "Uninstall could not finish. Close Sidelet and try again. Your tasks are kept."
+LangString RemoveFailed ${LANG_SIMPCHINESE} "卸载未完成。请退出 Sidelet 后重试，任务数据会保留。"
 Var SetupMutex
 
 ; Shared by setup and uninstall. Keep the mutex handle for the process lifetime.
@@ -44,7 +70,7 @@ Function ${PREFIX}.onInit
   StrCpy $SetupMutex $0
   ${If} $0 == 0
   ${OrIf} $1 == 183
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Another Sidelet installer is running." /SD IDOK
+    MessageBox MB_OK|MB_ICONEXCLAMATION "$(Busy)" /SD IDOK
     SetErrorLevel 11
     Quit
   ${EndIf}
@@ -56,18 +82,18 @@ Function .onInit
   SetShellVarContext current
   SetRegView 32
   ${IfNot} ${AtLeastWin10}
-    MessageBox MB_OK|MB_ICONSTOP "Sidelet requires Windows 10 or later." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(WindowsVersion)" /SD IDOK
     SetErrorLevel 12
     Quit
   ${EndIf}
   ${IfNot} ${RunningX64}
-    MessageBox MB_OK|MB_ICONSTOP "Sidelet requires 64-bit Windows." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(Windows64)" /SD IDOK
     SetErrorLevel 12
     Quit
   ${EndIf}
 !if "${ARCH}" == "arm64"
   ${IfNot} ${IsNativeARM64}
-    MessageBox MB_OK|MB_ICONSTOP "Use the x64 installer on this computer." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(UseX64)" /SD IDOK
     SetErrorLevel 12
     Quit
   ${EndIf}
@@ -77,7 +103,7 @@ Function .onInit
   StrCpy $SetupMutex $0
   ${If} $0 == 0
   ${OrIf} $1 == 183
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Another Sidelet installer is running." /SD IDOK
+    MessageBox MB_OK|MB_ICONEXCLAMATION "$(Busy)" /SD IDOK
     SetErrorLevel 11
     Quit
   ${EndIf}
@@ -89,7 +115,7 @@ FunctionEnd
   IfFileExists "$INSTDIR\Sidelet.exe" 0 closed
   System::Call 'kernel32::CreateFileW(w "$INSTDIR\Sidelet.exe", i 0x40000000, i 0, p 0, i 3, i 0, p 0) p .r0'
   ${If} $0 == -1
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Please quit Sidelet before upgrading or uninstalling. Your data has not been changed." /SD IDOK
+    MessageBox MB_OK|MB_ICONEXCLAMATION "$(CloseApp)" /SD IDOK
     SetErrorLevel 10
     Quit
   ${EndIf}
@@ -102,14 +128,14 @@ Section "Install"
   ReadRegStr $0 HKCU "${APPKEY}" "InstallLocation"
   ${If} $0 != ""
   ${AndIf} $0 != $INSTDIR
-    MessageBox MB_OK|MB_ICONSTOP "Sidelet is already installed in $0. Uninstall it before changing the installation folder." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(ExistingPath)" /SD IDOK
     SetErrorLevel 13
     Quit
   ${EndIf}
   ReadRegStr $0 HKCU "${APPKEY}" "Architecture"
   ${If} $0 != ""
   ${AndIf} $0 != "${ARCH}"
-    MessageBox MB_OK|MB_ICONSTOP "Uninstall the other architecture first. Your tasks will be kept." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(OtherArch)" /SD IDOK
     SetErrorLevel 13
     Quit
   ${EndIf}
@@ -117,7 +143,7 @@ Section "Install"
   ${If} $0 != ""
     ${VersionCompare} "$0" "${VERSION}.${BUILD}" $1
     ${If} $1 == 1
-      MessageBox MB_OK|MB_ICONSTOP "A newer Sidelet version is installed. Downgrades are not supported." /SD IDOK
+      MessageBox MB_OK|MB_ICONSTOP "$(Downgrade)" /SD IDOK
       SetErrorLevel 14
       Quit
     ${EndIf}
@@ -147,7 +173,7 @@ Section "Install"
   SetErrorLevel 0
   Goto finished
   failed:
-    MessageBox MB_OK|MB_ICONSTOP "Installation could not finish. Close Sidelet and run setup again." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(InstallFailed)" /SD IDOK
     SetErrorLevel 2
     Abort
   finished:
@@ -156,7 +182,7 @@ SectionEnd
 Section "Uninstall"
   ReadRegStr $0 HKCU "${APPKEY}" "InstallLocation"
   ${If} $0 != $INSTDIR
-    MessageBox MB_OK|MB_ICONSTOP "This uninstaller no longer matches the registered installation." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(OldUninstaller)" /SD IDOK
     SetErrorLevel 13
     Quit
   ${EndIf}
@@ -167,6 +193,7 @@ Section "Uninstall"
   Delete "$INSTDIR\使用说明.txt"
   Delete "$INSTDIR\实机验收.md"
   Delete "$INSTDIR\build-info.json"
+  IfErrors failed
   ; Explorer can briefly hold a new shortcut open.
   StrCpy $1 50
   retryShortcut:
@@ -186,7 +213,7 @@ Section "Uninstall"
   SetErrorLevel 0
   Goto finished
   failed:
-    MessageBox MB_OK|MB_ICONSTOP "Uninstall could not finish. Close Sidelet and try again. Your tasks are kept." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(RemoveFailed)" /SD IDOK
     SetErrorLevel 2
     Abort
   finished:
