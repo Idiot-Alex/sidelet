@@ -12,9 +12,11 @@
 
 ## 验证
 
-`TestNotificationUIOnlyInterruptsPendingReminders` 覆盖三主题、完成任务不遗留告警、提醒草稿引导和紧凑窗口文案 / 操作不重叠；`TestNotificationRetryClearsErrorWithoutLosingTask` 验证真实调度逻辑的失败保留、按钮触发重试、成功清除错误且仅发送一次。
+`TestNotificationUIOnlyInterruptsPendingReminders` 覆盖三主题、完成任务不遗留告警、提醒草稿引导和紧凑窗口文案 / 操作不重叠；`TestNotificationRetryClearsErrorWithoutLosingTask` 验证真实调度逻辑的失败保留、按钮触发重试、成功清除错误且仅发送一次。另验证未授权状态保留权限刷新入口，系统设置改变后可重新读取并更新标签。
 
 本地全量回归 / race / vet 通过。使用 MyGo 原生渲染器生成合成资料图片，优化前后分别位于 `build/results/ui-reminders-before/` 与 `build/results/ui-reminders-after/`。这些是布局证据，不冒充桌面窗口截图或真实系统通知显示。
+
+macOS ARM64 build 39 已从干净源码 `43a6714` 构建并校验 ad-hoc 签名，产物为 `build/bin/Sidelet.app`。使用内存合成任务实际启动、捕获自身主窗口 / 卡片内容并正常退出，最终证据在 `build/results/ui-reminders-macos-final/`。没有替换 `/Applications` 中的日常应用或修改用户资料。
 
 生成方法：
 
@@ -25,4 +27,4 @@ bash scripts/go.sh test ./cmd/sidelet -count=1 \
   -run '^(TestNativeUIVisualArtifacts|TestCardVisualArtifacts)$'
 ```
 
-Windows 实际通知链路与显示边界见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。
+Windows build 39 从干净源码 `3751d1c` 构建，[x64 / ARM64 原生 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39827518998) 全部通过，最终 ZIP 和安装器已下载至 `build/releases/` 并复核。相对上述 Mac 构建，仅追加 Windows 诊断 / 测试改动，Mac 正式 UI 源码一致。通知专项每架构通过 9 项发送、回执、重启去重与撤回请求检查；横幅、点击与声音不在已通过范围内，详情见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。

@@ -42,6 +42,8 @@ build 37 的 [登录启动复验](https://github.com/Idiot-Alex/sidelet/actions/
 
 build 38 的 [跨进程输入复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39819946040) 两架构全部通过，验证源码 `641534f`：x64 3 分 15 秒，ARM64 4 分钟。每个架构新增 10 项独立进程系统输入检查，确认侧栏 / 只读卡片不打断后台输入，编辑与快速添加保存 / 取消恢复原光标，失焦保留快速添加草稿。原有测试和安装器生命周期继续通过；最终包已下载复验，证据见 `build/results/windows-focus-39819946040/verified.json`。
 
+build 39 的 [通知链路复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39827518998) 两架构全部通过，验证源码 `3751d1c`：x64 3 分 24 秒，ARM64 5 分 27 秒。每个架构通过 9 项实际通知提交 / SQLite 回执 / 重启去重 / 完成和推迟撤回请求检查，以及 19 项窗口输入、10 项跨进程输入、4 种登录启动和完整安装器生命周期检查。x64 未捕获可见通知横幅；ARM64 横幅探测进程未成功运行，点击和声音均未验收。最终包已下载并校验，证据见 `build/results/windows-notifications-39827518998/verified.json`。
+
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：

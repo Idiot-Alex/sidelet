@@ -1,6 +1,6 @@
 # Windows 发布包基础
 
-更新：2026-10-23；版本 0.2.0，build 38。产物为未签名测试包；Windows x64 / ARM64 原生 CI 已通过，普通用户交互实机验收尚未完成。
+更新：2026-10-23；版本 0.2.0，build 39。产物为未签名测试包；普通用户交互实机验收尚未完成，各轮原生 CI 结果见 [记录](WINDOWS_CI.md)。
 
 ## 构建与打包
 
@@ -22,7 +22,7 @@ Windows PowerShell，已安装相应 Go 工具链：
 
 两个平台的脚本调用同一个 Go 打包工具。PowerShell 入口及产物进程启停、SQLite 恢复已在原生 Windows x64 / ARM64 CI 上运行通过，见 [CI 记录](WINDOWS_CI.md)。首次构建需下载固定版本的构建工具依赖，不需要安装 Windows SDK、资源编译器、NSIS、Python 或 Node.js。
 
-裸 EXE 写到 `build/bin/Sidelet-<arch>.exe`。ZIP 写到 `build/releases/Sidelet-0.2.0-build38-windows-<arch>-local.zip`，同目录有 `.zip.sha256`。
+裸 EXE 写到 `build/bin/Sidelet-<arch>.exe`。ZIP 写到 `build/releases/Sidelet-0.2.0-build39-windows-<arch>-local.zip`，同目录有 `.zip.sha256`。
 
 ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 
@@ -35,7 +35,7 @@ ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 
 ## 图标与版本
 
-版本号和构建号继续读取现有的 `packaging/macos/app.json`；这个历史路径现在同时供两平台打包使用。产品版本为 `0.2.0`，四段文件版本为 `0.2.0.38`。构建号超出 Windows 单段 16 位范围时拒绝构建，避免静默截断。
+版本号和构建号继续读取现有的 `packaging/macos/app.json`；这个历史路径现在同时供两平台打包使用。产品版本为 `0.2.0`，四段文件版本为 `0.2.0.39`。构建号超出 Windows 单段 16 位范围时拒绝构建，避免静默截断。
 
 `assets/sidelet-icon.svg` 为图标源文件，`assets/sidelet-icon.png` 是其确定性渲染的 1024px 副本，供跨平台构建直接读取。修改 SVG 后可在 Mac 上重新生成 PNG：
 
@@ -63,6 +63,7 @@ cp .cache/windows-icon.iconset/icon_512x512@2x.png assets/sidelet-icon.png
 - Windows 原生打包入口、文件版本 API、打包 EXE 的正常启动 / 退出与 SQLite 保存恢复：两种架构的 CI 均通过。
 - build 36 增加窗口透明区域、被动焦点、侧栏 / 卡片交接、拖动及编辑恢复的自动检查，范围和最终结果见 [输入适配记录](WINDOWS_INPUT.md)。
 - build 38 两架构新增 10 项系统鼠标 / 键盘跨进程检查通过，原有登录启动、安装器和持久化检查继续通过；最终包已下载并重新核对校验值，见 [跨进程输入记录](WINDOWS_CROSS_PROCESS_INPUT.md)。
+- build 39 两架构新增 9 项实际通知提交、SQLite 回执、重启去重及完成 / 推迟撤回请求检查通过；原有输入、登录启动和安装器检查继续通过。最终包已下载复核，横幅 / 点击 / 声音仍待验收，见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。同轮改善通知提示、设置页图文对齐和快捷键展示，见 [UI 记录](REMINDER_UI_20261023.md)。
 - Windows 实际图标显示、鼠标、输入法、通知等交互及普通用户权限：仍待实机验收。
 
 `bash scripts/test-regression.sh` 已包含独立打包工具模块的测试与 vet。Windows 当前提醒能力边界见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。按用户安装器已接入，构建与生命周期验证见 [安装器记录](WINDOWS_INSTALLER.md)。仍未做 Authenticode 签名或发布官网的下载链接。

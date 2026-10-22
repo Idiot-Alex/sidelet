@@ -1,6 +1,6 @@
 # Windows 侧栏输入适配
 
-更新：2026-10-23，build 36。实现位于 `cmd/sidelet/input_windows.go`。
+更新：2026-10-23；适配器从 build 36 引入，最新复验为 build 39。实现位于 `cmd/sidelet/input_windows.go`。
 
 ## 行为
 
@@ -22,6 +22,8 @@
 ARM64 托管镜像可能有首次登录窗口覆盖测试桌面，见 [runner-images #14069](https://github.com/actions/runner-images/issues/14069)。CI 会先运行 `prepare-windows-ci-desktop.ps1`，仅允许 GitHub 托管的 Windows ARM64 临时主机：关闭首次登录进程及性能设置窗口、抑制重复登录提示，再运行显式启用的 `TestPrepareWindowsCIDesktop`，发送 Escape 收起可见的 Shell 临时界面并最小化其余覆盖窗口，保留桌面和任务栏。普通本地运行和自托管主机不会执行这些操作。辅助程序在 `_test.go` 中，不包含在安装包内，准备过程完整记录到 CI 日志。
 
 build 38 另增两个独立进程的系统鼠标 / 键盘检查，双架构均通过后台输入保持、卡片与快速添加保存 / 取消后的光标恢复，以及失焦草稿保留。具体方式和证据见 [跨进程输入记录](WINDOWS_CROSS_PROCESS_INPUT.md)。
+
+build 39 将诊断中的“打开编辑 → 切换窗口 → 取消”拆为独立事件步骤，先确认编辑窗口已获得焦点，再验证用户切换后的取消行为，共 19 项检查。此前同一回调中连续激活在 ARM64 出现一次延迟焦点失败；新增前台 HWND / 窗口类 / PID 诊断用于区分应用窗口与桌面干扰。正式输入适配器行为未修改。源码 `3751d1c` 的 [最终复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39827518998) 两架构 19 项全部通过，原有跨进程输入、安装器与持久化检查继续通过。
 
 这些检查不代表物理鼠标、第三方应用特殊输入控件、中文输入法候选、多显示器 / 混合 DPI 或普通用户权限已通过。没有对这些项目标记验收完成。
 

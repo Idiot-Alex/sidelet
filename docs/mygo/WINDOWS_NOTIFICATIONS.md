@@ -43,7 +43,23 @@ bash scripts/build-windows.sh arm64
 
 `probe-windows-notification.ps1` 仅在临时主机的 Shell 窗口中匹配随机合成通知标题；发现可见横幅时尝试调用其最近按钮的 UI Automation InvokePattern，再检查正式通知点击回调是否打开主窗口。不会伪造 Shell 回调、不打开通知中心、不修改通知开关。横幅显示与激活独立写入 `notifications.json`；托管环境未显示或不支持自动化时保留未验收状态。
 
-本轮本地回归、race、vet、Windows 双架构编译通过；Windows 原生运行结果待 CI。声音、通知开关、勿扰模式、普通用户权限及物理点击仍需实机验证。
+本轮本地回归、race、vet、Windows 双架构编译通过。源码 `3751d1c` 的 [Windows 原生复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39827518998) 两架构全部通过：x64 3 分 24 秒、ARM64 5 分 27 秒；通知专项分别耗时 31.38 / 32.34 秒，每个架构通过以下 9 项：
+
+1. 主窗口隐藏时提交逾期提醒。
+2. SQLite 保存回执，未到期、禁用、已完成任务不被消费。
+3. 后续同步不重复提交。
+4. 正常退出后重启，真实提交回执阻止再次发送。
+5. 后台定时到期后提交提醒。
+6. 卡片推迟生成新的提醒标识，并请求撤回旧提醒。
+7. 推迟时间与待提醒状态保存到 SQLite。
+8. 重启后不发送已确认或尚未到期的提醒。
+9. 卡片完成状态保存，并请求撤回本进程接收的提醒。
+
+首次执行暴露的是测试断言错误：推迟应更新 `SnoozedUntil` / `ReminderAt`，不修改任务原始 `DueAt`。修正断言后复验，未因此改动正式推迟逻辑。
+
+横幅验收仍未完成：x64 探测正常结束，但未找到匹配的可见横幅；ARM64 探测进程退出码为 1、没有输出，不能判断横幅是否显示。两者均没有验证通知点击激活或声音。通知开关、勿扰模式、普通用户权限及物理点击仍需实机验证。
+
+两架构 ZIP / 安装器已下载至 `build/releases/`，重新核对 SHA-256、ZIP CRC、四文件清单及干净源码信息。完整结果在 `build/results/windows-notifications-39827518998/verified.json`；原始 `notifications.json`、探测日志与合成 SQLite 位于同目录各架构诊断目录。
 
 同轮的任务页与设置页改进见 [提醒状态 UI 记录](REMINDER_UI_20261023.md)。
 
