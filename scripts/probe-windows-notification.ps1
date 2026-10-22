@@ -11,8 +11,21 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
 # change settings, enumerate notification text, or synthesize an app callback.
 $Result = @{ found = $false; invoked = $false; reason = 'No matching visible banner in this runner session.' }
 try {
-    Add-Type -AssemblyName UIAutomationClient
-    Add-Type -AssemblyName UIAutomationTypes
+    try {
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+    } catch {
+        # PowerShell Core may not search the installed Windows Desktop runtime.
+        # Use its matching major version; do not install or change any runtime.
+        $Desktop = Join-Path $env:ProgramFiles 'dotnet\shared\Microsoft.WindowsDesktop.App'
+        $Runtime = Get-ChildItem -LiteralPath $Desktop -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -match ('^' + [Environment]::Version.Major + '\.') } |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+        if ($null -eq $Runtime) { throw 'No matching Windows Desktop runtime for Shell UI Automation.' }
+        foreach ($Assembly in 'WindowsBase.dll','UIAutomationTypes.dll','UIAutomationClient.dll') {
+            [void][Reflection.Assembly]::LoadFrom((Join-Path $Runtime.FullName $Assembly))
+        }
+    }
     $Automation = [System.Windows.Automation.AutomationElement]
     $Scope = [System.Windows.Automation.TreeScope]
     $Condition = [System.Windows.Automation.PropertyCondition]::new($Automation::NameProperty, $Title)

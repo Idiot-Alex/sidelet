@@ -56,7 +56,18 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 	}
 	passive := func() error {
 		front, _, _ := quickGetForeground.Call()
-		return assert(front == probe.NativeHandle(), "passive overlay changed the foreground window")
+		if front == probe.NativeHandle() {
+			return nil
+		}
+		var pid uint32
+		quickGetPID.Call(front, uintptr(unsafe.Pointer(&pid)))
+		var class [256]uint16
+		inputUser32.NewProc("GetClassNameW").Call(front, uintptr(unsafe.Pointer(&class[0])), uintptr(len(class)))
+		var cardHandle uintptr
+		if a.card != nil {
+			cardHandle = a.card.NativeHandle()
+		}
+		return fmt.Errorf("passive overlay changed foreground: hwnd=%#x class=%s pid=%d expectedProbe=%#x card=%#x ownPID=%d", front, syscall.UTF16ToString(class[:]), pid, probe.NativeHandle(), cardHandle, os.Getpid())
 	}
 	point := func(b *overlayWindow, x, y int) winPoint {
 		p := winPoint{int32(winPX(x, b.windowDPI())), int32(winPX(y, b.windowDPI()))}
@@ -171,7 +182,15 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			}
 			return passive()
 		}, 300 * time.Millisecond},
-		{"respect-user-focus-switch", func() { m.edit(); v.edit(); probe.Focus(); m.cancel(); v.notify("cancel") }, passive, 300 * time.Millisecond},
+		// Let the editor's native activation finish before the next user action.
+		// Opening, switching and cancelling in one dispatch turn can leave late
+		// activation messages pending on a slower runner; users act in separate
+		// event turns. Keep the foreground assertion for both transitions.
+		{"focus-switch-editor", func() { m.edit(); v.edit() }, func() error {
+			front, _, _ := quickGetForeground.Call()
+			return assert(a.editing && front == a.card.NativeHandle(), "focus-switch editor did not activate")
+		}, 200 * time.Millisecond},
+		{"respect-user-focus-switch", func() { probe.Focus(); m.cancel(); v.notify("cancel") }, passive, 300 * time.Millisecond},
 		{"close-before-drag", func() { v.closeCard(); move(a.stackInput, handleX, handleY) }, func() error {
 			return assert(!a.card.IsVisible(), "closed card remained visible")
 		}, 300 * time.Millisecond},

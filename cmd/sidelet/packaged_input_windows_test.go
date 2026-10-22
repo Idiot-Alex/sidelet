@@ -51,7 +51,7 @@ func TestPackagedWindowsOverlayInput(t *testing.T) {
 	for _, s := range report.Stages {
 		t.Logf("%s passed=%t %s", s.Stage, s.Passed, s.Error)
 	}
-	if runErr != nil || !report.Passed || len(report.Stages) < 18 {
+	if runErr != nil || !report.Passed || len(report.Stages) < 19 {
 		t.Fatalf("Windows overlay diagnostics failed: process=%v\n%s\n%s", runErr, data, out)
 	}
 }

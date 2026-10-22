@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -173,14 +172,9 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		if _, err := os.Stat(script); err != nil {
 			t.Fatal(err)
 		}
-		probe := exec.CommandContext(probeCtx, "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-File", script, "-Title", title, "-OutputPath", probePath)
-		// PowerShell 7's module paths are not compatible with Windows PowerShell
-		// 5.1, used here for its built-in .NET Framework UI Automation assemblies.
-		for _, value := range os.Environ() {
-			if !strings.HasPrefix(strings.ToUpper(value), "PSMODULEPATH=") {
-				probe.Env = append(probe.Env, value)
-			}
-		}
+		// Use the same supported PowerShell host as the CI entry point. Legacy
+		// Windows PowerShell can terminate before executing a script on runners.
+		probe := exec.CommandContext(probeCtx, "pwsh", "-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-File", script, "-Title", title, "-OutputPath", probePath)
 		output, probeErr := probe.CombinedOutput()
 		stop()
 		output = append(output, []byte(fmt.Sprintf("\nprobe exit: %v\n", probeErr))...)
