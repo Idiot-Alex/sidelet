@@ -47,6 +47,7 @@ type nativeTasksView struct {
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
 	formNote                      string
+	noteOpen, focusNote           bool
 	newTaskDraft                  *taskFormDraft
 	filterAll                     bool
 	formDue                       string
@@ -109,6 +110,7 @@ func (v *nativeTasksView) beginEdit(t taskEntry) {
 			note: v.formNote, due: v.formDue,
 			originalDue: v.originalDue, originalDueText: v.originalDueText,
 			remind: v.formRemind, temporary: v.formTemporary, optionsOpen: v.optionsOpen,
+			noteOpen:      v.noteOpen,
 			deadlineParts: v.deadline.parts, deadlineSeen: v.deadline.seen, deadlineReady: v.deadline.ready,
 		}
 	}
@@ -116,6 +118,7 @@ func (v *nativeTasksView) beginEdit(t taskEntry) {
 	v.editID, v.editVersion = t.ID, t.Version
 	v.draft, v.draftPriority = t.Title, priorityName(t.Priority)
 	v.formNote = t.Note
+	v.noteOpen, v.focusNote = true, false
 	v.formDue = localDue(t.DueAt, v.service.m.now().Location())
 	v.originalDue, v.originalDueText = t.DueAt, v.formDue
 	v.formRemind, v.formTemporary = t.Remind, t.Temporary
@@ -133,12 +136,14 @@ func (v *nativeTasksView) cancelEdit() {
 	v.draft, v.draftPriority = "", ""
 	v.focusEdit = false
 	v.formNote = ""
+	v.noteOpen, v.focusNote = false, false
 	v.optionsOpen = false
 	v.resetScheduleDraft()
 	if d := v.newTaskDraft; d != nil {
 		v.formNote, v.formDue = d.note, d.due
 		v.originalDue, v.originalDueText = d.originalDue, d.originalDueText
 		v.formRemind, v.formTemporary, v.optionsOpen = d.remind, d.temporary, d.optionsOpen
+		v.noteOpen = d.noteOpen
 		v.deadline = deadlineSegments{parts: d.deadlineParts, seen: d.deadlineSeen, ready: d.deadlineReady, focused: -1}
 		v.newTaskDraft = nil
 	}
@@ -148,6 +153,7 @@ func (v *nativeTasksView) cancelEdit() {
 // shared form values while an existing task occupies the editor. UI handles,
 // focus and popovers belong to the active form and are deliberately not saved.
 type taskFormDraft struct {
+	noteOpen                   bool
 	note, due, originalDueText string
 	originalDue                int64
 	remind, temporary          bool

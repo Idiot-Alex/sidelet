@@ -6,6 +6,50 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// Native menus supply keyboard navigation and dismissal on both platforms;
+// recovery actions remain visible in the header while their mode is active.
+func (v *nativeTasksView) webWindowMenu(menu *ui.Menu) {
+	arrange := "整理桌面"
+	if v.service.m.Arranging {
+		arrange = "完成整理"
+	}
+	if menu.Item(arrange).Disabled(v.service.m.Quiet).Chosen() {
+		v.setArranging(!v.service.m.Arranging)
+	}
+	quiet := "隐藏标签"
+	if v.service.m.Quiet {
+		quiet = "显示标签"
+	}
+	if menu.Item(quiet).Chosen() {
+		v.setLabelsHidden(!v.service.m.Quiet)
+	}
+	menu.Separator()
+	if menu.Item("隐藏窗口").Chosen() && v.onHide != nil {
+		v.onHide()
+	}
+}
+
+func (v *nativeTasksView) setArranging(on bool) {
+	_, err := v.service.Arrange(on)
+	if v.result(err, "") {
+		v.resetWindowActionState()
+	}
+}
+
+func (v *nativeTasksView) setLabelsHidden(hidden bool) {
+	_, err := v.service.SetQuiet(hidden)
+	if v.result(err, "") {
+		v.resetWindowActionState()
+	}
+}
+
+func (v *nativeTasksView) resetWindowActionState() {
+	v.moreID, v.deleteID = 0, 0
+	v.datePickerOpen = false
+	v.order.Epoch++
+	v.order.Status = ""
+}
+
 func (v *nativeTasksView) webUndo(c *ui.Context) {
 	m, t := v.service.m, v.visual
 	if m.UndoID == 0 || m.now().UnixMilli() >= m.UndoUntil {

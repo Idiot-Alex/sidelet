@@ -24,6 +24,7 @@ func TestMainNewDraftSurvivesEditExitAndFilter(t *testing.T) {
 				}
 				mustClick("新任务标题")
 				u.Type("新建草稿")
+				mustClick("展开备注")
 				mustClick("任务备注")
 				u.Type("新建备注\n第二行")
 				v.formDue, v.newPriority = "2026/10/24 14:30", "紧急"
@@ -129,6 +130,9 @@ func TestMainNoteShortcutKeepsNewlinesCompositionAndValidation(t *testing.T) {
 			m, v, u := webUITester(t)
 			_ = u.Click("新任务标题")
 			u.Type("快捷添加")
+			if err := u.Click("展开备注"); err != nil {
+				t.Fatal(err)
+			}
 			_ = u.Click("任务备注")
 			u.Type("第一行")
 			u.Key(0, ui.KeyEnter)

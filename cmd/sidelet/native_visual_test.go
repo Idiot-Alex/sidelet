@@ -83,8 +83,8 @@ func TestLongTaskStatusDoesNotOverlapEditorOrActions(t *testing.T) {
 				if button.W <= 0 || button.X+button.W > more.X+.5 || more.X+more.W >= editor.X || date.X+date.W >= editor.X {
 					t.Fatalf("%d: controls overlap title=%+v more=%+v date=%+v editor=%+v", width, button, more, date, editor)
 				}
-				if width <= 850 && date.Y < button.Y+button.H {
-					t.Fatal("compact status did not move below title", width, date, button)
+				if date.Y < button.Y+button.H {
+					t.Fatal("status must remain below title at every width", width, date, button)
 				}
 			}
 			if err := u.Click("编辑：" + title); err != nil {

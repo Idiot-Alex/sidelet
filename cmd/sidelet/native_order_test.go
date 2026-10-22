@@ -118,9 +118,7 @@ func TestNativeMainOrderKeyboardDragEscapeAndProtectedForm(t *testing.T) {
 			v.visual = webTheme(theme)
 			_ = u.Click("编辑：整理今天的工作")
 			v.draft = "保留编辑草稿"
-			if err := u.Click("整理桌面"); err != nil {
-				t.Fatal(err)
-			}
+			chooseWindowAction(t, u, "整理桌面")
 			if !m.Arranging || !u.HasText("桌面任务顺序") || v.editID != 1 {
 				t.Fatal("arrange lost editor")
 			}
@@ -161,7 +159,7 @@ func TestNativeMainOrderKeyboardDragEscapeAndProtectedForm(t *testing.T) {
 }
 func TestNativeOrderDropCancelledByBlurResizeAndMembershipChange(t *testing.T) {
 	m, v, u := webUITester(t)
-	_ = u.Click("整理桌面")
+	chooseWindowAction(t, u, "整理桌面")
 	drag := func(change func()) {
 		h, _ := u.Find("拖动排序整理今天的工作")
 		r, _ := u.Find("拖动排序发布前检查")
