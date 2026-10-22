@@ -1,6 +1,6 @@
 # Windows 安装器
 
-2026-10-23；当前版本 0.2.0 build 39，安装器从 build 35 引入。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
+2026-10-23；当前版本 0.2.0 build 40，安装器从 build 35 引入。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
 
 ## 构建
 
@@ -13,7 +13,7 @@
 
 入口先执行现有测试与 ZIP 打包；`-SkipBuild` 复用同版本 ZIP，但仍检查 SHA-256、固定四文件清单、产品和版本信息。使用已固定 SHA-256 的 NSIS 3.13 ZIP，在临时构建目录解压，不安装到构建机器的系统目录。编译失败不替换现有安装包。
 
-产物：`build/releases/Sidelet-0.2.0-build39-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
+产物：`build/releases/Sidelet-0.2.0-build40-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
 
 ## 用户流程与保护
 
@@ -52,6 +52,8 @@ build 37 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/run
 build 38 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39819946040) 继续通过完整安装器生命周期与登录项保留 / 清理检查，验证源码 `641534f`；两架构最终包已下载复核，证据见 `build/results/windows-focus-39819946040/verified.json`。
 
 build 39 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39827518998) 继续通过完整安装器生命周期、资料保留及登录项检查，验证源码 `3751d1c`。两架构 ZIP / 安装器已下载至 `build/releases/`，重新核对 SHA-256、ZIP 清单与 CRC、版本及干净源码信息，证据见 `build/results/windows-notifications-39827518998/verified.json`。
+
+build 40 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39831015862) 继续通过完整安装器生命周期与登录项检查，源码 `12be29f`；产物校验见 `build/results/windows-form-39831015862/verified.json`。
 
 托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
