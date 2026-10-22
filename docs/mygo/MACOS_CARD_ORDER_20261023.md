@@ -20,6 +20,10 @@
 - 全量回归、race、vet 通过。卡片渲染预览增加稍后状态，三主题的阅读 / 稍后 / 编辑均可导出。
 - 外部定向事件未进入测试进程，系统区域截图不可用；两者未计为通过。原生诊断及窗口内容捕获不代表物理鼠标、屏幕合成截图、多屏或输入法验收。
 
+最终 macOS ARM64 build 42 已从干净源码 `013ba83` 打包并通过 ad-hoc 签名验证。再次使用最终包运行上述 18 项原生检查，全部通过并正常退出；源码信息与构建号已核对，证据在 `build/results/card-order-macos-build42/verified.json`，产物为 `build/bin/Sidelet.app`。
+
+build 42 的 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 已触发，记录时仍在排队，不计为验收通过。这次生产修复仅修改 macOS 输入适配。
+
 执行原生诊断：
 
 ```sh

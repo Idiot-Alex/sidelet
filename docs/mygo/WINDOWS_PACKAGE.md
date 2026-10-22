@@ -65,6 +65,7 @@ cp .cache/windows-icon.iconset/icon_512x512@2x.png assets/sidelet-icon.png
 - build 38 两架构新增 10 项系统鼠标 / 键盘跨进程检查通过，原有登录启动、安装器和持久化检查继续通过；最终包已下载并重新核对校验值，见 [跨进程输入记录](WINDOWS_CROSS_PROCESS_INPUT.md)。
 - build 39 两架构新增 9 项实际通知提交、SQLite 回执、重启去重及完成 / 推迟撤回请求检查通过；原有输入、登录启动和安装器检查继续通过。最终包已下载复核，横幅 / 点击 / 声音仍待验收，见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。同轮改善通知提示、设置页图文对齐和快捷键展示，见 [UI 记录](REMINDER_UI_20261023.md)。
 - build 40 两架构通过新增草稿保护 / 备注快捷保存回归及原有原生 CI 检查，源码 `12be29f`；见 [表单体验记录](TASK_FORM_20261023.md)。
+- build 41 两架构主界面布局回归通过，源码 `97b672f`。build 42 的补充构建记录时仍在排队，当前版本的 Windows 产物尚未下载复验；见 [CI 记录](WINDOWS_CI.md)。
 - Windows 实际图标显示、鼠标、输入法、通知等交互及普通用户权限：仍待实机验收。
 
 `bash scripts/test-regression.sh` 已包含独立打包工具模块的测试与 vet。Windows 当前提醒能力边界见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。按用户安装器已接入，构建与生命周期验证见 [安装器记录](WINDOWS_INSTALLER.md)。仍未做 Authenticode 签名或发布官网的下载链接。

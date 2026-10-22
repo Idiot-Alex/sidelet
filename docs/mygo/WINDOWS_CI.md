@@ -46,6 +46,8 @@ build 39 的 [通知链路复验](https://github.com/Idiot-Alex/sidelet/actions/
 
 build 40 的 [表单体验复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39831015862) 两架构全部通过，验证源码 `12be29f`：x64 3 分 29 秒，ARM64 4 分 43 秒。新增草稿恢复、重复选择、部分日期及备注快捷保存测试通过；原有窗口输入、跨进程输入、提醒、登录启动与安装器生命周期检查继续通过。最终产物校验记录在 `build/results/windows-form-39831015862/verified.json`，变更说明见 [表单体验记录](TASK_FORM_20261023.md)。
 
+build 41 的 [主界面布局复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39834104048) 两架构任务全部通过，源码 `97b672f`：x64 2 分 52 秒，ARM64 4 分 44 秒。build 42 增加 macOS 卡片输入层防遮挡；对应 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 记录时仍在排队，不能视为已通过，见 [卡片修复记录](MACOS_CARD_ORDER_20261023.md)。
+
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：
