@@ -18,7 +18,7 @@
 
 本地 macOS 回归（race / vet）及 Windows amd64 测试程序交叉编译已通过；两架构原生 CI 结果待记录。
 
-ARM64 托管镜像可能有首次登录窗口覆盖测试桌面，见 [runner-images #14069](https://github.com/actions/runner-images/issues/14069)。CI 会先运行 `prepare-windows-ci-desktop.ps1`，仅允许 GitHub 托管的 Windows ARM64 临时主机：关闭首次登录进程及性能设置窗口、抑制重复登录提示，开始菜单在前台时发送 Escape，终端在前台时最小化。普通本地运行和自托管主机不会执行这些操作。适配器和应用本身不包含此环境处理。
+ARM64 托管镜像可能有首次登录窗口覆盖测试桌面，见 [runner-images #14069](https://github.com/actions/runner-images/issues/14069)。CI 会先运行 `prepare-windows-ci-desktop.ps1`，仅允许 GitHub 托管的 Windows ARM64 临时主机：关闭首次登录进程及性能设置窗口、抑制重复登录提示，再运行显式启用的 `TestPrepareWindowsCIDesktop`，发送 Escape 收起可见的 Shell 临时界面并最小化其余覆盖窗口，保留桌面和任务栏。普通本地运行和自托管主机不会执行这些操作。辅助程序在 `_test.go` 中，不包含在安装包内，准备过程完整记录到 CI 日志。
 
 这些检查不代表物理鼠标、外部应用保持键盘输入、中文输入法候选、多显示器 / 混合 DPI 或普通用户权限已通过。没有对这些项目标记验收完成。
 

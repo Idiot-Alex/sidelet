@@ -22,39 +22,12 @@ foreach ($Name in 'UserOOBEBroker','WWAHost','SystemPropertiesPerformance') {
         }
 }
 
-Add-Type -TypeDefinition @'
-using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-public static class SideletCIDesktop {
-    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
-    [DllImport("user32.dll")] static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
-    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window, int command);
-    public static void DismissStart() {
-        IntPtr window = GetForegroundWindow();
-        uint id;
-        GetWindowThreadProcessId(window, out id);
-        if (id == 0) return;
-        try {
-            string name = Process.GetProcessById((int)id).ProcessName;
-            // Escape is sent only while the runner's Start menu has focus.
-            if (name == "StartMenuExperienceHost") {
-                keybd_event(0x1b, 0, 0, UIntPtr.Zero);
-                keybd_event(0x1b, 0, 2, UIntPtr.Zero);
-                Console.WriteLine("Dismissed runner Start menu");
-            }
-            // A first-logon WSL update terminal can also cover the fixtures.
-            // Minimize it; do not stop the runner or its shell processes.
-            if (name == "WindowsTerminal") {
-                ShowWindow(window, 6);
-                Console.WriteLine("Minimized runner terminal");
-            }
-        } catch (ArgumentException) { /* The transient window already closed. */ }
-    }
-}
-'@
-for ($Pass = 0; $Pass -lt 3; $Pass++) {
-    Start-Sleep -Milliseconds 400
-    [SideletCIDesktop]::DismissStart()
+# The Win32 shell cleanup lives in a test-only Go file, so it uses the native
+# toolchain already built by CI and is never included in the shipped app.
+$env:SIDELET_CI_PREPARE_DESKTOP = '1'
+try {
+    & go test -count=1 -timeout=30s -v ./cmd/sidelet -run '^TestPrepareWindowsCIDesktop$'
+    if ($LASTEXITCODE -ne 0) { throw "Runner desktop preparation failed: $LASTEXITCODE" }
+} finally {
+    Remove-Item Env:SIDELET_CI_PREPARE_DESKTOP -ErrorAction SilentlyContinue
 }
