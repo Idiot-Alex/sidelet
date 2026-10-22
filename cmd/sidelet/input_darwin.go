@@ -84,6 +84,8 @@ func loadPanelAPI() {
 		}
 		methods := []objc.MethodDef{
 			{Cmd: objc.RegisterName("acceptsFirstMouse:"), Fn: func(objc.ID, objc.SEL, objc.ID) bool { return true }},
+			// The opaque hit backing must never rise above the painted window.
+			{Cmd: objc.RegisterName("shouldDelayWindowOrderingForEvent:"), Fn: func(objc.ID, objc.SEL, objc.ID) bool { return true }},
 			{Cmd: objc.RegisterName("isAccessibilityElement"), Fn: func(objc.ID, objc.SEL) bool { return false }},
 		}
 		for _, name := range []string{"mouseEntered:", "mouseExited:", "mouseMoved:", "mouseDown:", "mouseUp:", "mouseDragged:", "rightMouseDown:", "rightMouseUp:", "rightMouseDragged:"} {
@@ -228,6 +230,7 @@ func (a *overlayInput) install(w *mygo.Window, r inputRegion) {
 		send(window, "addChildWindow:ordered:", panel, int(-1))
 	}
 	p.region = r
+	resized := p.frame.Size != frame.Size
 	if p.frame != frame {
 		panelAPI.setFrame(p.panel, objc.RegisterName("setFrame:display:"), frame, true)
 		p.frame = frame
@@ -257,9 +260,15 @@ func (a *overlayInput) install(w *mygo.Window, r inputRegion) {
 	panelAPI.setFloat(layer, objc.RegisterName("setCornerRadius:"), radius)
 	send(layer, "setMasksToBounds:", true)
 	send(p.panel, "setLevel:", send(window, "level"))
-	if !p.visible {
+	if !p.visible || resized {
 		p.visible = true
-		send(p.panel, "orderWindow:relativeTo:", int(-1), send(window, "windowNumber"))
+		p.orderBelowContent()
+	}
+}
+
+func (p *inputPanel) orderBelowContent() {
+	if p.visible && p.window.IsVisible() {
+		send(p.panel, "orderWindow:relativeTo:", int(-1), send(objc.ID(p.window.NativeHandle()), "windowNumber"))
 	}
 }
 
@@ -271,6 +280,11 @@ func (p *inputPanel) forward(name string, event objc.ID) {
 	location := panelAPI.point(event, objc.RegisterName("locationInWindow"))
 	screen := panelAPI.convert(p.panel, objc.RegisterName("convertPointToScreen:"), location)
 	typ := uint(send(event, "type"))
+	if typ == 1 || typ == 3 {
+		// Nonactivating / non-key panels can still be ordered forward on a
+		// click. Pair this with shouldDelayWindowOrderingForEvent above.
+		send(send(objc.ID(objc.GetClass("NSApplication")), "sharedApplication"), "preventWindowOrdering")
+	}
 	if p.window == p.owner.stack && p.owner.m.Dragging && (typ == 6 || typ == 2) {
 		local := panelAPI.convert(targetWindow, objc.RegisterName("convertPointFromScreen:"), screen)
 		p.owner.moveDeliveredDrag(local)
@@ -324,6 +338,11 @@ func (p *inputPanel) forward(name string, event objc.ID) {
 	// Bypass NSWindow.sendEvent's activation logic. The genuine delivered
 	// event enters MyGo's existing surface, layout, buttons and drag capture.
 	send(p.target, name, converted)
+	if typ == 1 || typ == 2 || typ == 3 || typ == 4 {
+		// Repair an already-raised backing too, without changing key focus
+		// or reordering windows on every pointer move / drag.
+		p.orderBelowContent()
+	}
 	p.owner.forwarded++
 	if tracking {
 		p.owner.entered++

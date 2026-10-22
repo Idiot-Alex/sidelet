@@ -132,7 +132,13 @@ func TestCardVisualArtifacts(t *testing.T) {
 		v := &views{m: m}
 		u := ui.NewTester(v.webCard, 320, 390)
 		u.SetSize(320, m.CardReadHeight)
-		for _, mode := range []string{"read", "edit"} {
+		for _, mode := range []string{"read", "snooze", "edit"} {
+			if mode == "snooze" {
+				if err := u.Click("稍后"); err != nil {
+					t.Fatal(err)
+				}
+				u.SetSize(320, m.CardReadHeight)
+			}
 			if mode == "edit" {
 				m.edit()
 				u.SetSize(320, 390)

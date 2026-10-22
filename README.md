@@ -55,6 +55,8 @@ Windows 后台输入、光标恢复及快捷添加的系统事件验证见 [跨�
 
 新建区备注折叠、顶部更多菜单和任务状态排列见 [主界面布局记录](docs/mygo/MAIN_LAYOUT_20261023.md)。
 
+macOS 浮动卡片点击后空白的输入层防遮挡修复见 [卡片窗口层级记录](docs/mygo/MACOS_CARD_ORDER_20261023.md)。
+
 MyGo SDK 当前固定为 `v0.5.1`；迁移、验证与内存对比见 [升级记录](docs/mygo/UPGRADE_051.md)。
 
 Windows 按用户安装包的构建、升级和卸载保护见 [安装器记录](docs/mygo/WINDOWS_INSTALLER.md)。

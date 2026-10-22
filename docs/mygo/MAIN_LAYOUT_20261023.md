@@ -27,3 +27,7 @@ bash scripts/go.sh test ./cmd/sidelet \
 ```
 
 菜单交互由 MyGo 无窗口测试器验证；渲染预览不代表系统菜单的真实鼠标 / 键盘操作或中文输入法候选验收。
+
+macOS ARM64 build 41 从干净源码 `97b672f` 构建，通过 ad-hoc 签名验证。使用内存合成任务实际启动应用，捕获自身主窗口 / 卡片并正常退出；主窗口显示与预览一致。产物为 `build/bin/Sidelet.app`，证据在 `build/results/main-layout-macos-20261023/verified.json`。测试未替换日常安装或读取日常任务资料。
+
+同一源码的 [Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39834104048) 两架构通过全部步骤：x64 2 分 52 秒，ARM64 4 分 44 秒。随后收到浮动卡片点击后空白反馈，build 42 增补 macOS 输入层防遮挡，见 [修复记录](MACOS_CARD_ORDER_20261023.md)。

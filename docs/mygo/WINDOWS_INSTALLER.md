@@ -1,6 +1,6 @@
 # Windows 安装器
 
-2026-10-23；当前版本 0.2.0 build 40，安装器从 build 35 引入。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
+2026-10-23；当前版本 0.2.0 build 42，安装器从 build 35 引入。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
 
 ## 构建
 
@@ -13,7 +13,7 @@
 
 入口先执行现有测试与 ZIP 打包；`-SkipBuild` 复用同版本 ZIP，但仍检查 SHA-256、固定四文件清单、产品和版本信息。使用已固定 SHA-256 的 NSIS 3.13 ZIP，在临时构建目录解压，不安装到构建机器的系统目录。编译失败不替换现有安装包。
 
-产物：`build/releases/Sidelet-0.2.0-build40-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
+产物：`build/releases/Sidelet-0.2.0-build42-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
 
 ## 用户流程与保护
 

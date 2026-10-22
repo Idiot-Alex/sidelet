@@ -29,6 +29,10 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 		a.stack.Invalidate()
 		a.sync()
 	}
+	// Keep synthetic windows away from any daily edge markers.
+	m.X, m.Y = m.WorkX+40, m.WorkY+80
+	probe.SetBounds(mygo.Rectangle{X: m.WorkX + 20, Y: m.WorkY + 40, Width: 700, Height: 600})
+	setStack()
 	hit := func(p nsPoint) int {
 		return panelAPI.hitWindow(objc.ID(objc.GetClass("NSWindow")), objc.RegisterName("windowNumberAtPoint:belowWindowWithWindowNumber:"), p, 0)
 	}
@@ -74,6 +78,38 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			return fmt.Errorf("passive overlay changed owned key window")
 		}
 		return nil
+	}
+	// Deliver only to our own card through AppKit's normal event dispatch.
+	// Unlike directly calling the UI callback, this exercises click ordering.
+	clickCard := func(x, y float64) {
+		p := a.panels["card"]
+		target, height := p.panel, p.frame.Size.H
+		if m.Editing {
+			target, height = objc.ID(a.card.NativeHandle()), float64(a.card.Bounds().Height)
+		}
+		for _, kind := range []uint{1, 2} {
+			event := panelAPI.mouseEvent(objc.ID(objc.GetClass("NSEvent")), objc.RegisterName("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"), kind, nsPoint{x, height - y}, 0, 0, int(send(target, "windowNumber")), 0, 0, 1, 1)
+			send(send(objc.ID(objc.GetClass("NSApplication")), "sharedApplication"), "sendEvent:", event)
+		}
+	}
+	checkCardOrder := func() error {
+		// orderedWindows excludes NSPanel. The window-number list includes
+		// all of this process's visible windows in front-to-back order.
+		windows := send(objc.ID(objc.GetClass("NSWindow")), "windowNumbersWithOptions:", uint(0))
+		render, backing := -1, -1
+		for i, n := 0, int(send(windows, "count")); i < n; i++ {
+			number := send(send(windows, "objectAtIndex:", i), "integerValue")
+			if number == send(objc.ID(a.card.NativeHandle()), "windowNumber") {
+				render = i
+			}
+			if number == send(a.panels["card"].panel, "windowNumber") {
+				backing = i
+			}
+		}
+		if render < 0 || backing <= render {
+			return fmt.Errorf("input backing obscures card: render=%d backing=%d", render, backing)
+		}
+		return checkPassive()
 	}
 	originalX, originalY := m.X, m.Y
 	var cardBounds mygo.Rectangle
@@ -173,6 +209,66 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 				return fmt.Errorf("completed task still visible")
 			}
 			return checkPanels(2, true)
+		}},
+		{"formal-card-before-click", func() {
+			m.UITheme = "mac"
+			m.Tasks[0].Done = false
+			m.open(0)
+			v.open(0)
+			v.notify("diagnostic-formal-card")
+			probe.Focus()
+		}, checkCardOrder},
+		{"formal-card-snooze-click", func() {
+			clickCard(160, float64(a.card.Bounds().Height-31))
+		}, func() error {
+			if !v.snoozing {
+				return fmt.Errorf("AppKit click did not open snooze options")
+			}
+			return checkCardOrder()
+		}},
+		{"formal-card-return-click", func() {
+			clickCard(160, float64(a.card.Bounds().Height-26))
+		}, func() error {
+			if v.snoozing || !m.cardOpen() {
+				return fmt.Errorf("AppKit click did not return to card actions")
+			}
+			return checkCardOrder()
+		}},
+		{"formal-card-raised-backing-recovery", func() {
+			// Reproduce the bad composition explicitly: an opaque hit panel
+			// ordered above its painted window must recover on interaction.
+			p := a.panels["card"]
+			send(p.panel, "orderWindow:relativeTo:", int(1), send(objc.ID(a.card.NativeHandle()), "windowNumber"))
+			clickCard(160, float64(a.card.Bounds().Height-31))
+		}, func() error {
+			if !v.snoozing {
+				return fmt.Errorf("raised input panel did not forward the action")
+			}
+			return checkCardOrder()
+		}},
+		{"formal-card-content-click-recovery", func() {
+			p := a.panels["card"]
+			send(p.panel, "orderWindow:relativeTo:", int(1), send(objc.ID(a.card.NativeHandle()), "windowNumber"))
+			clickCard(80, 65) // No action or resize: layering must recover alone.
+		}, checkCardOrder},
+		{"formal-card-return-after-recovery", func() {
+			clickCard(160, float64(a.card.Bounds().Height-26))
+		}, checkCardOrder},
+		{"formal-card-edit-click", func() {
+			clickCard(257, float64(a.card.Bounds().Height-31))
+		}, func() error {
+			if !m.Editing || !a.card.IsFocused() || a.panels["card"].visible {
+				return fmt.Errorf("edit click did not hide backing and focus editor")
+			}
+			return nil
+		}},
+		{"formal-card-cancel-click", func() {
+			clickCard(232, float64(a.card.Bounds().Height-31))
+		}, func() error {
+			if m.Editing || !m.cardOpen() {
+				return fmt.Errorf("cancel click did not restore reading card")
+			}
+			return checkCardOrder()
 		}},
 		{"cleanup", func() { a.close() }, func() error {
 			if len(a.panels) != 0 || len(inputViews) != 0 {
