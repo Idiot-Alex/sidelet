@@ -227,7 +227,7 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 					t.Fatal("missing control", label)
 				}
 			}
-			focus("登录 Mac 后启动 Sidelet")
+			focus("登录后启动 Sidelet")
 			u.Key(0, ui.KeySpace)
 			if !m.Preferences.Startup.Enabled || !u.HasText("系统状态：已开启") {
 				t.Fatal("switch did not commit")
@@ -248,6 +248,18 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 			u.Key(0, ui.KeyEnter)
 			if !u.HasText("系统状态：未开启") || len(b.calls) != 1 {
 				t.Fatal("external state not reflected")
+			}
+			b.status = "disabledBySystem"
+			if err := s.CheckLogin(); err != nil {
+				t.Fatal(err)
+			}
+			if !u.HasText("系统状态：已在系统中禁用") || !u.HasText("你已在系统中禁用 Sidelet 的自动启动；开启此开关将重新允许。") {
+				t.Fatal("system-disabled explanation missing")
+			}
+			focus("登录后启动 Sidelet")
+			u.Key(0, ui.KeySpace)
+			if s.login.status != "enabled" || len(b.calls) != 2 || !b.calls[1] {
+				t.Fatal("system-disabled switch did not explicitly re-enable")
 			}
 		})
 	}

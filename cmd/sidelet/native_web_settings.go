@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"runtime"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -72,17 +74,23 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			}
 			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0).Children(func() {
 				ui.Column(c).Grow(1).Children(func() {
-					ui.Text(c, "登录 Mac 后启动 Sidelet").FontSize(13).FontWeight(500)
+					ui.Text(c, "登录后启动 Sidelet").FontSize(13).FontWeight(500)
 					hint("自动在后台运行，让桌面任务和提醒保持可用。")
 					ui.Text(c, "系统状态："+loginLabel(status)).FontSize(11).TextColor(t.TextMuted)
 				})
 				on := loginRegistered(status)
-				if webSwitch(c, &on, "登录 Mac 后启动 Sidelet").Disabled(l == nil || status == "unsupported" || status == "unknown").Changed() {
+				if webSwitch(c, &on, "登录后启动 Sidelet").Disabled(l == nil || status == "unsupported" || status == "unknown" || status == "otherLocation").Changed() {
 					v.result(v.service.ChangeLogin(on), "")
 				}
 			})
 			if status == "requiresApproval" {
 				hint("请在系统登录项中允许 Sidelet；完成后返回这里检查状态。")
+			}
+			if status == "disabledBySystem" {
+				hint("你已在系统中禁用 Sidelet 的自动启动；开启此开关将重新允许。")
+			}
+			if status == "otherLocation" {
+				hint("请先在原位置的 Sidelet 中关闭登录启动，再在此处开启。")
 			}
 			if l != nil && l.error != "" && (!v.failed || v.status != l.error) {
 				ui.Text(c, l.error).FontSize(12).TextColor(t.Danger).LineHeight(1.6).Margin(5, 0)
@@ -104,7 +112,11 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			ui.Row(c).Gap(28).AlignItems(ui.Center).Padding(15, 0, 0).Children(func() {
 				ui.Column(c).Grow(1).Children(func() {
 					ui.Text(c, "启动时显示主窗口").FontSize(13).FontWeight(500)
-					hint("关闭后保留菜单栏入口与已固定的桌面任务。")
+					if runtime.GOOS == "windows" {
+						hint("关闭后保留托盘入口与已固定的桌面任务。")
+					} else {
+						hint("关闭后保留菜单栏入口与已固定的桌面任务。")
+					}
 				})
 				on := v.service.m.Preferences.Startup.ShowMainWindow
 				if webSwitch(c, &on, "启动时显示主窗口").Changed() {

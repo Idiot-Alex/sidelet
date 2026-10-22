@@ -11,6 +11,8 @@ SetCompressor /SOLID lzma
 !include "x64.nsh"
 !include "WinVer.nsh"
 !define APPKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\io.sidelet.mygo-lab"
+!define RUNKEY "Software\Microsoft\Windows\CurrentVersion\Run"
+!define APPROVALKEY "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 Name "Sidelet"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\Sidelet"
@@ -179,6 +181,29 @@ Section "Install"
   finished:
 SectionEnd
 
+; Delete only our value, not the shared key. Distinguish an absent key/value
+; from an access failure; the 32-bit installer must use the native 64-bit view.
+Function un.RemoveLoginValue
+  Exch $2
+  Push $0
+  Push $1
+  System::Call 'advapi32::RegOpenKeyExW(p 0x80000001, w r2, i 0, i 0x102, *p .r1) i .r0'
+  ${If} $0 == 0
+    System::Call 'advapi32::RegDeleteValueW(p r1, w "Sidelet") i .r0'
+    System::Call 'advapi32::RegCloseKey(p r1)'
+  ${EndIf}
+  ${If} $0 == 0
+  ${OrIf} $0 == 2
+  ${OrIf} $0 == 3
+    StrCpy $2 0
+  ${Else}
+    StrCpy $2 $0
+  ${EndIf}
+  Pop $1
+  Pop $0
+  Exch $2
+FunctionEnd
+
 Section "Uninstall"
   ReadRegStr $0 HKCU "${APPKEY}" "InstallLocation"
   ${If} $0 != $INSTDIR
@@ -205,6 +230,27 @@ Section "Uninstall"
     Sleep 100
     Goto retryShortcut
   shortcutRemoved:
+  ; Setup/repair never opts in or rewrites this value. Remove it at uninstall
+  ; only if the complete command belongs to this installation; a portable copy
+  ; at a different path may own the name. NSIS string comparison ignores case.
+  SetRegView 64
+  ReadRegStr $0 HKCU "${RUNKEY}" "Sidelet"
+  SetRegView 32
+  ${If} $0 == '$\"$INSTDIR\Sidelet.exe$\" --mygo-opened-at-login'
+    Push "${RUNKEY}"
+    Call un.RemoveLoginValue
+    Pop $0
+    ${If} $0 != 0
+      Goto failed
+    ${EndIf}
+    Push "${APPROVALKEY}"
+    Call un.RemoveLoginValue
+    Pop $0
+    ${If} $0 != 0
+      Goto failed
+    ${EndIf}
+  ${EndIf}
+  ClearErrors
   DeleteRegKey HKCU "${APPKEY}"
   IfErrors failed
   Delete "$INSTDIR\Uninstall.exe"

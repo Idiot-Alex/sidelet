@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 )
 
@@ -10,6 +9,12 @@ type loginBackend interface {
 	Status() (string, error)
 	Set(bool) error
 	OpenSettings() error
+}
+
+// Windows has two independent values: the launch command and the system's
+// disabled state. A boolean rollback would lose a user's Task Manager choice.
+type loginCheckpointBackend interface {
+	Checkpoint() (restore func() error, err error)
 }
 
 // System state is separate from the durable preference: refresh never registers
@@ -32,6 +37,10 @@ func loginLabel(status string) string {
 		return "未开启"
 	case "requiresApproval":
 		return "等待系统批准"
+	case "disabledBySystem":
+		return "已在系统中禁用"
+	case "otherLocation":
+		return "已为另一位置的 Sidelet 配置"
 	case "notFound":
 		return "系统未找到此应用"
 	case "unsupported":
@@ -49,7 +58,7 @@ func (l *nativeLogin) refresh() error {
 		return errors.New(l.error)
 	}
 	switch status {
-	case "enabled", "notRegistered", "requiresApproval", "notFound", "unsupported":
+	case "enabled", "notRegistered", "requiresApproval", "notFound", "unsupported", "disabledBySystem", "otherLocation":
 		l.status, l.error = status, ""
 		return nil
 	default:
@@ -95,21 +104,40 @@ func (s *TasksService) ChangeLogin(enabled bool) (err error) {
 			return
 		}
 		if l.status == "unsupported" {
-			err = fmt.Errorf("%s，请使用已构建的 macOS 实验应用。", loginLabel(l.status))
+			err = errors.New("当前平台暂不支持登录启动。")
+			return
+		}
+		if l.status == "otherLocation" {
+			err = errors.New("请先在原位置的 Sidelet 中关闭登录启动，再在此处开启。")
 			return
 		}
 		previous := loginRegistered(l.status)
-		changed := enabled != previous
+		previousStatus := l.status
+		changed := enabled != previous || l.status == "disabledBySystem"
+		var restoreExact func() error
+		if checkpoint, ok := l.backend.(loginCheckpointBackend); ok && changed {
+			var cause error
+			restoreExact, cause = checkpoint.Checkpoint()
+			if cause != nil {
+				log.Printf("login checkpoint: %v", cause)
+				err = errors.New("无法读取原登录项，未更改设置；请重试。")
+				return
+			}
+		}
 		// Compensate even when Set reports failure: native APIs may have changed
 		// registration before an error. Always re-read, including failed rollback.
 		rollback := func(cause error) error {
 			log.Printf("login change failed: %v", cause)
 			var restore error
 			if changed {
-				restore = l.backend.Set(previous)
+				if restoreExact != nil {
+					restore = restoreExact()
+				} else {
+					restore = l.backend.Set(previous)
+				}
 			}
 			check := l.refresh()
-			if restore != nil || check != nil || loginRegistered(l.status) != previous {
+			if restore != nil || check != nil || loginRegistered(l.status) != previous || (restoreExact != nil && l.status != previousStatus) {
 				log.Printf("login rollback: restore=%v check=%v status=%s", restore, check, l.status)
 				return errors.New("登录启动设置失败，原系统状态未能确认恢复；请检查系统登录项。")
 			}

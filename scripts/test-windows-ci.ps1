@@ -55,6 +55,7 @@ $env:SIDELET_SMOKE_EXE = $Exe
 $env:SIDELET_SMOKE_OUTPUT = Join-Path $Results 'smoke'
 try {
     Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=2m','-json','./cmd/sidelet','-run','^TestPackagedApplicationSmoke$') -Log 'packaged-smoke.jsonl'
+    Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=2m','-json','./cmd/sidelet','-run','^TestPackagedWindowsLoginStartup$') -Log 'login-startup.jsonl'
     if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted' -and $Arch -eq 'arm64') {
         & (Join-Path $PSScriptRoot 'prepare-windows-ci-desktop.ps1') 2>&1 |
             Tee-Object -FilePath (Join-Path $Results 'desktop-preparation.log')
@@ -70,6 +71,7 @@ $Summary = @"
 - ZIP SHA-256 and Windows product/version API checks passed.
 - The executable extracted from the ZIP started and exited twice.
 - Synthetic SQLite tasks survived restart; startup cleanup persisted and the profile lock was released.
+- Packaged login startup honored hidden/visible preferences; fresh login stayed hidden and fresh manual launch opened the main window.
 - Owned Win32 overlay regions, hover, targeted button messages, focus restore and drag lifecycle checks passed.
 - Interactive mouse/IME/notification checks remain pending; the hosted runner runs with administrator privileges.
 "@

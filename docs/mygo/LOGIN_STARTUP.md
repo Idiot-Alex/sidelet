@@ -1,5 +1,7 @@
 # MyGo macOS 登录启动
 
+此文保留 macOS 实现与历史验收记录。2026-10-23 起 Windows 的实现与验证单独记录在 [Windows 登录启动](WINDOWS_LOGIN_STARTUP.md)。
+
 2026-10-09，第九批。独立应用 `io.sidelet.mygo-lab` 已接入 macOS 13+ `SMAppService.mainAppService`，使用 PureGo 调用系统框架，保持 `CGO_ENABLED=0`，不引入 WebView、Wails 或 SQLite。只管理 Sidelet MyGo Lab 的主应用登录项；不管理正式 Sidelet 或其他应用。
 
 ## 设置与状态
