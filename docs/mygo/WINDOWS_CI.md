@@ -17,7 +17,7 @@
 9. build 37 起，验证登录项真实注册表读写与 SQLite 失败恢复、实际打包 EXE 的四种登录/手动启动呈现，以及安装器保留/清理登录项；见 [登录启动记录](WINDOWS_LOGIN_STARTUP.md)。
 10. build 38 起，使用两个独立进程及系统鼠标/键盘事件验证后台输入、光标保持、卡片保存/取消和正式全局快捷添加；见 [跨进程输入记录](WINDOWS_CROSS_PROCESS_INPUT.md)。
 
-测试只创建独立合成资料。`-quit-after` 控制正常退出，单次进程另有 45 秒超时。默认测试跳过可执行文件冒烟；显式设置 `SIDELET_SMOKE_EXE` 才运行。`SIDELET_SMOKE_OUTPUT` 可指定诊断父目录，测试始终在其下创建随机新目录，不复用现有资料。
+测试只创建独立合成资料。启动冒烟通过 `-quit-after` 控制正常退出，单次进程另有 45 秒超时；跨进程输入测试使用 90 秒总超时，结束只清理自己启动的两个进程。默认测试跳过可执行文件冒烟；显式设置 `SIDELET_SMOKE_EXE` 才运行，跨进程系统输入还要求 GitHub 托管临时主机。`SIDELET_SMOKE_OUTPUT` 可指定诊断父目录，测试始终在其下创建随机新目录，不复用现有资料。
 
 本机复用测试逻辑的命令（原生程序需要相应桌面运行环境）：
 
@@ -39,7 +39,9 @@ build 36 的 [最终复验](https://github.com/Idiot-Alex/sidelet/actions/runs/3
 
 build 37 的 [登录启动复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39817132621) 两架构全部通过，验证源码 `b1fa189`：x64 2 分 52 秒，ARM64 4 分 7 秒。新增真实注册表专项测试、打包 EXE 四种启动呈现和安装器启动项保留/清理检查；原有 18 项输入和持久化测试继续通过。最终 ZIP 和安装器均下载并校验，证据见 `build/results/windows-login-39817132621/verified.json`。真实注销/登录不在本次 CI 范围内。
 
-CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。鼠标跨窗、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
+build 38 的 [跨进程输入复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39819946040) 两架构全部通过，验证源码 `641534f`：x64 3 分 15 秒，ARM64 4 分钟。每个架构新增 10 项独立进程系统输入检查，确认侧栏 / 只读卡片不打断后台输入，编辑与快速添加保存 / 取消恢复原光标，失焦保留快速添加草稿。原有测试和安装器生命周期继续通过；最终包已下载复验，证据见 `build/results/windows-focus-39819946040/verified.json`。
+
+CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：
 

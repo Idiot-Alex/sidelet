@@ -31,6 +31,15 @@
 - 退出释放测试按键、恢复指针，只终止自己启动的两个进程；合成任务和日志保留在随机 `cross-process-*` 目录。
 - 结果不涵盖物理键鼠、中文输入法组合/候选、多屏、不同权限等级或第三方应用的特殊控件；也不是注销/登录测试。
 
-本轮 Windows 原生 CI 尚待执行。报告为 `cross-process.json` 与 `cross-process-focus.jsonl`，失败同时保留应用/伴随进程日志。
+## 验证结果
+
+源码 `641534f` 的 [Windows 原生 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39819946040) 两架构全部通过：x64 全流程 3 分 15 秒，ARM64 4 分钟；上述 10 项跨进程检查分别用时 4.09 秒和 4.34 秒。原有 18 项窗口输入检查、4 种打包 EXE 启动呈现、持久化与安装器生命周期继续通过。本轮未发现需要修改正式应用焦点逻辑的问题。
+
+build 38 的两架构 ZIP、安装器及 `.sha256` 已下载到 `build/releases/`，重新核对 SHA-256、ZIP CRC、四文件清单、版本 / 架构和干净源码提交。完整记录为 `build/results/windows-focus-39819946040/verified.json`，原始 `cross-process.json`、`cross-process-focus.jsonl` 及应用/伴随进程日志保存在同目录的两架构诊断文件夹。
+
+| 安装器 | SHA-256 |
+| --- | --- |
+| `Sidelet-0.2.0-build38-windows-amd64-local-setup.exe` | `2a0fa54de58c64308618439b43d077edbe8c638e7ca2d98733b092880e73883c` |
+| `Sidelet-0.2.0-build38-windows-arm64-local-setup.exe` | `1729bbc07c6061b04984b1d3b3a4e19d82518f49c089d6ef6bb63ed9ee1b9087` |
 
 依据：[Microsoft SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput)、[SetForegroundWindow 的前台限制](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow)。
