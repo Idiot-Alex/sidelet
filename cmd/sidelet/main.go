@@ -24,7 +24,7 @@ func main() {
 	probeOnly := flag.Bool("probe-only", false, "show only the owned background/input probe, for a separate fixture process")
 	quickTarget := flag.Int("quick-add-target-pid", 0, "macOS probe-only: request Quick Add from an owned diagnostic lab PID; no key injection")
 	quickShortcutFixture := flag.Bool("quick-add-test-shortcut", false, "macOS native diagnostics only: register Ctrl+Alt+Shift+F19 instead of the normal key")
-	nativeCheck := flag.Bool("native-check", false, "check owned AppKit windows and lifecycle; requires -probe and -output")
+	nativeCheck := flag.Bool("native-check", false, "check owned native windows and lifecycle; requires -probe and -output")
 	traceInput := flag.Bool("trace-input", false, "log delivered mouse events of this lab only; no global monitoring")
 	directInput := flag.Bool("direct-input-fixture", false, "CUA-only render-window input fixture; requires -trace-input and -output; disables overlay hit testing")
 	nativeMain := flag.Bool("native-main", true, "use a Go-native task window and sidebar with an independent profile; no WebView")
@@ -105,6 +105,11 @@ func main() {
 	mygo.App.SetName("Sidelet")
 	m := newModel()
 	v := &views{m: m}
+	if *nativeCheck && runtime.GOOS == "windows" {
+		// Exercise the production sidebar/card with synthetic tasks only.
+		m.UITheme = "mac"
+		v.enableCloseTimer()
+	}
 	input := newOverlayInput(m)
 	input.directFixture = *directInput
 	var h *nativeApp

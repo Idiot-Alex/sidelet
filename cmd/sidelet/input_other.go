@@ -1,11 +1,10 @@
-//go:build !darwin
+//go:build !darwin && !windows
 
 package main
 
 import "github.com/egoist/mygo"
 
-// Windows remains compile-only. Do not imply that the macOS panel adapter
-// provides native Windows hit testing or focus behavior.
+// Other platforms do not yet have an overlay input adapter.
 type overlayInput struct {
 	onEvent         func(string)
 	pointerPresence func(bool, bool)

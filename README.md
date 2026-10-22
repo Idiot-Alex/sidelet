@@ -45,6 +45,8 @@ SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 
 Windows 自动测试与产物位于仓库 Actions，运行范围和验收边界见 [CI 记录](docs/mygo/WINDOWS_CI.md)。
 
+Windows 侧栏透明命中、被动焦点、卡片交接和拖动适配见 [输入适配记录](docs/mygo/WINDOWS_INPUT.md)。
+
 MyGo SDK 当前固定为 `v0.5.1`；迁移、验证与内存对比见 [升级记录](docs/mygo/UPGRADE_051.md)。
 
 Windows 按用户安装包的构建、升级和卸载保护见 [安装器记录](docs/mygo/WINDOWS_INSTALLER.md)。
