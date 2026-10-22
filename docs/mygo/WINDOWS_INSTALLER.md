@@ -47,6 +47,8 @@
 
 build 36 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39809334284) 继续通过上述安装器生命周期检查，验证源码 `12865c6`；本轮新增的输入适配见 [记录](WINDOWS_INPUT.md)。
 
+build 37 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39817132621) 全部通过，验证源码 `b1fa189`。额外确认首次安装/重装不注册登录项，升级和修复保留完整命令与系统禁用记录，卸载移除自己的注册并保留另一位置与无关应用的注册。两种安装包和 ZIP 已下载到 `build/releases/` 并复核 SHA-256，证据见 `build/results/windows-login-39817132621/verified.json`。
+
 托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：

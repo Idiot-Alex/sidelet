@@ -36,6 +36,8 @@ build 35 的 [安装器复验](https://github.com/Idiot-Alex/sidelet/actions/run
 
 build 36 的 [最终复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39809334284) 两架构全部通过，验证源码 `12865c6`。新增 18 项 Win32 窗口区域、悬停、提示框、焦点、拖动和清理检查；原有持久化、打包与安装器生命周期检查继续通过。ARM64 临时主机先处理已知的首次登录 Shell 窗口干扰，具体步骤与限制见 [输入适配记录](WINDOWS_INPUT.md)。
 
+build 37 的 [登录启动复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39817132621) 两架构全部通过，验证源码 `b1fa189`：x64 2 分 52 秒，ARM64 4 分 7 秒。新增真实注册表专项测试、打包 EXE 四种启动呈现和安装器启动项保留/清理检查；原有 18 项输入和持久化测试继续通过。最终 ZIP 和安装器均下载并校验，证据见 `build/results/windows-login-39817132621/verified.json`。真实注销/登录不在本次 CI 范围内。
+
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。鼠标跨窗、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：

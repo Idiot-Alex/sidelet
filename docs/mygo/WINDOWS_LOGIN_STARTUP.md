@@ -31,7 +31,11 @@ Windows 的 `Explorer\StartupApproved\Run` 禁用信息不是公开稳定 API。
 - ZIP 中实际 EXE 的 `TestPackagedWindowsLoginStartup` 覆盖首次登录隐藏、已有资料登录隐藏、偏好显示主窗口、首次手动打开，并检查固定任务保留。这是实际程序的参数与呈现测试，不冒充注销/再登录。
 - 安装器 CI 在 GitHub 托管临时 Windows 主机验证首次安装不注册、升级/修复保留禁用记录、卸载清理自己的记录、另一位置与无关应用记录保留。检测到已有 Sidelet 安装、资料或启动项时拒绝测试。
 
-本轮原生 CI 结果待执行。真正注销后重新登录、普通用户权限和任务管理器交互仍待实机验收；不改变当前 Mac 的登录项或日常数据。
+本地回归、race、vet 和 Windows 双架构交叉编译通过。[原生 Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39817132621) 两架构全部通过，验证源码 `b1fa189`：x64 2 分 52 秒，ARM64 4 分 7 秒。每架构通过 5 项 Windows 登录专项顶层测试、实际 EXE 的四种启动场景、原有 18 项侧栏输入检查及完整安装器生命周期。首轮曾因新增合成任务使用已废弃的重要程度值失败，修正测试资料后复验通过。
+
+两架构 ZIP、安装器和 SHA-256 文件已下载到 `build/releases/`，重新核对哈希、ZIP CRC、四文件清单、版本、架构和干净源码提交；完整记录为 `build/results/windows-login-39817132621/verified.json`，同目录保留合成诊断。
+
+真正注销后重新登录、普通用户权限和任务管理器交互仍待实机验收；当前 Mac 的登录项、已安装应用与日常数据未改动。
 
 ## 依据
 
