@@ -54,12 +54,13 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Background(t.DangerSoft).Padding(12, 16).Radius(t.Radius)
 		}
 		v.webAppearance(c)
-		section := func(title string, body func(), status ...string) {
+		section := func(title string, body func(), status ...notificationPresentation) {
 			ui.Column(c).Padding(vertical, horizontal).Border(1, t.Border).Radius(t.Radius).Background(t.Surface).Children(func() {
-				ui.Row(c).Gap(8).Margin(0, 0, 14).Children(func() {
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(0, 0, 14).Children(func() {
 					ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600)
 					if len(status) > 0 {
-						ui.Text(c, status[0]).FontSize(11).Padding(4, 7).Radius(5).TextColor(t.Accent).Background(t.Soft)
+						state := status[0]
+						ui.Text(c, state.label).FontSize(11).FixedLineHeight(14).Padding(4, 7).Radius(5).TextColor(state.foreground).Background(state.background).Role(ui.RoleStatus)
 					}
 				})
 				body()
@@ -177,41 +178,30 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				})
 			}
 		})
-		notification := map[string]string{"authorized": "已允许", "systemManaged": "由系统管理", "denied": "未允许", "notDetermined": "尚未请求", "unsupported": "当前平台暂不支持"}[v.service.notificationAuthorization]
-		if notification == "" {
-			notification = "读取中…"
-		}
+		notification := v.notificationPresentation()
 		section("系统通知", func() {
 			hint("仅勾选“提醒我”的任务会发送通知，Sidelet 需在后台运行。")
-			if v.service.notificationStatus != "" {
-				hint(v.service.notificationStatus)
+			if notification.message != "" {
+				line := ui.Text(c, notification.message).FontSize(12).LineHeight(1.6).Margin(5, 0).TextColor(t.TextMuted)
+				if notification.attention {
+					line.TextColor(notification.foreground)
+				}
 			}
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
-				checkLabel := "检查通知权限"
-				if v.service.notificationAuthorization == "systemManaged" {
-					checkLabel = "刷新提醒状态"
-				}
-				b := webButton(c, checkLabel, false).Padding(8, 12).Background(t.Field)
-				b.Children(func() { ui.Text(c, checkLabel) })
-				if b.Clicked() && v.service.notices != nil {
-					v.service.notices.request()
-				}
-				if v.service.notificationAuthorization == "notDetermined" {
-					b = webButton(c, "开启系统通知", false).Padding(8, 12).Background(t.Field)
-					b.Children(func() { ui.Text(c, "开启系统通知") })
-					if b.Clicked() && v.service.notices != nil {
-						v.service.notices.permission()
+				if action := notification.action; action != "" && action != "打开系统通知设置" {
+					b := webButton(c, action, false).Height(36).Padding(8, 12).Background(t.Field).Disabled(v.service.notices == nil)
+					b.Children(func() { webActionText(c, action) })
+					if b.Clicked() {
+						v.notificationAction(action)
 					}
 				}
-				b = webButton(c, "打开系统通知设置", false).Padding(8, 12).Background(t.Field)
-				b.Children(func() { ui.Text(c, "打开系统通知设置") })
+				b := webButton(c, "打开系统通知设置", false).Height(36).Padding(8, 12).Gap(6).Background(t.Field)
+				b.Children(func() { webIcon(c, "settings", 14); webActionText(c, "打开系统通知设置") })
 				if b.Clicked() {
-					openNotificationSettings()
+					v.notificationAction("打开系统通知设置")
 				}
 			})
-			if v.service.notificationAuthorization == "systemManaged" {
-				hint("未收到提醒时，可在系统设置中检查通知开关、横幅和声音。")
-			} else {
+			if v.service.notificationAuthorization == "authorized" {
 				hint("在系统通知列表中选择 Sidelet，调整横幅和声音。")
 			}
 		}, notification)
@@ -229,10 +219,19 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			} else if v.service.quickShortcut != nil && v.service.quickShortcut.registered {
 				hint("快捷键已启用。")
 			}
-			hint("在任何应用中按 Control + Shift + Space，记下任务。Enter 保存，Esc 取消并返回之前的应用。")
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Margin(4, 0, 8).Children(func() {
+				for i, key := range []string{"Ctrl", "Shift", "Space"} {
+					if i > 0 {
+						ui.Text(c, "+").FontSize(11).TextColor(t.Subtle)
+					}
+					ui.Text(c, key).FontSize(12).FixedLineHeight(16).Padding(5, 8).Border(1, t.Border).Radius(5).Background(t.Field)
+				}
+				ui.Text(c, "随时记下任务").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 8)
+			})
+			hint("在任何应用中都可使用。Enter 保存，Esc 取消并返回之前的应用。")
 			hint("支持“明天下午3点 联系客户”等简单时间，默认不固定到桌面、不发送系统通知。")
-			b := webButton(c, "打开快速添加", false).Padding(8, 12).Margin(12, 0, 0).Background(t.Field).TextColor(t.Text)
-			b.Children(func() { ui.Text(c, "打开快速添加") })
+			b := webButton(c, "打开快速添加", false).AlignSelf(ui.Start).Height(36).Padding(8, 12).Gap(6).Margin(12, 0, 0).Background(t.Field).TextColor(t.Text)
+			b.Children(func() { webIcon(c, "plus", 14); webActionText(c, "打开快速添加") })
 			if b.Clicked() && v.onQuickAdd != nil {
 				v.onQuickAdd()
 			}
@@ -262,7 +261,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Text(c, e.status).FontSize(12).TextColor(color).LineHeight(1.6).Margin(8, 0, 0)
 			}
 		})
-		ui.Text(c, "Sidelet · MyGo").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
+		ui.Text(c, "Sidelet").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
 	})
 }
 

@@ -1,6 +1,6 @@
 # Windows 原生通知适配
 
-更新：2026-10-17。主线为 Go + MyGo v0.5.1，无 WebView。
+更新：2026-10-23，build 39。主线为 Go + MyGo v0.5.1，无 WebView。
 
 ## 实现与行为
 
@@ -35,7 +35,17 @@ bash scripts/build-windows.sh arm64
 
 2026-10-17 本轮结果：全量回归 / race、Go vet、MyGo UI vet 全部通过；amd64 / arm64 无 cgo 构建与目标平台 vet 均通过，产物分别为 `build/bin/Sidelet-amd64.exe` 和 `build/bin/Sidelet-arm64.exe`。
 
-本机不能运行 Windows EXE。交叉编译与测试不能验证 Windows 的弹出、声音、点击、撤销、通知开关和勿扰模式；这些仍待 Windows 实机验收。运行时检查需用 `-data-dir <独立目录> -main` 创建合成任务，并在系统通知开启 / 关闭、勿扰模式、完成 / 推迟、关闭主窗口、重启等场景逐项记录结果。
+### build 39：打包 EXE 的实际通知链路
+
+`TestPackagedWindowsNotifications` 在 GitHub 托管临时 Windows 桌面运行 ZIP 中的实际 EXE，所有任务与 SQLite 都在随机独立目录。检查主窗口隐藏时的逾期提醒和定时到期提醒、回执落库、禁用 / 完成 / 未到期任务隔离、正常退出后真实回执去重，以及通过系统鼠标点击卡片完成 / 推迟任务后的撤回请求和持久化。默认跳过，不在个人桌面或自托管主机注入输入。
+
+诊断字段 `notificationSession` 记录成功提交次数、失败次数、本进程接收标识与撤回请求数；只在既有诊断日志开启时输出，不包含系统通知历史，也不把撤回请求当成可见横幅消失的证明。
+
+`probe-windows-notification.ps1` 仅在临时主机的 Shell 窗口中匹配随机合成通知标题；发现可见横幅时尝试调用其最近按钮的 UI Automation InvokePattern，再检查正式通知点击回调是否打开主窗口。不会伪造 Shell 回调、不打开通知中心、不修改通知开关。横幅显示与激活独立写入 `notifications.json`；托管环境未显示或不支持自动化时保留未验收状态。
+
+本轮本地回归、race、vet、Windows 双架构编译通过；Windows 原生运行结果待 CI。声音、通知开关、勿扰模式、普通用户权限及物理点击仍需实机验证。
+
+同轮的任务页与设置页改进见 [提醒状态 UI 记录](REMINDER_UI_20261023.md)。
 
 ## 依据
 

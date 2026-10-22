@@ -132,6 +132,7 @@ func (n *nativeReminders) accept(job reminderJob, receipts map[int64]int64, resu
 		n.s.notificationAuthorization = result.Authorization
 		n.s.notificationDelivered = result.SystemDelivered
 		n.s.notificationStatus = notificationMessage(result.Authorization, err)
+		n.s.notificationFailed = err != nil && !errors.Is(err, errReminderSuperseded)
 		n.s.nextReminder = result.Next
 		if err != nil && !errors.Is(err, errReminderSuperseded) {
 			n.s.nextReminder = n.s.m.now().Add(time.Minute)
@@ -251,7 +252,11 @@ func (s *TasksService) enableNotifications(h *nativeApp) {
 		})
 		mygo.App.OnNotificationClick(func(id string) {
 			if strings.HasPrefix(id, n.prefix) {
+				s.notificationClicks++
 				h.show()
+				if s.changed != nil {
+					s.changed("native-main-notification-click")
+				}
 			}
 		})
 		mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { n.close() })

@@ -203,6 +203,14 @@ func main() {
 			}
 			data["notificationAuthorization"], data["notificationStatus"] = h.service.notificationAuthorization, h.service.notificationStatus
 			data["notificationDelivered"] = h.service.notificationDelivered
+			data["notificationClicks"], data["notificationFailed"] = h.service.notificationClicks, h.service.notificationFailed
+			if n := h.service.notices; n != nil {
+				if diagnostic, ok := n.backend.(interface {
+					diagnosticState() notificationSessionState
+				}); ok {
+					data["notificationSession"] = diagnostic.diagnosticState()
+				}
+			}
 			if h.service.quickShortcut != nil {
 				data["quickAddShortcutRegistered"], data["quickAddShortcutError"] = h.service.quickShortcut.registered, h.service.quickShortcut.error
 				data["quickAddDiagnosticKey"] = h.service.quickShortcut.diagnostic

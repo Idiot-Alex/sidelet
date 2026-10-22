@@ -63,13 +63,13 @@ func (v *nativeTasksView) webDeadline(c *ui.Context) {
 	})
 }
 func (v *nativeTasksView) webNotificationStatus(c *ui.Context) {
-	message := v.service.notificationStatus
-	if message == "" {
+	p := v.notificationPresentation()
+	if !p.attention || p.message == "" {
 		return
 	}
 	visible := v.formRemind
 	for _, t := range v.service.m.Tasks {
-		if !t.Deleted && t.Remind {
+		if !t.Deleted && !t.Done && t.Remind && t.ReminderSentAt == 0 {
 			visible = true
 			break
 		}
@@ -78,20 +78,15 @@ func (v *nativeTasksView) webNotificationStatus(c *ui.Context) {
 		return
 	}
 	t := v.visual
-	ui.Row(c).Gap(12).Padding(12, 16).Margin(0, 0, 18).Radius(t.Theme.Radius).Background(t.Soft).TextColor(t.Accent).Children(func() {
-		ui.Text(c, message).FontSize(12).Grow(1).LineHeight(1.5)
-		label := "检查通知权限"
-		if v.service.notificationAuthorization == "notDetermined" {
-			label = "开启系统通知"
+	ui.Row(c).Gap(12).AlignItems(ui.Center).Padding(12, 16).Margin(0, 0, 18).Radius(t.Theme.Radius).Background(p.background).TextColor(p.foreground).Role(ui.RoleStatus).Children(func() {
+		ui.Text(c, p.message).FontSize(12).Grow(1).MinWidth(0).LineHeight(1.5)
+		if p.action == "" {
+			return
 		}
-		b := webButton(c, label, false).Border(0, ui.Transparent).Background(ui.Transparent).Padding(4)
-		b.Children(func() { ui.Text(c, label) })
-		if b.Clicked() && v.service.notices != nil {
-			if v.service.notificationAuthorization == "notDetermined" {
-				v.service.notices.permission()
-			} else {
-				v.service.notices.request()
-			}
+		b := webButton(c, p.action, false).Border(0, ui.Transparent).Background(ui.Transparent).TextColor(p.foreground).Padding(6, 8).Shrink(0)
+		b.Children(func() { webActionText(c, p.action) })
+		if b.Clicked() {
+			v.notificationAction(p.action)
 		}
 	})
 }

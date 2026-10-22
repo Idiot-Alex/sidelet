@@ -15,11 +15,32 @@ import (
 // receipt recovery and profile-scoped cleanup without a Windows desktop.
 // SQLite receipts remain the source of truth across application restarts.
 type windowsNotificationSession struct {
-	supported func() bool
-	show      func(id, title, body string) error
-	close     func(id string)
-	mu        sync.Mutex
-	accepted  map[string]bool
+	supported                  func() bool
+	show                       func(id, title, body string) error
+	close                      func(id string)
+	mu                         sync.Mutex
+	accepted                   map[string]bool
+	submitted, failed, removed int
+}
+
+// Submission/withdrawal diagnostics are not a count of visible Windows banners.
+// Read only when the application's existing diagnostic log is enabled.
+type notificationSessionState struct {
+	Accepted  []string `json:"accepted"`
+	Submitted int      `json:"submitted"`
+	Failed    int      `json:"failed"`
+	Removed   int      `json:"removeRequests"`
+}
+
+func (n *windowsNotificationSession) diagnosticState() notificationSessionState {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	state := notificationSessionState{Accepted: []string{}, Submitted: n.submitted, Failed: n.failed, Removed: n.removed}
+	for id := range n.accepted {
+		state.Accepted = append(state.Accepted, id)
+	}
+	sort.Strings(state.Accepted)
+	return state
 }
 
 func newWindowsNotificationSession(supported func() bool, show func(string, string, string) error, close func(string)) *windowsNotificationSession {
@@ -56,10 +77,14 @@ func (n *windowsNotificationSession) Deliver(id, title, body string) error {
 	// NOTIFYICONDATAW reserves the last UTF-16 unit for NUL. Do not split an
 	// emoji's surrogate pair or let an embedded NUL truncate subsequent text.
 	if err := n.show(id, windowsNotificationText(title, 63), windowsNotificationText(body, 255)); err != nil {
+		n.mu.Lock()
+		n.failed++
+		n.mu.Unlock()
 		return err
 	}
 	n.mu.Lock()
 	n.accepted[id] = true
+	n.submitted++
 	n.mu.Unlock()
 	return nil
 }
@@ -72,6 +97,9 @@ func (n *windowsNotificationSession) Remove(ids []string) error {
 		n.mu.Unlock()
 		if owned {
 			n.close(id)
+			n.mu.Lock()
+			n.removed++
+			n.mu.Unlock()
 		}
 	}
 	return nil

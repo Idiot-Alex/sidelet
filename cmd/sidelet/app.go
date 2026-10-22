@@ -39,6 +39,8 @@ type TasksService struct {
 	notificationStatus        string
 	notificationAuthorization string
 	notificationDelivered     int
+	notificationFailed        bool
+	notificationClicks        int
 	export                    *nativeExport
 	quickShortcut             *nativeQuickShortcut
 	login                     *nativeLogin

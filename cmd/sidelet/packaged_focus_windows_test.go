@@ -38,14 +38,19 @@ type focusInput struct {
 }
 
 type focusLog struct {
-	Event           string `json:"event"`
-	PID             int    `json:"pid"`
-	Model           model  `json:"model"`
-	CardVisible     bool   `json:"cardVisible"`
-	QuickVisible    bool   `json:"quickAddVisible"`
-	QuickRegistered bool   `json:"quickAddShortcutRegistered"`
-	QuickText       string `json:"quickAddText"`
-	StorageError    string `json:"storageError"`
+	Event                     string                   `json:"event"`
+	PID                       int                      `json:"pid"`
+	Model                     model                    `json:"model"`
+	CardVisible               bool                     `json:"cardVisible"`
+	QuickVisible              bool                     `json:"quickAddVisible"`
+	QuickRegistered           bool                     `json:"quickAddShortcutRegistered"`
+	QuickText                 string                   `json:"quickAddText"`
+	StorageError              string                   `json:"storageError"`
+	MainOpen                  bool                     `json:"mainOpen"`
+	NotificationSession       notificationSessionState `json:"notificationSession"`
+	NotificationClicks        int                      `json:"notificationClicks"`
+	NotificationFailed        bool                     `json:"notificationFailed"`
+	NotificationAuthorization string                   `json:"notificationAuthorization"`
 }
 
 func focusPID(hwnd uintptr) uint32 {
