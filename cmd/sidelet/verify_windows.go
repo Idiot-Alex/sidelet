@@ -30,6 +30,7 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 	m.X, m.Y = m.WorkX+40, m.WorkY+80
 	probe.SetBounds(mygo.Rectangle{X: m.WorkX, Y: m.WorkY, Width: min(900, m.WorkWidth), Height: min(700, m.WorkHeight)})
 	v.notify("diagnostic-position")
+	probe.Show()
 	probe.Focus()
 	// Report desktop availability independently of the adapter. A runner can
 	// launch native windows in a service session without an input desktop.
@@ -87,7 +88,9 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			b := a.stackInput
 			if hit := inputHit(point(b, 200, 120)); hit != probe.NativeHandle() {
 				front, _, _ := quickGetForeground.Call()
-				return fmt.Errorf("transparent blank hit=%#x want probe=%#x stack=%#x foreground=%#x point=%+v dpi=%d session=%d inputDesktop=%t", hit, probe.NativeHandle(), b.top, front, point(b, 200, 120), b.windowDPI(), inputSession, desktop != 0)
+				var name [256]uint16
+				inputUser32.NewProc("GetClassNameW").Call(hit, uintptr(unsafe.Pointer(&name[0])), uintptr(len(name)))
+				return fmt.Errorf("transparent blank hit=%#x class=%s want probe=%#x visible=%t stack=%#x foreground=%#x point=%+v dpi=%d session=%d inputDesktop=%t", hit, syscall.UTF16ToString(name[:]), probe.NativeHandle(), probe.IsVisible(), b.top, front, point(b, 200, 120), b.windowDPI(), inputSession, desktop != 0)
 			}
 			if inputHit(point(b, handleX, handleY)) != b.top {
 				return fmt.Errorf("marker has no native hit region")

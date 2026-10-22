@@ -27,6 +27,9 @@ func TestPrepareWindowsCIDesktop(t *testing.T) {
 	className := inputUser32.NewProc("GetClassNameW")
 	cloaking := syscall.NewLazyDLL("dwmapi.dll").NewProc("DwmGetWindowAttribute")
 	keyboard := inputUser32.NewProc("keybd_event")
+	findWindow := inputUser32.NewProc("FindWindowW")
+	startClass, _ := syscall.UTF16PtrFromString("Windows.UI.Core.CoreWindow")
+	startTitle, _ := syscall.UTF16PtrFromString("Start")
 	getClass := func(w uintptr) string {
 		var name [256]uint16
 		className.Call(w, uintptr(unsafe.Pointer(&name[0])), uintptr(len(name)))
@@ -58,9 +61,24 @@ func TestPrepareWindowsCIDesktop(t *testing.T) {
 		return 1
 	})
 	for i := 0; i < 3; i++ {
+		// EnumWindows omits some UWP shell windows. Find Start explicitly;
+		// it can cover the fixtures even while another window is foreground.
+		start, _, _ := findWindow.Call(uintptr(unsafe.Pointer(startClass)), uintptr(unsafe.Pointer(startTitle)))
+		var cloaked int32
+		cloaking.Call(start, 14, uintptr(unsafe.Pointer(&cloaked)), 4)
+		shown, _, _ := visible.Call(start)
+		if start != 0 && shown != 0 && cloaked == 0 {
+			keyboard.Call(0x1b, 0, 0, 0)
+			keyboard.Call(0x1b, 0, 2, 0)
+			t.Log("dismissed visible Start shell window")
+			time.Sleep(200 * time.Millisecond)
+		}
 		if ok, _, err := enumerate.Call(callback, 0); ok == 0 {
 			t.Fatalf("EnumWindows: %v", err)
 		}
 		time.Sleep(400 * time.Millisecond)
 	}
+	hit := inputHit(winPoint{240, 200})
+	front, _, _ := quickGetForeground.Call()
+	t.Logf("prepared desktop hit=%#x class=%s foreground=%#x class=%s", hit, getClass(hit), front, getClass(front))
 }
