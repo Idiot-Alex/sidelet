@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -30,6 +31,16 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 	probe.SetBounds(mygo.Rectangle{X: m.WorkX, Y: m.WorkY, Width: min(900, m.WorkWidth), Height: min(700, m.WorkHeight)})
 	v.notify("diagnostic-position")
 	probe.Focus()
+	// Report desktop availability independently of the adapter. A runner can
+	// launch native windows in a service session without an input desktop.
+	var inputSession uint32
+	inputSessionProc := syscall.NewLazyDLL("kernel32.dll").NewProc("ProcessIdToSessionId")
+	inputSessionProc.Call(uintptr(os.Getpid()), uintptr(unsafe.Pointer(&inputSession)))
+	desktop, _, desktopErr := inputUser32.NewProc("OpenInputDesktop").Call(0, 0, 1 /* DESKTOP_READOBJECTS */)
+	if desktop != 0 {
+		inputUser32.NewProc("CloseDesktop").Call(desktop)
+	}
+	log.Printf("native-check desktop session=%d inputDesktop=%t error=%v", inputSession, desktop != 0, desktopErr)
 	type stage struct {
 		name    string
 		prepare func()
@@ -74,8 +85,9 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 				return fmt.Errorf("adapter unavailable: %s", a.lastError)
 			}
 			b := a.stackInput
-			if inputHit(point(b, 200, 120)) != probe.NativeHandle() {
-				return fmt.Errorf("transparent blank space did not reach owned underlay")
+			if hit := inputHit(point(b, 200, 120)); hit != probe.NativeHandle() {
+				front, _, _ := quickGetForeground.Call()
+				return fmt.Errorf("transparent blank hit=%#x want probe=%#x stack=%#x foreground=%#x point=%+v dpi=%d session=%d inputDesktop=%t", hit, probe.NativeHandle(), b.top, front, point(b, 200, 120), b.windowDPI(), inputSession, desktop != 0)
 			}
 			if inputHit(point(b, handleX, handleY)) != b.top {
 				return fmt.Errorf("marker has no native hit region")
@@ -157,6 +169,9 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			return passive()
 		}, 100 * time.Millisecond},
 		{"drag-equal-local-coordinates", func() {
+			// Keep the real cursor at the final delivered screen position too;
+			// Windows may re-evaluate it after SetWindowPos during the gesture.
+			move(a.stackInput, handleX, handleY+40)
 			button(a.stackInput, winMouseMove, handleX, handleY+20)
 			button(a.stackInput, winMouseMove, handleX, handleY+20)
 		}, func() error {
@@ -178,6 +193,7 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 		}, 100 * time.Millisecond},
 		{"drag-after-capture-loss", func() {
 			button(a.stackInput, 0x201, handleX, handleY)
+			move(a.stackInput, handleX, handleY+20)
 			button(a.stackInput, winMouseMove, handleX, handleY+20)
 			button(a.stackInput, winLeftUp, handleX, handleY)
 		}, func() error {
