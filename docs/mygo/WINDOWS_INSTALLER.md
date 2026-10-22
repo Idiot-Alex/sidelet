@@ -1,6 +1,6 @@
 # Windows 安装器
 
-2026-10-22；0.2.0 build 35。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
+2026-10-23；当前版本 0.2.0 build 36，安装器从 build 35 引入。基于现有经过验证的 ZIP，新增按当前用户安装的 NSIS 安装包。未做 Authenticode 签名，不自动发布 Release。
 
 ## 构建
 
@@ -13,7 +13,7 @@
 
 入口先执行现有测试与 ZIP 打包；`-SkipBuild` 复用同版本 ZIP，但仍检查 SHA-256、固定四文件清单、产品和版本信息。使用已固定 SHA-256 的 NSIS 3.13 ZIP，在临时构建目录解压，不安装到构建机器的系统目录。编译失败不替换现有安装包。
 
-产物：`build/releases/Sidelet-0.2.0-build35-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
+产物：`build/releases/Sidelet-0.2.0-build36-windows-<arch>-local-setup.exe` 及 `.sha256`。多尺寸图标来自应用的同一资源。Mac 上通过仓库 Windows CI 构建和执行安装器。
 
 ## 用户流程与保护
 
@@ -43,6 +43,8 @@
 低版本安装包是测试夹具：复用本轮程序并附加可区分的 PE 尾部数据、设置较低的安装器版本。它验证安装器替换与版本判断，不冒充历史发布包或旧数据库迁移验证。
 
 本地 Go 发布工具测试与 vet、桌面 / internal 测试通过。验证源码 `83d0bb2` 的 [Windows CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39642384601) 两架构全部通过：x64 2 分 37 秒，ARM64 3 分 11 秒，包含上面列出的完整安装器生命周期检查。两种安装包与 ZIP 已下载并重新核对 SHA-256；ZIP 清单、CRC、版本、架构和干净源码提交也已复验，产物保存在 `build/releases/`，校验记录在 `build/results/windows-installer-ci-39642384601/verified.json`。
+
+build 36 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39809334284) 继续通过上述安装器生命周期检查，验证源码 `12865c6`；本轮新增的输入适配见 [记录](WINDOWS_INPUT.md)。
 
 托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
