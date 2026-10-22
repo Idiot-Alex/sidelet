@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -41,9 +43,9 @@ func (v *nativeTasksView) render(c *ui.Context) {
 			v.webNotificationStatus(c)
 			v.webUndo(c)
 			if width <= 650 {
-				ui.Column(c).Gap(gap).Children(func() { v.webTaskList(c, panelPad); v.webForm(c, 17) })
+				ui.Column(c.Key("tasks-layout")).Gap(gap).Children(func() { v.webTaskList(c, panelPad); v.webForm(c, 17) })
 			} else {
-				ui.Row(c).Gap(gap).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key("tasks-layout")).Gap(gap).AlignItems(ui.Start).Children(func() {
 					ui.Box(c).Grow(1).Children(func() { v.webTaskList(c, panelPad) })
 					ui.Box(c).Width(asideWidth).Shrink(0).Children(func() {
 						v.webForm(c, func() float32 {
@@ -74,7 +76,6 @@ func (v *nativeTasksView) render(c *ui.Context) {
 			return
 		}
 		v.cancelEdit()
-		v.formNote = ""
 		v.failed = false
 		v.status = ""
 	}
@@ -188,10 +189,9 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 					b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
 				}
 				b.Children(func() { ui.Text(c, fmt.Sprintf("%s %d", f.name, f.count)) })
-				if b.Clicked() {
+				if b.Clicked() && !selected {
 					v.setFilter(f.done)
 					v.filterAll = f.all
-					v.formNote = ""
 				}
 			}
 			if width > 900 {
@@ -301,7 +301,6 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 		})
 		if b.Clicked() {
 			v.beginEdit(item)
-			v.formNote = item.Note
 		}
 		if !statusBelow {
 			v.webTaskStatus(c, item, false)
@@ -314,7 +313,6 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			b := webIconButton(c, "编辑任务："+item.Title, "edit", 15)
 			if b.Clicked() {
 				v.beginEdit(item)
-				v.formNote = item.Note
 			}
 			label := "取消桌面固定：" + item.Title
 			caption, icon := "移出桌面", "desktop-remove"
@@ -426,7 +424,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Box(c).TextColor(t.Accent).Children(func() { webIcon(c, icon, 18) })
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 		})
-		ui.Column(c.Key("task-form")).Gap(7).Children(func() {
+		ui.Column(c.Key(fmt.Sprintf("task-form-%d", v.editID))).Gap(7).Children(func() {
 			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
 			value, label := &v.newTitle, "新任务标题"
 			if v.editID > 0 {
@@ -442,8 +440,23 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			}
 			// The form column already supplies a 7px gap; label separation is
 			// 16px in TodoManager, rather than the previous 16 + 7.
-			ui.Text(c, "备注").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted).Margin(9, 0, 0)
-			webTextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
+			ui.Row(c).Margin(9, 0, 0).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "备注").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
+				ui.Spacer(c)
+				shortcut := "Ctrl + Enter"
+				if runtime.GOOS == "darwin" {
+					shortcut = "⌘ Enter"
+				}
+				action := "添加"
+				if v.editID > 0 {
+					action = "保存"
+				}
+				ui.Text(c, shortcut+" "+action).FontSize(10).Height(14).FixedLineHeight(14).TextColor(t.Subtle)
+			})
+			note := webTextArea(c, &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
+			if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) {
+				v.webSubmit()
+			}
 		})
 		if v.editID == 0 {
 			webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
@@ -459,6 +472,9 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 		})
 		if b.Clicked() {
 			v.optionsOpen = !v.optionsOpen
+		}
+		if !v.optionsOpen {
+			v.webFormSummary(c)
 		}
 		if v.optionsOpen {
 			ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
@@ -497,8 +513,6 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				b.Children(func() { ui.Text(c, "取消编辑") })
 				if b.Clicked() {
 					v.cancelEdit()
-					v.formNote = ""
-					v.optionsOpen = false
 					v.failed = false
 					v.status = ""
 				}
@@ -518,8 +532,6 @@ func (v *nativeTasksView) webSubmit() {
 		_, err := v.service.SaveTask(v.editID, v.draft, v.formNote, priorityValue(v.draftPriority), false, due, v.formRemind, v.formTemporary, v.editVersion)
 		if v.result(err, "") {
 			v.cancelEdit()
-			v.formNote = ""
-			v.optionsOpen = false
 		}
 	} else {
 		_, err := v.service.SaveTask(0, v.newTitle, v.formNote, priorityValue(v.newPriority), v.formPin, due, v.formRemind, v.formTemporary, 0)
@@ -530,6 +542,38 @@ func (v *nativeTasksView) webSubmit() {
 			v.formPin = false
 			v.optionsOpen = false
 		}
+	}
+}
+
+// Keep selected options readable after collapsing the detailed controls.
+// Incomplete dates stay explicit rather than being presented as valid times.
+func (v *nativeTasksView) webFormSummary(c *ui.Context) {
+	t := v.visual
+	priority := v.newPriority
+	if v.editID > 0 {
+		priority = v.draftPriority
+	}
+	var parts []string
+	if priorityValue(priority) != 0 {
+		parts = append(parts, priority)
+	}
+	if v.formDue != "" {
+		if due, err := parseDue(v.formDue, v.originalDue, v.originalDueText, v.service.m.now().Location()); err == nil {
+			parts = append(parts, time.UnixMilli(due).In(v.service.m.now().Location()).Format("1/2 15:04"))
+		} else {
+			parts = append(parts, "日期待完善")
+		}
+	}
+	if v.formRemind {
+		parts = append(parts, "提醒")
+	}
+	if v.formTemporary {
+		parts = append(parts, "临时任务")
+	}
+	if len(parts) > 0 {
+		ui.Box(c).Label("已选任务选项").Margin(-5, 0, 14).Children(func() {
+			ui.Text(c, strings.Join(parts, " · ")).FontSize(11).LineHeight(1.6).TextColor(t.TextMuted)
+		})
 	}
 }
 

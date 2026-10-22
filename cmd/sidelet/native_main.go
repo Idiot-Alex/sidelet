@@ -47,6 +47,7 @@ type nativeTasksView struct {
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
 	formNote                      string
+	newTaskDraft                  *taskFormDraft
 	filterAll                     bool
 	formDue                       string
 	deadline                      deadlineSegments
@@ -98,6 +99,20 @@ func (v *nativeTasksView) add() {
 }
 
 func (v *nativeTasksView) beginEdit(t taskEntry) {
+	if v.editID == t.ID {
+		// Reopening the active row is a focus request, not a draft reset.
+		v.focusEdit = true
+		return
+	}
+	if v.editID == 0 {
+		v.newTaskDraft = &taskFormDraft{
+			note: v.formNote, due: v.formDue,
+			originalDue: v.originalDue, originalDueText: v.originalDueText,
+			remind: v.formRemind, temporary: v.formTemporary, optionsOpen: v.optionsOpen,
+			deadlineParts: v.deadline.parts, deadlineSeen: v.deadline.seen, deadlineReady: v.deadline.ready,
+		}
+	}
+	v.resetScheduleDraft()
 	v.editID, v.editVersion = t.ID, t.Version
 	v.draft, v.draftPriority = t.Title, priorityName(t.Priority)
 	v.formNote = t.Note
@@ -111,12 +126,35 @@ func (v *nativeTasksView) beginEdit(t taskEntry) {
 }
 
 func (v *nativeTasksView) cancelEdit() {
+	if v.editID == 0 {
+		return
+	}
 	v.editID, v.editVersion = 0, 0
 	v.draft, v.draftPriority = "", ""
 	v.focusEdit = false
 	v.formNote = ""
 	v.optionsOpen = false
 	v.resetScheduleDraft()
+	if d := v.newTaskDraft; d != nil {
+		v.formNote, v.formDue = d.note, d.due
+		v.originalDue, v.originalDueText = d.originalDue, d.originalDueText
+		v.formRemind, v.formTemporary, v.optionsOpen = d.remind, d.temporary, d.optionsOpen
+		v.deadline = deadlineSegments{parts: d.deadlineParts, seen: d.deadlineSeen, ready: d.deadlineReady, focused: -1}
+		v.newTaskDraft = nil
+	}
+}
+
+// Title, priority and pin already have separate new-task fields. Preserve the
+// shared form values while an existing task occupies the editor. UI handles,
+// focus and popovers belong to the active form and are deliberately not saved.
+type taskFormDraft struct {
+	note, due, originalDueText string
+	originalDue                int64
+	remind, temporary          bool
+	optionsOpen                bool
+	deadlineParts              [5]string
+	deadlineSeen               string
+	deadlineReady              bool
 }
 
 func (v *nativeTasksView) save() {
