@@ -66,6 +66,7 @@ type model struct {
 	X, Y                                int
 	WorkX, WorkY, WorkWidth, WorkHeight int
 	dragX, dragY, pointerX, pointerY    int
+	stackTooltip                        mygo.Rectangle
 }
 
 func newModel() *model {

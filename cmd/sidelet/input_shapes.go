@@ -12,6 +12,9 @@ type overlayShape struct {
 }
 
 func stackInputShapes(m *model) []overlayShape {
+	if m.Quiet {
+		return nil
+	}
 	var shapes []overlayShape
 	for _, r := range stackInputRegions(m) {
 		s := overlayShape{rect: r.rect, radius: 5, task: r.task}
@@ -35,6 +38,9 @@ func stackInputShapes(m *model) []overlayShape {
 			s.radius = 8
 		}
 		shapes = append(shapes, s)
+	}
+	if m.stackTooltip.Width > 0 && m.stackTooltip.Height > 0 {
+		shapes = append(shapes, overlayShape{rect: m.stackTooltip, radius: 5, task: -3})
 	}
 	return shapes
 }

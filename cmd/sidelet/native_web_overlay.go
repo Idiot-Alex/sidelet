@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -22,6 +23,13 @@ func (v *views) webStack(c *ui.Context) {
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
 	m, nextHover := v.m, -1
+	previousTooltip := m.stackTooltip
+	m.stackTooltip = mygo.Rectangle{}
+	defer func() {
+		if previousTooltip != m.stackTooltip {
+			v.notify("tooltip-region")
+		}
+	}()
 	if m.Quiet {
 		return
 	}
@@ -84,7 +92,8 @@ func (v *views) webStack(c *ui.Context) {
 		if !m.Dragging && (m.Hover == i || m.Opened == i) {
 			body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
 			body.Children(func() {
-				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title).Tooltip("标记为完成")
+				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
+				stackTooltip(c, m, check, "标记为完成")
 				if check.Clicked() {
 					m.open(index)
 					if m.complete() {

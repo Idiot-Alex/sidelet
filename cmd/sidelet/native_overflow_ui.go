@@ -119,7 +119,9 @@ func (v *views) webArrangeStack(c *ui.Context) {
 	direct, _ := m.sidebarItems()
 	for k, index := range direct {
 		r := m.arrangeRowRect(index)
-		orderRow(c, s, &v.order, index+1, k, float32(r.Height)).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Width(float32(r.Width))
+		orderRow(c, s, &v.order, index+1, k, float32(r.Height), func(e ui.Element, text string) {
+			stackTooltip(c, m, e, text)
+		}).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Width(float32(r.Width))
 	}
 	v.webOverflowTab(c)
 	r := m.arrangeGripRect()

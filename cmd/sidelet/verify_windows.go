@@ -119,6 +119,13 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			}
 			return passive()
 		}, 100 * time.Millisecond},
+		{"tooltip-region", func() { move(a.stackInput, 40, handleY) }, func() error {
+			r := m.stackTooltip
+			if r.Width == 0 || r.Height == 0 || inputHit(point(a.stackInput, r.X+r.Width/2, r.Y+r.Height/2)) != a.stackInput.top {
+				return fmt.Errorf("sidebar tooltip has no painted native region: %+v", r)
+			}
+			return passive()
+		}, 800 * time.Millisecond},
 		{"open-card-from-preview", func() {
 			move(a.stackInput, 220, handleY)
 			button(a.stackInput, 0x201, 220, handleY)
@@ -128,6 +135,9 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 				return fmt.Errorf("preview click did not open card")
 			}
 			cardBounds = a.card.Bounds()
+			if m.stackTooltip.Width != 0 {
+				return fmt.Errorf("dismissed tooltip retained a native region")
+			}
 			return passive()
 		}, 300 * time.Millisecond},
 		{"source-to-card-handoff", func() { move(a.cardInput, 100, 80) }, func() error {

@@ -39,12 +39,17 @@ func (o *orderUI) commit(s *TasksService, drag orderDrag, target int, after, key
 
 // Two drop zones retain the release location even if the pointer moves again
 // before rendering. MyGo owns pointer capture, Escape and edge auto-scrolling.
-func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, height float32) ui.Element {
+func orderRow(c *ui.Context, s *TasksService, o *orderUI, id, position int, height float32, tooltip ...func(ui.Element, string)) ui.Element {
 	t := webTheme(s.m.UITheme)
 	item := s.m.Tasks[id-1]
 	row := ui.Row(c.Key(fmt.Sprintf("order-task-%d", id))).Height(height).Gap(8).AlignItems(ui.Center).Radius(5).Border(1, t.Border).Background(t.Surface)
 	row.Children(func() {
-		handle := ui.ButtonBase(c.Key("handle")).Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2).Tooltip("拖动调整顺序，也可按 Option / Alt + ↑ / ↓")
+		handle := ui.ButtonBase(c.Key("handle")).Label("拖动排序"+item.Title).Size(32, height).Shrink(0).TextColor(t.TextMuted).Cursor(ui.CursorGrab).Disabled(len(s.m.eligibleIDs()) < 2)
+		if len(tooltip) > 0 {
+			tooltip[0](handle, "拖动调整顺序，也可按 Option / Alt + ↑ / ↓")
+		} else {
+			handle.Tooltip("拖动调整顺序，也可按 Option / Alt + ↑ / ↓")
+		}
 		payload := ui.Local(handle, "order-drag", func() orderDrag { return orderDrag{} })
 		if !handle.Dragging() {
 			*payload = orderDrag{id, slices.Clone(s.m.eligibleIDs()), o.Epoch, orderLayoutKey(s.m)}
