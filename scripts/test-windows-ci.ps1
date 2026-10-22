@@ -55,6 +55,10 @@ $env:SIDELET_SMOKE_EXE = $Exe
 $env:SIDELET_SMOKE_OUTPUT = Join-Path $Results 'smoke'
 try {
     Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=2m','-json','./cmd/sidelet','-run','^TestPackagedApplicationSmoke$') -Log 'packaged-smoke.jsonl'
+    if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted' -and $Arch -eq 'arm64') {
+        & (Join-Path $PSScriptRoot 'prepare-windows-ci-desktop.ps1') 2>&1 |
+            Tee-Object -FilePath (Join-Path $Results 'desktop-preparation.log')
+    }
     Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=1m','-json','./cmd/sidelet','-run','^TestPackagedWindowsOverlayInput$') -Log 'overlay-input.jsonl'
 } finally {
     Remove-Item Env:SIDELET_SMOKE_EXE -ErrorAction SilentlyContinue
