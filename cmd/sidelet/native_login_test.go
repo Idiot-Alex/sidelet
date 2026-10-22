@@ -250,9 +250,8 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 				t.Fatal("external state not reflected")
 			}
 			b.status = "disabledBySystem"
-			if err := s.CheckLogin(); err != nil {
-				t.Fatal(err)
-			}
+			focus("检查登录状态")
+			u.Key(0, ui.KeyEnter)
 			if !u.HasText("系统状态：已在系统中禁用") || !u.HasText("你已在系统中禁用 Sidelet 的自动启动；开启此开关将重新允许。") {
 				t.Fatal("system-disabled explanation missing")
 			}
