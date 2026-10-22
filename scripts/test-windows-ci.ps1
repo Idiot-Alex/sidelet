@@ -61,6 +61,7 @@ try {
             Tee-Object -FilePath (Join-Path $Results 'desktop-preparation.log')
     }
     Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=1m','-json','./cmd/sidelet','-run','^TestPackagedWindowsOverlayInput$') -Log 'overlay-input.jsonl'
+    Invoke-RecordedGo -Arguments @('test','-count=1','-timeout=2m','-json','./cmd/sidelet','-run','^TestPackagedWindowsCrossProcessFocus$') -Log 'cross-process-focus.jsonl'
 } finally {
     Remove-Item Env:SIDELET_SMOKE_EXE -ErrorAction SilentlyContinue
     Remove-Item Env:SIDELET_SMOKE_OUTPUT -ErrorAction SilentlyContinue
@@ -73,6 +74,7 @@ $Summary = @"
 - Synthetic SQLite tasks survived restart; startup cleanup persisted and the profile lock was released.
 - Packaged login startup honored hidden/visible preferences; fresh login stayed hidden and fresh manual launch opened the main window.
 - Owned Win32 overlay regions, hover, targeted button messages, focus restore and drag lifecycle checks passed.
+- Separate-process system mouse/keyboard input preserved background text/caret through hover, card edit and the production Quick Add shortcut.
 - Interactive mouse/IME/notification checks remain pending; the hosted runner runs with administrator privileges.
 "@
 $Summary | Out-File -FilePath (Join-Path $Results 'summary.md') -Encoding utf8
