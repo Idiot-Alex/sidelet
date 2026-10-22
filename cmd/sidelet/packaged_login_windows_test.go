@@ -56,7 +56,7 @@ func TestPackagedWindowsLoginStartup(t *testing.T) {
 					p.close()
 					t.Fatal(err)
 				}
-				if _, err := s.AddWithPin("登录启动合成任务", "", 1, true); err != nil {
+				if _, err := s.AddWithPin("登录启动合成任务", "", 2, true); err != nil {
 					p.close()
 					t.Fatal(err)
 				}
@@ -75,7 +75,7 @@ func TestPackagedWindowsLoginStartup(t *testing.T) {
 				args = append(args, parts[1:]...)
 			}
 			logPath := filepath.Join(root, row.name, "startup.log")
-			args = append(args, "-data-dir", dir, "-log-file", logPath, "-quit-after", "3s")
+			args = append(args, "-data-dir", dir, "-output", filepath.Join(root, row.name, "diagnostics"), "-log-file", logPath, "-quit-after", "3s")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, binary, args...)
