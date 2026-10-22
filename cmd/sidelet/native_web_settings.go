@@ -200,6 +200,13 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				if b.Clicked() {
 					v.notificationAction("打开系统通知设置")
 				}
+				if v.service.notificationAuthorization == "denied" && !v.service.notificationFailed {
+					b = webButton(c, "检查通知权限", false).Height(36).Padding(8, 12).Background(t.Field).Disabled(v.service.notices == nil)
+					b.Children(func() { webActionText(c, "检查通知权限") })
+					if b.Clicked() {
+						v.notificationAction("检查通知权限")
+					}
+				}
 			})
 			if v.service.notificationAuthorization == "authorized" {
 				hint("在系统通知列表中选择 Sidelet，调整横幅和声音。")

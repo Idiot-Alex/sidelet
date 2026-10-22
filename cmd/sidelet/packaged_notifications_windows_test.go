@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -165,9 +166,24 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		// the mandatory submission checks; never simulate a Shell click callback.
 		probePath := filepath.Join(root, "banner.json")
 		probeCtx, stop := context.WithTimeout(ctx, 10*time.Second)
-		probe := exec.CommandContext(probeCtx, "powershell.exe", "-NoProfile", "-NonInteractive", "-File", filepath.Join("..", "..", "scripts", "probe-windows-notification.ps1"), "-Title", title, "-OutputPath", probePath)
+		script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "probe-windows-notification.ps1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(script); err != nil {
+			t.Fatal(err)
+		}
+		probe := exec.CommandContext(probeCtx, "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-File", script, "-Title", title, "-OutputPath", probePath)
+		// PowerShell 7's module paths are not compatible with Windows PowerShell
+		// 5.1, used here for its built-in .NET Framework UI Automation assemblies.
+		for _, value := range os.Environ() {
+			if !strings.HasPrefix(strings.ToUpper(value), "PSMODULEPATH=") {
+				probe.Env = append(probe.Env, value)
+			}
+		}
 		output, probeErr := probe.CombinedOutput()
 		stop()
+		output = append(output, []byte(fmt.Sprintf("\nprobe exit: %v\n", probeErr))...)
 		_ = os.WriteFile(filepath.Join(root, "banner-probe.log"), output, 0600)
 		if data, err := os.ReadFile(probePath); err == nil {
 			if err := json.Unmarshal(data, &banner); err != nil {
@@ -228,7 +244,7 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		d.wait("snooze resets receipt and withdraws old notification", func() bool {
 			st := d.app()
 			task := st.Model.Tasks[0]
-			return task.ReminderID != oldID && task.ReminderSentAt == 0 && task.DueAt > time.Now().Add(29*time.Minute).UnixMilli() && st.NotificationSession.Removed == 1 && len(st.NotificationSession.Accepted) == 0
+			return task.ReminderID != oldID && task.ReminderSentAt == 0 && task.SnoozedUntil > time.Now().Add(29*time.Minute).UnixMilli() && task.ReminderAt == task.SnoozedUntil && st.NotificationSession.Removed == 1 && len(st.NotificationSession.Accepted) == 0
 		})
 		stage("snooze-replaces-generation-and-withdraws-old-notification")
 	})
@@ -236,7 +252,7 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		t.Fatal("snooze resent early")
 	}
 	saved := readSmokeProfile(t, dir)
-	if saved.Tasks[0].ReminderSentAt != 0 || saved.Tasks[0].DueAt < time.Now().Add(29*time.Minute).UnixMilli() {
+	if saved.Tasks[0].ReminderSentAt != 0 || saved.Tasks[0].SnoozedUntil < time.Now().Add(29*time.Minute).UnixMilli() || saved.Tasks[0].ReminderAt != saved.Tasks[0].SnoozedUntil {
 		t.Fatal("snooze not durable")
 	}
 	stage("snooze-persists-to-sqlite")
@@ -254,7 +270,10 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		t.Fatal(err)
 	}
 	s = testService(m)
-	_, err = s.SaveTask(1, title, "完成撤回合成任务", 0, true, time.Now().Add(-time.Second).UnixMilli(), true, false, m.Tasks[0].Version)
+	_, err = s.Unsnooze(1, m.Tasks[0].Version)
+	if err == nil {
+		_, err = s.SaveTask(1, title, "完成撤回合成任务", 0, true, time.Now().Add(-time.Second).UnixMilli(), true, false, m.Tasks[0].Version)
+	}
 	p.close()
 	if err != nil {
 		t.Fatal(err)

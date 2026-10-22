@@ -84,3 +84,34 @@ func TestNotificationRetryClearsErrorWithoutLosingTask(t *testing.T) {
 		t.Fatal("successful retry did not clear error or duplicated send")
 	}
 }
+
+func TestNotificationSettingsRefreshAfterSystemPermissionChange(t *testing.T) {
+	_, s, n, backend := reminderFixture(t)
+	backend.state.Authorization = "denied"
+	if err := runReminderJob(t, n); err != nil {
+		t.Fatal(err)
+	}
+	v := newNativeTasksView(s)
+	v.settingsOpen = true
+	u := ui.NewTester(v.render, 1120, 2000)
+	u.SetFocused(true)
+	if !u.HasText("打开系统通知设置") {
+		t.Fatal("missing permission recovery action")
+	}
+	// Simulate returning after the user changes system settings. Refresh must
+	// query the backend again rather than retaining the previously denied state.
+	backend.state.Authorization = "authorized"
+	if err := u.Click("检查通知权限"); err != nil {
+		t.Fatal(err)
+	}
+	if len(n.jobs) != 1 {
+		t.Fatal("permission refresh did not reach scheduler")
+	}
+	if err := runReminderJob(t, n); err != nil {
+		t.Fatal(err)
+	}
+	u.Frame()
+	if !u.HasText("已允许") || u.HasText("未允许") {
+		t.Fatal("settings did not refresh permission state")
+	}
+}
