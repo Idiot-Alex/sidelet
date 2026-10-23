@@ -25,6 +25,18 @@ build 42 及更早版本会拒绝打开升级后的库。升级前按现有规�
 
 macOS ARM64 build 43 从干净源码 `ef5a0e0` 构建，ad-hoc 签名验证通过。最终包连续两次启动 / 正常退出，主窗口实际恢复的草稿、临时任务启动清理后的草稿保持、SQLite 一致性与资料锁释放均通过；另复验 18 项 AppKit 卡片 / 输入面板 / 清理检查，全部通过。证据位于 `build/results/new-task-draft-build43/verified.json`，本地应用为 `build/bin/Sidelet.app`。
 
-日常 `/Applications/Sidelet.app` 仍在运行 build 42，本轮没有覆盖运行中的应用，也没有访问日常资料。测试窗口和数据库均为自建合成数据。
+首次构建验证时没有替换日常应用。随后用户确认继续升级，完成下述安装和界面验收。
 
 Windows 两架构使用同一源码 `ef5a0e0` 的 [build 43 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 全部通过：x64 5 分 10 秒，ARM64 5 分 23 秒。包含新增草稿测试、最终包两次启动 / 退出与主窗口草稿恢复，以及既有原生输入、提醒、登录启动和安装器生命周期检查。CI 已生成 ZIP 和安装包；本轮未将 Windows 产物下载到本机另作复验。完整运行结果保存在 `build/results/new-task-draft-build43/windows-ci.json`。
+
+## 日常安装与界面验收
+
+2026-10-23，确认旧版已经退出并取得资料锁后，备份 build 42 应用与完整资料目录。ZIP 完整性和资料文件逐项摘要校验通过；备份位于本机忽略目录 `build/backups/upgrade-build43-20261023-223314/`，不提交到仓库。安装器只替换应用，SQLite 升级由 build 43 首次启动执行；旧任务和设置 / 提醒元数据的升级前后摘要完全一致，`quick_check` 为 `ok`。
+
+使用已安装的 `/Applications/Sidelet.app`，在独立合成资料中通过 Computer Use 验证：
+
+- 填写中文标题及多行备注、收起备注，关闭并重开主窗口后完整恢复；再次正常退出并重启后仍恢复。只填年份的日期分段在数据库中保持未完成状态。
+- 打开合成任务卡片，点击“稍后”后选项与正文保持显示；返回、进入编辑、取消后恢复阅读内容，未观察到整卡空白。
+- 卡片通过 macOS Window 菜单选中后操作；中文采用粘贴，不等同于后台悬停、物理鼠标跨窗或输入法候选验收。
+
+测试实例已正常退出，随后恢复日常资料的主窗口，未向日常资料添加测试任务或草稿。旧应用的安装临时副本已清理，归档备份保留。本机摘要记录在 `build/results/new-task-draft-build43/installed-ui-verification.json`，备份中的 `upgrade.json` 记录安装与数据核验状态。
