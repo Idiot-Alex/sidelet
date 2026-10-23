@@ -56,12 +56,20 @@ func run(args []string) (int, error) {
 	defer token.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "pwsh", "-NoLogo", "-NoProfile", "-NonInteractive", "-File", filepath.Join(root, "scripts", "test-windows-nonadmin.ps1"), "-Arch", args[1], "-TokenProbe", self)
+	cmd := commandWithToken(ctx, token, "pwsh", "-NoLogo", "-NoProfile", "-NonInteractive", "-File", filepath.Join(root, "scripts", "test-windows-nonadmin.ps1"), "-Arch", args[1], "-TokenProbe", self)
 	cmd.Dir = root
-	cmd.SysProcAttr = &syscall.SysProcAttr{Token: syscall.Token(token)}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	cmd.WaitDelay = 5 * time.Second
 	return 0, cmd.Run()
+}
+
+func commandWithToken(ctx context.Context, token windows.Token, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Token: syscall.Token(token)}
+	// With a token and nil Env, Go builds the account's logon environment,
+	// dropping the job's CI markers and paths. Inherit the verified parent job.
+	cmd.Env = os.Environ()
+	cmd.WaitDelay = 5 * time.Second
+	return cmd
 }
 
 // Setup processes can exit too quickly for a post-launch PID probe. Start the

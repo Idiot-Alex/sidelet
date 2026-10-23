@@ -1,11 +1,53 @@
 package main
 
 import (
+	"context"
+	"flag"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/sys/windows"
 )
+
+var tokenChildProbe = flag.Bool("sidelet-token-child", false, "run the restricted child probe")
+
+func TestRestrictedChildProbe(t *testing.T) {
+	if !*tokenChildProbe {
+		t.Skip("launched only by the restricted environment regression")
+	}
+	if os.Getenv("SIDELET_TOKEN_ENV_PROBE") != "inherited-from-job" {
+		t.Fatal("restricted child lost the job environment")
+	}
+	if _, err := run([]string{"check", strconv.Itoa(os.Getpid()), filepath.Join(t.TempDir(), "token.json")}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRestrictedChildKeepsJobEnvironment(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") != "true" || os.Getenv("RUNNER_ENVIRONMENT") != "github-hosted" {
+		t.Skip("restricted process launch is tested only on disposable hosted CI")
+	}
+	t.Setenv("SIDELET_TOKEN_ENV_PROBE", "inherited-from-job")
+	token, err := restrictedToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer token.Close()
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := commandWithToken(ctx, token, self, "-test.run=^TestRestrictedChildProbe$", "-sidelet-token-child")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("restricted child: %v\n%s", err, output)
+	}
+}
 
 func TestInspectActualProcessToken(t *testing.T) {
 	state, err := inspectToken(windows.GetCurrentProcessToken())
