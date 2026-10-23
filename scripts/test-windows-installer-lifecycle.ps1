@@ -240,7 +240,8 @@ try {
 - Installer is unsigned. This uses a restricted token in the runner account; separate standard-user logon, UAC/SmartScreen and interactive acceptance remain pending.
 "@
     $Summary | Out-File (Join-Path $Work 'summary.md') -Encoding utf8
-    if ($env:GITHUB_STEP_SUMMARY) { $Summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
+    # The runner's command files belong to its elevated process. The parent
+    # publishes this local summary only after this entire reduced suite exits.
 } finally {
     foreach ($Path in @($RunPath,$ApprovalPath)) {
         $Key = $StartupRegistry.OpenSubKey($Path,$true)

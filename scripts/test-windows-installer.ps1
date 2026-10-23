@@ -18,3 +18,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Permission helper build failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Smoke harness build failed.' }
 & (Join-Path $SideletRoot 'build/bin/windows-ci.exe') suite $Arch $SideletRoot
 if ($LASTEXITCODE -ne 0) { throw 'Non-admin acceptance failed.' }
+$Results = Join-Path $SideletRoot "build/results/windows-ci-$Arch"
+$Outcome = Get-Content -Raw (Join-Path $Results 'nonadmin/result.json') | ConvertFrom-Json
+if (-not $Outcome.passed -or $Outcome.arch -ne $Arch) { throw 'Missing successful non-admin suite result.' }
+$Runs = @(Get-ChildItem -LiteralPath $Results -Directory -Filter 'installer-*')
+if ($Runs.Count -ne 1) { throw 'Expected exactly one installer evidence directory.' }
+if ($env:GITHUB_STEP_SUMMARY) {
+    Get-Content -Raw (Join-Path $Runs[0].FullName 'summary.md') |
+        Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+}
