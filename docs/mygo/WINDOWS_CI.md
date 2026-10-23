@@ -49,7 +49,9 @@ build 40 的 [表单体验复验](https://github.com/Idiot-Alex/sidelet/actions/
 
 build 41 的 [主界面布局复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39834104048) 两架构任务全部通过，源码 `97b672f`：x64 2 分 52 秒，ARM64 4 分 44 秒。build 42 增加 macOS 卡片输入层防遮挡；对应 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 两架构全部通过，源码 `013ba83`：x64 3 分 9 秒，ARM64 4 分 53 秒，包含打包运行与安装器生命周期。本轮未下载该构建产物另作本地复验，见 [卡片修复记录](MACOS_CARD_ORDER_20261023.md)。
 
-build 43 的 [草稿持久化复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 两架构全部通过，源码 `ef5a0e0`：x64 5 分 10 秒，ARM64 5 分 23 秒。新增 SQLite 草稿、失败 / 重试与事务回滚测试通过；最终包确认主窗口从 SQLite 恢复草稿、临时任务清理后仍保留、两次退出后资料一致且锁释放。既有输入、提醒、登录启动及安装器生命周期继续通过。产物留在 CI，本轮未下载另作本地复验，见 [草稿记录](NEW_TASK_DRAFT_20261023.md)。
+build 43 的 [草稿持久化复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 两架构全部通过，源码 `ef5a0e0`：x64 5 分 10 秒，ARM64 5 分 23 秒。新增 SQLite 草稿、失败 / 重试与事务回滚测试通过；最终包确认主窗口从 SQLite 恢复草稿、临时任务清理后仍保留、两次退出后资料一致且锁释放。既有输入、提醒、登录启动及安装器生命周期继续通过。后续已下载并复核两架构产物，证据位于 `build/results/windows-build43-39967751427/verified.json`，见 [草稿记录](NEW_TASK_DRAFT_20261023.md)。
+
+同为 build 43 的 [发布验收补充](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`：x64 4 分 52 秒，ARM64 5 分 23 秒。新增打包程序升级 SQLite v1、保留回执与迁移后草稿恢复检查；安装器各次启动比对完整草稿。前一轮 ARM64 暴露的测试时间戳依赖已改为可控时间验证，应用运行逻辑不变。最新 ZIP / 安装器已下载到 `build/releases/` 并复验，记录见 `build/results/windows-upgrade-39975853709/verified.json` 和 [升级验收说明](WINDOWS_UPGRADE_20261023.md)。
 
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 

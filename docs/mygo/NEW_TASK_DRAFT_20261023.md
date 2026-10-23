@@ -27,7 +27,7 @@ macOS ARM64 build 43 从干净源码 `ef5a0e0` 构建，ad-hoc 签名验证通�
 
 首次构建验证时没有替换日常应用。随后用户确认继续升级，完成下述安装和界面验收。
 
-Windows 两架构使用同一源码 `ef5a0e0` 的 [build 43 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 全部通过：x64 5 分 10 秒，ARM64 5 分 23 秒。包含新增草稿测试、最终包两次启动 / 退出与主窗口草稿恢复，以及既有原生输入、提醒、登录启动和安装器生命周期检查。CI 已生成 ZIP 和安装包；本轮未将 Windows 产物下载到本机另作复验。完整运行结果保存在 `build/results/new-task-draft-build43/windows-ci.json`。
+Windows 两架构使用同一源码 `ef5a0e0` 的 [build 43 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 全部通过：x64 5 分 10 秒，ARM64 5 分 23 秒。包含新增草稿测试、最终包两次启动 / 退出与主窗口草稿恢复，以及既有原生输入、提醒、登录启动和安装器生命周期检查。完整运行结果保存在 `build/results/new-task-draft-build43/windows-ci.json`。该轮产物随后已下载并复验；新增旧库升级 / 安装器草稿检查的最新产物与结论见 [Windows 发布验收补充](WINDOWS_UPGRADE_20261023.md)。
 
 ## 日常安装与界面验收
 

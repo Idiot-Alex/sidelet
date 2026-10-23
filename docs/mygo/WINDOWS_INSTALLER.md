@@ -59,6 +59,8 @@ build 40 的 [双架构复验](https://github.com/Idiot-Alex/sidelet/actions/run
 
 build 41 的 [双架构任务](https://github.com/Idiot-Alex/sidelet/actions/runs/39834104048) 包含安装器步骤，均已成功，源码 `97b672f`。build 42 的 [补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 也已通过两架构安装器检查，源码 `013ba83`。build 43 草稿持久化的验证见 [草稿记录](NEW_TASK_DRAFT_20261023.md)。
 
+build 43 的 [最新补充验收](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`；首次安装、升级 / 修复和卸载重装后的完整草稿恢复均已核对。最终两架构 ZIP 和安装器已下载到 `build/releases/` 并校验，证据位于 `build/results/windows-upgrade-39975853709/`。
+
 托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：
