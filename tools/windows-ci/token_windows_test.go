@@ -1,10 +1,36 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows"
 )
+
+func TestInspectActualProcessToken(t *testing.T) {
+	state, err := inspectToken(windows.GetCurrentProcessToken())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(state.Integrity, "S-1-16-") {
+		t.Fatalf("missing integrity label: %+v", state)
+	}
+}
+
+func TestRestrictedTokenMeetsAcceptance(t *testing.T) {
+	token, err := restrictedToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer token.Close()
+	state, err := inspectToken(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.validate(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestTokenAcceptanceRejectsPrivileges(t *testing.T) {
 	base := tokenState{Integrity: "S-1-16-8192", AdminAttributes: windows.SE_GROUP_USE_FOR_DENY_ONLY}

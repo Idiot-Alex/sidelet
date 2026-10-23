@@ -21,16 +21,18 @@ type tokenState struct {
 }
 
 func tokenInfo(token windows.Token, class uint32) ([]byte, error) {
-	var size uint32
-	err := windows.GetTokenInformation(token, class, nil, 0, &size)
-	if err != windows.ERROR_INSUFFICIENT_BUFFER || size == 0 {
-		return nil, fmt.Errorf("token information %d size: %v", class, err)
+	// Fixed-size classes such as TokenElevation can reject a zero-byte size
+	// probe with ERROR_BAD_LENGTH. Start with storage, as x/sys token helpers do.
+	for size := uint32(128); ; {
+		buf := make([]byte, size)
+		err := windows.GetTokenInformation(token, class, &buf[0], size, &size)
+		if err == nil {
+			return buf, nil
+		}
+		if (err != windows.ERROR_INSUFFICIENT_BUFFER && err != windows.ERROR_BAD_LENGTH) || size <= uint32(len(buf)) {
+			return nil, fmt.Errorf("token information %d: %w", class, err)
+		}
 	}
-	buf := make([]byte, size)
-	if err := windows.GetTokenInformation(token, class, &buf[0], size, &size); err != nil {
-		return nil, err
-	}
-	return buf, nil
 }
 
 func inspectToken(token windows.Token) (tokenState, error) {
