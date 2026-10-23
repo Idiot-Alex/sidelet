@@ -23,4 +23,8 @@ build 42 及更早版本会拒绝打开升级后的库。升级前按现有规�
 
 新增 8 项顶层回归覆盖 SQLite 旧库升级、草稿单独更新、清除失败后的任务事务回滚、三主题重启恢复、中文组合文本与防抖、保存失败后的退出阻止 / 重试、任务创建成功才清除，以及超限草稿不影响其他任务。完整回归、race 和 vet 通过，包含发布工具；820px × 600px 窗口的重试入口可见。原生测试器使用正式表单，不以实际鼠标或中文输入法候选验收计数。
 
-打包应用的启动烟测同时检查主窗口实际恢复的草稿、临时任务启动清理不会覆盖草稿、连续两次启动 / 正常退出后的 SQLite 一致性与资料锁释放。macOS 构建和 Windows CI 的最终结果在完成验证后补记。
+macOS ARM64 build 43 从干净源码 `ef5a0e0` 构建，ad-hoc 签名验证通过。最终包连续两次启动 / 正常退出，主窗口实际恢复的草稿、临时任务启动清理后的草稿保持、SQLite 一致性与资料锁释放均通过；另复验 18 项 AppKit 卡片 / 输入面板 / 清理检查，全部通过。证据位于 `build/results/new-task-draft-build43/verified.json`，本地应用为 `build/bin/Sidelet.app`。
+
+日常 `/Applications/Sidelet.app` 仍在运行 build 42，本轮没有覆盖运行中的应用，也没有访问日常资料。测试窗口和数据库均为自建合成数据。
+
+Windows 两架构使用同一源码 `ef5a0e0` 的 [build 43 CI](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 全部通过：x64 5 分 10 秒，ARM64 5 分 23 秒。包含新增草稿测试、最终包两次启动 / 退出与主窗口草稿恢复，以及既有原生输入、提醒、登录启动和安装器生命周期检查。CI 已生成 ZIP 和安装包；本轮未将 Windows 产物下载到本机另作复验。完整运行结果保存在 `build/results/new-task-draft-build43/windows-ci.json`。

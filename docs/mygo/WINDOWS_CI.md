@@ -48,6 +48,8 @@ build 40 的 [表单体验复验](https://github.com/Idiot-Alex/sidelet/actions/
 
 build 41 的 [主界面布局复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39834104048) 两架构任务全部通过，源码 `97b672f`：x64 2 分 52 秒，ARM64 4 分 44 秒。build 42 增加 macOS 卡片输入层防遮挡；对应 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 两架构全部通过，源码 `013ba83`：x64 3 分 9 秒，ARM64 4 分 53 秒，包含打包运行与安装器生命周期。本轮未下载该构建产物另作本地复验，见 [卡片修复记录](MACOS_CARD_ORDER_20261023.md)。
 
+build 43 的 [草稿持久化复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 两架构全部通过，源码 `ef5a0e0`：x64 5 分 10 秒，ARM64 5 分 23 秒。新增 SQLite 草稿、失败 / 重试与事务回滚测试通过；最终包确认主窗口从 SQLite 恢复草稿、临时任务清理后仍保留、两次退出后资料一致且锁释放。既有输入、提醒、登录启动及安装器生命周期继续通过。产物留在 CI，本轮未下载另作本地复验，见 [草稿记录](NEW_TASK_DRAFT_20261023.md)。
+
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：
