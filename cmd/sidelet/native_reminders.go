@@ -259,6 +259,6 @@ func (s *TasksService) enableNotifications(h *nativeApp) {
 				}
 			}
 		})
-		mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { n.close() })
+		onQuitCleanup(func() { n.close() })
 	})
 }

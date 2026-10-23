@@ -124,6 +124,10 @@ func (s *TasksService) AddWithPin(title, note string, priority int, pinned bool)
 	return s.addWithSchedule(title, note, priority, pinned, nil)
 }
 func (s *TasksService) addWithSchedule(title, note string, priority int, pinned bool, schedule *taskSchedule) (taskSnapshot, error) {
+	return s.addNewTask(title, note, priority, pinned, schedule, false)
+}
+
+func (s *TasksService) addNewTask(title, note string, priority int, pinned bool, schedule *taskSchedule, consumeDraft bool) (taskSnapshot, error) {
 	return s.mutate("web-add", func() error {
 		title, err := validModelTitle(s.m, title)
 		if err != nil {
@@ -145,6 +149,9 @@ func (s *TasksService) addWithSchedule(title, note string, priority int, pinned 
 			}
 		}
 		s.m.Tasks = append(s.m.Tasks, next)
+		if consumeDraft {
+			s.m.newTaskDraft = nil
+		}
 		return nil
 	})
 }
@@ -283,6 +290,7 @@ func newNativeApp(m *model) *nativeApp {
 		m.UITheme, m.Side, m.Offset = "mac", "right", .35
 	}
 	h := &nativeApp{native: true, service: &TasksService{m: m, run: mygo.RunOnMain, origin: "native-main"}}
+	mygo.App.OnBeforeQuit(h.beforeQuit)
 	h.service.login = &nativeLogin{backend: newLoginBackend()}
 	h.service.enableExpiry()
 	h.service.enableNotifications(h)
@@ -292,7 +300,7 @@ func newNativeApp(m *model) *nativeApp {
 			h.publish()
 		}
 	})
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { h.quitting = true })
+	onQuitCleanup(func() { h.quitting = true })
 	return h
 }
 
@@ -318,7 +326,7 @@ func (h *nativeApp) show() {
 		opts.Width, opts.Height, opts.MinWidth, opts.MinHeight = 1120, 800, 820, 600
 		h.view = newNativeTasksView(h.service)
 		h.view.onHide = func() {
-			if h.window != nil {
+			if h.window != nil && h.flushMainDraft() {
 				h.window.Hide()
 			}
 		}
@@ -354,7 +362,13 @@ func (h *nativeApp) show() {
 	if h.bounds.Width > 0 {
 		w.SetBounds(h.bounds)
 	}
-	w.OnClose(func(*mygo.CloseEvent) { h.bounds = w.Bounds() })
+	w.OnClose(func(e *mygo.CloseEvent) {
+		if !h.flushMainDraft() {
+			e.PreventDefault()
+			return
+		}
+		h.bounds = w.Bounds()
+	})
 	w.OnClosed(func() {
 		if h.window == w {
 			h.window = nil

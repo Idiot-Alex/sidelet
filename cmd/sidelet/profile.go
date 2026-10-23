@@ -22,35 +22,38 @@ import (
 	"sidelet/internal/todo"
 )
 
-// Persist only committed domain state. Window coordinates, input drafts,
-// hover, drag previews and arrange mode never enter the database.
+// Committed domain state plus the independent new-task draft. Window geometry,
+// existing-task edits, hover and drag previews never enter the database.
 type profileState struct {
-	LegacyImport       *legacyImport  `json:"legacyImport,omitempty"`
-	Preferences        settings.Value `json:"preferences"`
-	Schema             int            `json:"schema"`
-	ID                 string         `json:"profileId"`
-	Tasks              []task         `json:"tasks"`
-	Order              []int          `json:"order"`
-	Theme              string         `json:"theme"`
-	Side               string         `json:"side"`
-	Offset             float64        `json:"offset"`
-	ItemHeight         int            `json:"itemHeight"`
-	UndoID             int            `json:"undoId"`
-	UndoUntil          int64          `json:"undoUntil"`
-	ReminderGeneration int64          `json:"reminderGeneration"`
+	NewTaskDraft       *persistedNewTaskDraft `json:"newTaskDraft,omitempty"`
+	LegacyImport       *legacyImport          `json:"legacyImport,omitempty"`
+	Preferences        settings.Value         `json:"preferences"`
+	Schema             int                    `json:"schema"`
+	ID                 string                 `json:"profileId"`
+	Tasks              []task                 `json:"tasks"`
+	Order              []int                  `json:"order"`
+	Theme              string                 `json:"theme"`
+	Side               string                 `json:"side"`
+	Offset             float64                `json:"offset"`
+	ItemHeight         int                    `json:"itemHeight"`
+	UndoID             int                    `json:"undoId"`
+	UndoUntil          int64                  `json:"undoUntil"`
+	ReminderGeneration int64                  `json:"reminderGeneration"`
 }
 
 type profile struct {
-	db    *storage.NativeProfile
-	fresh bool
-	path  string
-	lock  *os.File
-	saved profileState
-	write func(string, []byte) error
+	db         *storage.NativeProfile
+	fresh      bool
+	path       string
+	lock       *os.File
+	saved      profileState
+	write      func(string, []byte) error
+	writeDraft func([]byte) error
 }
 
 func (m *model) profileState(id string) profileState {
 	v := profileState{Preferences: m.Preferences, Schema: 2, ID: id, Tasks: slices.Clone(m.Tasks), Order: slices.Clone(m.Order), Theme: m.UITheme, Side: m.Side, Offset: m.Offset, ItemHeight: m.itemHeight(), UndoID: m.UndoID, UndoUntil: m.UndoUntil, ReminderGeneration: m.ReminderGeneration}
+	v.NewTaskDraft = m.newTaskDraft // Immutable snapshots; replaced, never edited.
 	if m.profile != nil {
 		v.LegacyImport = m.profile.saved.LegacyImport
 	}
@@ -58,6 +61,9 @@ func (m *model) profileState(id string) profileState {
 }
 
 func validateProfile(v profileState) error {
+	if err := validateNewTaskDraft(v.NewTaskDraft); err != nil {
+		return err
+	}
 	if marker := v.LegacyImport; marker != nil {
 		hash, err := hex.DecodeString(marker.SHA256)
 		if err != nil || len(hash) != 32 || !filepath.IsAbs(marker.Source) || !filepath.IsAbs(marker.Backup) || marker.ImportedAt <= 0 || len(marker.OriginalIDs) > len(v.Tasks) {
@@ -164,6 +170,7 @@ func openProfile(dir string, m *model) (*profile, error) {
 		return nil, err
 	}
 	p.write = p.db.Write
+	p.writeDraft = p.db.WriteDraft
 	data, err := p.db.Read()
 	if err != nil {
 		return nil, err
@@ -212,6 +219,7 @@ func openProfile(dir string, m *model) (*profile, error) {
 			return nil, err
 		}
 		p.saved = state
+		m.newTaskDraft = state.NewTaskDraft
 		m.Preferences = state.Preferences
 		if state.Schema == 1 {
 			m.Preferences = settings.Defaults()

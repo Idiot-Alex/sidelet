@@ -49,6 +49,8 @@ type nativeTasksView struct {
 	formNote                      string
 	noteOpen, focusNote           bool
 	newTaskDraft                  *taskFormDraft
+	draftSaveAt                   time.Time
+	draftSaveError                string
 	filterAll                     bool
 	formDue                       string
 	deadline                      deadlineSegments
@@ -78,7 +80,9 @@ func newNativeTasksView(s *TasksService) *nativeTasksView {
 	t.Text, t.TextMuted, t.Border = ui.Hex("#303b32"), ui.Hex("#7b847b"), ui.Hex("#dce3d9")
 	t.Accent, t.AccentHover, t.AccentPressed = ui.Hex("#57745d"), ui.Hex("#49664f"), ui.Hex("#3f5945")
 	t.Selection, t.Focus = ui.RGBA(87, 116, 93, .2), ui.RGBA(87, 116, 93, .5)
-	return &nativeTasksView{service: s, newPriority: "普通", theme: t}
+	v := &nativeTasksView{service: s, newPriority: "普通", theme: t}
+	v.restoreNewTaskDraft(s.m.newTaskDraft)
+	return v
 }
 
 func (v *nativeTasksView) result(err error, success string) bool {

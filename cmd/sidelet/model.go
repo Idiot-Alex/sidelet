@@ -39,6 +39,7 @@ type task struct {
 // Owns an optional independent experiment profile; never the formal store.
 type model struct {
 	profile                             *profile
+	newTaskDraft                        *persistedNewTaskDraft
 	storageError                        string
 	Preferences                         settings.Value `json:"preferences"`
 	Quiet                               bool           `json:"quiet,omitempty"`

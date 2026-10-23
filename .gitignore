@@ -8,6 +8,7 @@ build/results/
 /spike
 
 build/releases/
+build/backups/
 website/dist/
 website/public/downloads/
 

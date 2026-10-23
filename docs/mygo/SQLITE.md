@@ -4,6 +4,8 @@
 
 build 30 已增加旧 WebView 库的显式离线迁移，下文描述最初接入时的状态；新规则见 [迁移说明](LEGACY_MIGRATION.md)。
 
+build 43 新增独立的新建任务草稿表，SQLite `user_version` 升为 2；主窗口新建草稿支持跨窗口和重启恢复，其他编辑会话仍不持久化。下文“两表 / 草稿不保存”是 build 27 的历史范围，当前规则与回退兼容性见 [草稿持久化](NEW_TASK_DRAFT_20261023.md)。
+
 默认数据库：`~/Library/Application Support/SideletMyGoLab/sidelet-native.sqlite3`。`-data-dir` 可指定测试目录；`-memory` 不打开数据库。
 
 通过 `internal/storage.NativeProfile` 和项目已有的 modernc SQLite 驱动持久化。数据库采用独立 application_id 和 schema version，避免把旧 WebView 库当成原生资料。`native_tasks` 每条任务一行，以稳定 ID 保存完整字段（payload 为 JSON 编码）；`native_profile` 保存设置、顺序、撤销窗口、资料标识、提醒序号等元数据。删除任务仍保留 tombstone，不复用 ID。两表在同一事务提交；任务行仅在字段变化时更新。WAL、synchronous FULL、单连接及原有资料目录进程锁共同保证一致性。

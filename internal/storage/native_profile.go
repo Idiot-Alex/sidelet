@@ -70,7 +70,7 @@ func OpenNativeProfile(dir string) (*NativeProfile, error) {
 	if id != nativeApplicationID && (id != 0 || version != 0 || tables != 0) {
 		return nil, errors.New("not a Sidelet native database")
 	}
-	if version > 1 || (id == nativeApplicationID && version != 1) {
+	if version > 2 || (id == nativeApplicationID && version != 1 && version != 2) {
 		return nil, errors.New("unsupported native database version")
 	}
 	if id == 0 {
@@ -82,6 +82,20 @@ func OpenNativeProfile(dir string) (*NativeProfile, error) {
 		if _, e = tx.Exec(fmt.Sprintf(`CREATE TABLE native_profile (id INTEGER PRIMARY KEY CHECK(id=1), metadata BLOB NOT NULL);
 CREATE TABLE native_tasks (id INTEGER PRIMARY KEY CHECK(id>0), payload BLOB NOT NULL);
 PRAGMA application_id=%d; PRAGMA user_version=1;`, nativeApplicationID)); e != nil {
+			return nil, e
+		}
+		if e = tx.Commit(); e != nil {
+			return nil, e
+		}
+	}
+	if version < 2 {
+		tx, e := db.Begin()
+		if e != nil {
+			return nil, e
+		}
+		defer tx.Rollback()
+		if _, e = tx.Exec(`CREATE TABLE native_new_task_draft (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL);
+PRAGMA user_version=2;`); e != nil {
 			return nil, e
 		}
 		if e = tx.Commit(); e != nil {
@@ -122,6 +136,17 @@ func (p *NativeProfile) Read() ([]byte, error) {
 	}
 	if fields == nil {
 		return nil, errors.New("invalid native metadata")
+	}
+	var draft []byte
+	if err = tx.QueryRow("SELECT payload FROM native_new_task_draft WHERE id=1").Scan(&draft); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	delete(fields, "newTaskDraft")
+	if draft != nil {
+		if err = validateNativeDraft(draft); err != nil {
+			return nil, err
+		}
+		fields["newTaskDraft"] = json.RawMessage(draft)
 	}
 	rows, err := tx.Query("SELECT id,payload FROM native_tasks ORDER BY id")
 	if err != nil {
@@ -164,6 +189,11 @@ func (p *NativeProfile) Write(_ string, data []byte) error {
 		return err
 	}
 	delete(fields, "tasks")
+	draft := fields["newTaskDraft"]
+	delete(fields, "newTaskDraft")
+	if err := validateNativeDraft(draft); err != nil {
+		return err
+	}
 	meta, err := json.Marshal(fields)
 	if err != nil {
 		return err
@@ -187,6 +217,42 @@ func (p *NativeProfile) Write(_ string, data []byte) error {
 		}
 	}
 	if _, err = tx.Exec("DELETE FROM native_tasks WHERE id>?", len(tasks)); err != nil {
+		return err
+	}
+	if err = writeNativeDraft(tx, draft); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func validateNativeDraft(data []byte) error {
+	if len(data) > 1<<20 || len(data) > 0 && !json.Valid(data) {
+		return errors.New("invalid native draft")
+	}
+	return nil
+}
+
+func writeNativeDraft(tx *sql.Tx, data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		_, err := tx.Exec("DELETE FROM native_new_task_draft WHERE id=1")
+		return err
+	}
+	_, err := tx.Exec("INSERT INTO native_new_task_draft(id,payload) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload WHERE payload != excluded.payload", data)
+	return err
+}
+
+// WriteDraft touches only the singleton draft row, never the task list.
+// Write includes that row in the task transaction to consume a draft atomically.
+func (p *NativeProfile) WriteDraft(data []byte) error {
+	if err := validateNativeDraft(data); err != nil {
+		return err
+	}
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = writeNativeDraft(tx, data); err != nil {
 		return err
 	}
 	return tx.Commit()

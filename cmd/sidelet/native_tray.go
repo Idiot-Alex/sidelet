@@ -53,7 +53,7 @@ func (h *nativeApp) installNativeTray() error {
 		return err
 	}
 	h.tray = tray
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { tray.Destroy() })
+	onQuitCleanup(func() { tray.Destroy() })
 	if dockPreferenceAvailable() {
 		h.service.applyDock = applyDockPreference
 		return applyDockPreference(h.service.m.Preferences.Appearance.ShowDockIcon)

@@ -226,6 +226,9 @@ func main() {
 				data["mainRenderer"] = "native"
 			}
 			data["mainOpen"] = h.window != nil
+			if h.view != nil {
+				data["mainNewTaskDraft"] = h.view.captureNewTaskDraft()
+			}
 			if h.window != nil {
 				data["mainID"], data["mainFocused"] = h.window.ID(), h.window.IsFocused()
 			}
@@ -286,7 +289,7 @@ func main() {
 		h.onState = logState
 		h.service.changed = func(event string) { v.changed(event); h.publish() }
 	}
-	mygo.App.OnBeforeQuit(func(_ *mygo.QuitEvent) { input.close() })
+	onQuitCleanup(func() { input.close() })
 	mygo.App.WhenReady(func() {
 		openedAtLogin = mygo.App.WasOpenedAtLogin()
 		if h != nil && h.native {
@@ -294,7 +297,7 @@ func main() {
 		}
 		if *traceInput {
 			stopTrace := startInputTrace()
-			mygo.App.OnBeforeQuit(func(_ *mygo.QuitEvent) { stopTrace() })
+			onQuitCleanup(func() { stopTrace() })
 		}
 		if *quitAfter > 0 {
 			time.AfterFunc(*quitAfter, func() { mygo.App.Quit() })
@@ -495,7 +498,7 @@ func main() {
 					}
 				}
 				h.service.quickShortcut.retry()
-				mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+				onQuitCleanup(func() {
 					h.service.quickShortcut.close()
 					if h.quick != nil {
 						h.quick.releaseFocus()
@@ -503,7 +506,7 @@ func main() {
 				})
 				if *output != "" {
 					stopRequests := watchQuickAddRequests(func() { h.openQuickAdd("fixture-request") })
-					mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { stopRequests() })
+					onQuitCleanup(func() { stopRequests() })
 				}
 				if err := h.installNativeTray(); err != nil {
 					log.Printf("native tray / Dock setup failed: %v", err)

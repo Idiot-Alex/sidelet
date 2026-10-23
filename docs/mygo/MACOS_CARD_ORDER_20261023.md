@@ -22,7 +22,7 @@
 
 最终 macOS ARM64 build 42 已从干净源码 `013ba83` 打包并通过 ad-hoc 签名验证。再次使用最终包运行上述 18 项原生检查，全部通过并正常退出；源码信息与构建号已核对，证据在 `build/results/card-order-macos-build42/verified.json`，产物为 `build/bin/Sidelet.app`。
 
-build 42 的 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 已触发，记录时仍在排队，不计为验收通过。这次生产修复仅修改 macOS 输入适配。
+build 42 的 [Windows 补充构建](https://github.com/Idiot-Alex/sidelet/actions/runs/39836025277) 两架构已全部通过，源码 `013ba83`：x64 3 分 9 秒，ARM64 4 分 53 秒，包含原生测试、打包运行和安装器生命周期。这次生产修复仅修改 macOS 输入适配；本轮未下载 build 42 Windows 产物另作本地复验。
 
 执行原生诊断：
 

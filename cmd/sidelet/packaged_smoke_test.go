@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -72,6 +73,16 @@ func TestPackagedApplicationSmoke(t *testing.T) {
 		p.close()
 		t.Fatal(err)
 	}
+	// The packaged view must restore the draft, including an incomplete date,
+	// and preserve it through cleanup transactions and normal application quit.
+	v := newNativeTasksView(s)
+	v.newTitle, v.formNote, v.newPriority = "CI 重启后的未提交草稿", "草稿备注\n尚未创建任务", "重要"
+	v.formDue, v.optionsOpen, v.noteOpen, v.formPin = "2027// :", true, true, true
+	v.deadline = deadlineSegments{parts: [5]string{"2027", "", "", "", ""}, seen: v.formDue, ready: true, focused: -1}
+	if !v.flushNewTaskDraft() {
+		p.close()
+		t.Fatal(v.draftSaveError)
+	}
 	want := m.profileState(p.saved.ID)
 	p.close()
 	initial := readSmokeProfile(t, profileDir)
@@ -83,8 +94,12 @@ func TestPackagedApplicationSmoke(t *testing.T) {
 	for run := 1; run <= 2; run++ {
 		logPath := filepath.Join(root, fmt.Sprintf("run-%d.log", run))
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		cmd := exec.CommandContext(ctx, binary, "-main", "-data-dir", profileDir,
-			"-output", filepath.Join(root, fmt.Sprintf("run-%d", run)), "-log-file", logPath, "-quit-after", "3s")
+		args := []string{"-main", "-data-dir", profileDir,
+			"-output", filepath.Join(root, fmt.Sprintf("run-%d", run)), "-log-file", logPath, "-quit-after", "3s"}
+		if runtime.GOOS == "darwin" {
+			args = append(args, "-quick-add-test-shortcut")
+		}
+		cmd := exec.CommandContext(ctx, binary, args...)
 		cmd.WaitDelay = 5 * time.Second
 		started := time.Now()
 		out, err := cmd.CombinedOutput()
@@ -99,7 +114,7 @@ func TestPackagedApplicationSmoke(t *testing.T) {
 		if time.Since(started) < 2*time.Second {
 			t.Fatalf("run %d exited before its application timer", run)
 		}
-		checkSmokeStartup(t, logPath, p.saved.ID)
+		checkSmokeStartup(t, logPath, p.saved.ID, want.NewTaskDraft)
 		got := readSmokeProfile(t, profileDir)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("SQLite state changed unexpectedly after run %d\ngot: %+v\nwant: %+v", run, got, want)
@@ -137,7 +152,7 @@ func readSmokeProfile(t *testing.T, dir string) profileState {
 	return state
 }
 
-func checkSmokeStartup(t *testing.T, path, profileID string) {
+func checkSmokeStartup(t *testing.T, path, profileID string, draft *persistedNewTaskDraft) {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -153,12 +168,13 @@ func checkSmokeStartup(t *testing.T, path, profileID string) {
 			continue
 		}
 		var entry struct {
-			Event        string       `json:"event"`
-			MainOpen     bool         `json:"mainOpen"`
-			MainRenderer string       `json:"mainRenderer"`
-			StorageError string       `json:"storageError"`
-			ProfileID    string       `json:"profileID"`
-			Tasks        taskSnapshot `json:"taskSnapshot"`
+			Event        string                 `json:"event"`
+			MainOpen     bool                   `json:"mainOpen"`
+			MainRenderer string                 `json:"mainRenderer"`
+			StorageError string                 `json:"storageError"`
+			ProfileID    string                 `json:"profileID"`
+			Tasks        taskSnapshot           `json:"taskSnapshot"`
+			NewTaskDraft *persistedNewTaskDraft `json:"mainNewTaskDraft"`
 		}
 		if err = json.Unmarshal([]byte(line[at:]), &entry); err != nil {
 			t.Fatalf("invalid diagnostic record: %v", err)
@@ -169,6 +185,9 @@ func checkSmokeStartup(t *testing.T, path, profileID string) {
 		if entry.Event == "startup-presentation" {
 			if !entry.MainOpen || entry.MainRenderer != "native" || entry.ProfileID != profileID || len(entry.Tasks.Tasks) != 2 {
 				t.Fatalf("native window/profile did not reach startup: %+v", entry)
+			}
+			if !equalNewTaskDraft(entry.NewTaskDraft, draft) {
+				t.Fatalf("packaged form did not restore draft: got=%+v want=%+v", entry.NewTaskDraft, draft)
 			}
 			ready = true
 		}

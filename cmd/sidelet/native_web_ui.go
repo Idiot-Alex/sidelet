@@ -12,6 +12,7 @@ import (
 // Keep the earlier laboratory renderer for the historical comparison. The
 // default main window now follows TodoManager / AppHeader / theme.css.
 func (v *nativeTasksView) render(c *ui.Context) {
+	defer v.autosaveNewTaskDraft(c)
 	if v.visual == nil {
 		v.visual = webTheme(v.service.m.UITheme)
 	}
@@ -29,6 +30,7 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	}
 	ui.Column(c).Fill().Padding(0, pad, bottom).Children(func() {
 		v.webHeader(c)
+		v.webDraftSaveError(c)
 		ui.Scroll(c.Key("page")).Grow(1).Padding(20, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
@@ -520,8 +522,9 @@ func (v *nativeTasksView) webSubmit() {
 			v.cancelEdit()
 		}
 	} else {
-		_, err := v.service.SaveTask(0, v.newTitle, v.formNote, priorityValue(v.newPriority), v.formPin, due, v.formRemind, v.formTemporary, 0)
+		_, err := v.service.addNewTask(v.newTitle, v.formNote, priorityValue(v.newPriority), v.formPin, &taskSchedule{due, v.formRemind, v.formTemporary}, true)
 		if v.result(err, "") {
+			v.draftSaveAt, v.draftSaveError = time.Time{}, ""
 			v.resetScheduleDraft()
 			v.newTitle, v.formNote = "", ""
 			v.newPriority = "普通"

@@ -165,7 +165,7 @@ func (s *TasksService) scheduleExpiry() {
 }
 func (s *TasksService) enableExpiry() {
 	s.schedule = func(delay time.Duration, f func()) { s.wake = time.AfterFunc(delay, func() { mygo.RunOnMain(f) }) }
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+	onQuitCleanup(func() {
 		s.schedule = nil
 		if s.wake != nil {
 			s.wake.Stop()

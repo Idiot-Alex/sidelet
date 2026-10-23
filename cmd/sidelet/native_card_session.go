@@ -53,7 +53,7 @@ func (v *views) armClose() {
 }
 func (v *views) enableCloseTimer() {
 	v.scheduleClose = func(d time.Duration, f func()) { v.closeTimer = time.AfterFunc(d, func() { mygo.RunOnMain(f) }) }
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+	onQuitCleanup(func() {
 		v.scheduleClose = nil
 		if v.closeTimer != nil {
 			v.closeTimer.Stop()
