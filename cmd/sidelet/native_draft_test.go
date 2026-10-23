@@ -10,41 +10,68 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestNewTaskDraftDebounceAndIME(t *testing.T) {
+func TestNewTaskDraftDebounce(t *testing.T) {
+	m, s, p := profileFixture(t, t.TempDir())
+	v := newNativeTasksView(s)
+	writes, write := 0, p.writeDraft
+	p.writeDraft = func(data []byte) error { writes++; return write(data) }
+	// Frame timestamps need not strictly increase between fast input events.
+	// Test the scheduler with explicit time, including two edits in one tick.
+	now := time.Unix(10000, 0)
+	v.newTitle = "你"
+	if delay, _ := v.saveNewTaskDraftWhenDue(now); delay != newTaskDraftDelay || writes != 0 {
+		t.Fatal("first edit did not schedule debounce", delay, writes)
+	}
+	v.newTitle = "你好"
+	if delay, _ := v.saveNewTaskDraftWhenDue(now); delay != newTaskDraftDelay || m.newTaskDraft.Title != "你好" || writes != 0 {
+		t.Fatal("same-tick edit lost latest input", delay, writes)
+	}
+	v.newTitle = "你好，明天继续"
+	lastEdit := now.Add(300 * time.Millisecond)
+	if delay, _ := v.saveNewTaskDraftWhenDue(lastEdit); delay != newTaskDraftDelay {
+		t.Fatal("editing did not reset debounce", delay)
+	}
+	if delay, _ := v.saveNewTaskDraftWhenDue(now.Add(newTaskDraftDelay)); delay != 300*time.Millisecond || writes != 0 {
+		t.Fatal("old timer saved the later edit too early", delay, writes)
+	}
+	if delay, _ := v.saveNewTaskDraftWhenDue(lastEdit.Add(newTaskDraftDelay - time.Millisecond)); delay != time.Millisecond || writes != 0 {
+		t.Fatal("draft wrote before deadline", delay, writes)
+	}
+	v.saveNewTaskDraftWhenDue(lastEdit.Add(newTaskDraftDelay))
+	if writes != 1 || p.saved.NewTaskDraft == nil || p.saved.NewTaskDraft.Title != "你好，明天继续" {
+		t.Fatalf("committed input not saved: writes=%d draft=%+v", writes, p.saved.NewTaskDraft)
+	}
+	v.saveNewTaskDraftWhenDue(now.Add(time.Hour))
+	if writes != 1 {
+		t.Fatal("unchanged draft wrote again")
+	}
+	v.newTitle = ""
+	v.saveNewTaskDraftWhenDue(now.Add(2 * time.Hour))
+	if writes != 1 {
+		t.Fatal("empty draft bypassed debounce")
+	}
+	v.saveNewTaskDraftWhenDue(v.draftSaveAt)
+	if writes != 2 || p.saved.NewTaskDraft != nil {
+		t.Fatal("empty form did not clear persisted draft")
+	}
+}
+
+func TestNewTaskDraftIMEAndClearing(t *testing.T) {
 	m, s, p := profileFixture(t, t.TempDir())
 	v := newNativeTasksView(s)
 	u := ui.NewTester(v.render, 1120, 1100)
 	u.SetFocused(true)
-	writes, write := 0, p.writeDraft
-	p.writeDraft = func(data []byte) error { writes++; return write(data) }
 	if err := u.Click("新任务标题"); err != nil {
 		t.Fatal(err)
 	}
 	u.Compose("ni", 2)
-	v.saveNewTaskDraftWhenDue(time.Now().Add(time.Second))
-	if writes != 0 || m.newTaskDraft != nil {
+	if !v.flushNewTaskDraft() || m.newTaskDraft != nil || p.saved.NewTaskDraft != nil {
 		t.Fatal("IME preedit persisted")
 	}
 	u.Type("你")
-	firstDeadline := v.draftSaveAt
-	if firstDeadline.IsZero() || writes != 0 {
-		t.Fatal("draft wrote before debounce")
-	}
-	v.saveNewTaskDraftWhenDue(firstDeadline.Add(-time.Millisecond))
-	if writes != 0 {
-		t.Fatal("draft wrote before deadline")
-	}
 	u.Type("好，明天继续")
-	if !v.draftSaveAt.After(firstDeadline) {
-		t.Fatal("editing did not reset debounce")
-	}
-	v.saveNewTaskDraftWhenDue(v.draftSaveAt)
-	if writes != 1 || p.saved.NewTaskDraft == nil || p.saved.NewTaskDraft.Title != "你好，明天继续" {
-		t.Fatalf("committed input not saved: writes=%d draft=%+v", writes, p.saved.NewTaskDraft)
-	}
-	v.saveNewTaskDraftWhenDue(time.Now().Add(time.Hour))
-	if writes != 1 {
-		t.Fatal("unchanged draft wrote again")
+	if !v.flushNewTaskDraft() || p.saved.NewTaskDraft == nil || p.saved.NewTaskDraft.Title != "你好，明天继续" {
+		t.Fatal("committed input not saved")
 	}
 	// A quick-add task is independent and must not consume the main draft.
 	if _, err := s.AddWithPin("快捷新增", "", 0, false); err != nil {
@@ -54,12 +81,9 @@ func TestNewTaskDraftDebounceAndIME(t *testing.T) {
 		t.Fatal("quick add consumed main draft")
 	}
 	u.Command("selectAll")
-	u.Type("")
-	// The tester represents deletion as a command, like the platform input path.
-	u.Command("deleteBackward")
-	v.saveNewTaskDraftWhenDue(v.draftSaveAt)
-	if v.newTitle != "" || p.saved.NewTaskDraft != nil || writes != 2 {
-		t.Fatalf("empty form did not clear draft: title=%q writes=%d draft=%+v", v.newTitle, writes, p.saved.NewTaskDraft)
+	u.Key(0, ui.KeyBackspace)
+	if !v.flushNewTaskDraft() || v.newTitle != "" || p.saved.NewTaskDraft != nil {
+		t.Fatalf("empty form did not clear draft: title=%q draft=%+v", v.newTitle, p.saved.NewTaskDraft)
 	}
 }
 
