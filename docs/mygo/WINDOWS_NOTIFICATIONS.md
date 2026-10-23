@@ -59,6 +59,8 @@ bash scripts/build-windows.sh arm64
 
 横幅验收仍未完成：x64 探测正常结束，但未找到匹配的可见横幅；ARM64 探测进程退出码为 1、没有输出，不能判断横幅是否显示。两者均没有验证通知点击激活或声音。通知开关、勿扰模式、普通用户权限及物理点击仍需实机验证。
 
+2026-10-23 补读 build 43 运行 `39967751427` 的两架构诊断：ARM64 探测已正常执行，与 x64 均报告 `No matching visible banner in this runner session.`。本轮没有捕获横幅，点击与声音仍未验收；接口 / 回执 / 重启去重链路各 9 项通过。
+
 两架构 ZIP / 安装器已下载至 `build/releases/`，重新核对 SHA-256、ZIP CRC、四文件清单及干净源码信息。完整结果在 `build/results/windows-notifications-39827518998/verified.json`；原始 `notifications.json`、探测日志与合成 SQLite 位于同目录各架构诊断目录。
 
 同轮的任务页与设置页改进见 [提醒状态 UI 记录](REMINDER_UI_20261023.md)。

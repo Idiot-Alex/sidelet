@@ -31,7 +31,7 @@ ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 - `实机验收.md`：启动、图标、三主题、中文输入、快捷键、侧栏、提醒、数据保存、屏幕与缩放等检查表，初始全部标为待测。
 - `build-info.json`：版本、构建号、架构、Go 版本、Go 提供的 Git 源码信息、未签名标记及待实机验收状态。
 
-从 ZIP 解压后运行 `Sidelet.exe`。资料仍写到 `%APPDATA%\SideletMyGoLab`，本包不更改资料格式。测试请按包内说明使用 `-data-dir` 指向独立目录。
+从 ZIP 解压后运行 `Sidelet.exe`。资料仍写到 `%APPDATA%\SideletMyGoLab`；build 43 首次启动会将原生 SQLite v1 升级到 v2，增加新建草稿表。升级前退出并备份完整资料，build 42 及更早版本不能直接读取升级后的库；回退需升级前备份并保留新版期间的数据。测试请按包内说明使用 `-data-dir` 指向独立目录。
 
 ## 图标与版本
 
@@ -67,6 +67,8 @@ cp .cache/windows-icon.iconset/icon_512x512@2x.png assets/sidelet-icon.png
 - build 40 两架构通过新增草稿保护 / 备注快捷保存回归及原有原生 CI 检查，源码 `12be29f`；见 [表单体验记录](TASK_FORM_20261023.md)。
 - build 41 两架构主界面布局回归通过，源码 `97b672f`。build 42 的补充构建两架构全部通过，源码 `013ba83`；该构建产物未下载另作本地复验。build 43 草稿持久化的验证见 [草稿记录](NEW_TASK_DRAFT_20261023.md) 和 [CI 记录](WINDOWS_CI.md)。
 - Windows 实际图标显示、鼠标、输入法、通知等交互及普通用户权限：仍待实机验收。
+
+build 43 的旧库迁移和安装 / 重装草稿保留补充验证见 [升级验收记录](WINDOWS_UPGRADE_20261023.md)。
 
 `bash scripts/test-regression.sh` 已包含独立打包工具模块的测试与 vet。Windows 当前提醒能力边界见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。按用户安装器已接入，构建与生命周期验证见 [安装器记录](WINDOWS_INSTALLER.md)。仍未做 Authenticode 签名或发布官网的下载链接。
 

@@ -103,6 +103,14 @@ function Assert-Startup {
     if ($Startup[0].taskSnapshot.tasks.Count -ne 2 -or ($Startup[0] | ConvertTo-Json -Depth 30) -notmatch 'CI 中文持久任务') {
         throw 'Installed application did not restore the synthetic tasks.'
     }
+    $Draft = $Startup[0].mainNewTaskDraft
+    if ($null -eq $Draft -or $Draft.version -ne 1 -or $Draft.title -cne 'CI 重启后的未提交草稿' -or
+        $Draft.note -cne "草稿备注`n尚未创建任务" -or $Draft.priority -ne 2 -or -not $Draft.pin -or
+        -not $Draft.noteOpen -or -not $Draft.optionsOpen -or $Draft.due -cne '2027// :' -or
+        -not $Draft.deadlineReady -or $Draft.deadlineSeen -cne '2027// :' -or
+        ($Draft.deadlineParts -join '|') -cne '2027||||' -or $Draft.remind -or $Draft.temporary) {
+        throw "Installed application did not restore the complete synthetic new-task draft: $Label"
+    }
     foreach ($Entry in $Entries) {
         if ($Entry.PSObject.Properties.Name -contains 'storageError' -and $Entry.storageError) { throw $Entry.storageError }
     }
@@ -211,7 +219,7 @@ try {
 - Per-user install, HKCU uninstall registration and Start Menu shortcut passed.
 - Running-app upgrade/uninstall blocked without terminating the app.
 - Synthetic previous-package upgrade replaced EXE; downgrade rejected; same-version repair passed.
-- SQLite survived upgrade/uninstall/reinstall; installed app restored Chinese tasks.
+- SQLite survived upgrade/uninstall/reinstall; installed app restored Chinese tasks and the full new-task draft including partial date and disclosure state.
 - Uninstall removed only owned files; an unrelated file survived.
 - Fresh install/reinstall did not enable login startup; upgrade/repair preserved the command and system-disabled state.
 - Uninstall removed its own login registration and preserved another copy's registration and unrelated startup values.

@@ -22,28 +22,8 @@ import (
 // compiled test replacement. All data and diagnostics live in an owned fixture
 // directory. No diagnostic write command is added to the production CLI.
 func TestPackagedApplicationSmoke(t *testing.T) {
-	binary := os.Getenv("SIDELET_SMOKE_EXE")
-	if binary == "" {
-		t.Skip("set SIDELET_SMOKE_EXE to test a packaged native executable")
-	}
-	binary, err := filepath.Abs(binary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info, err := os.Stat(binary); err != nil || !info.Mode().IsRegular() {
-		t.Fatalf("packaged executable unavailable: %v", err)
-	}
-	root := t.TempDir()
-	if output := os.Getenv("SIDELET_SMOKE_OUTPUT"); output != "" {
-		if err := os.MkdirAll(output, 0700); err != nil {
-			t.Fatal(err)
-		}
-		root, err = os.MkdirTemp(output, "packaged-smoke-")
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("retained synthetic fixture and logs: %s", root)
-	}
+	binary := packagedExecutable(t)
+	root := packagedFixtureRoot(t, "packaged-smoke-")
 	profileDir := filepath.Join(root, "profile")
 	m := newModel()
 	m.UITheme, m.Side = "mac", "right"
@@ -92,28 +72,7 @@ func TestPackagedApplicationSmoke(t *testing.T) {
 	want.Tasks[2] = task{Deleted: true, Version: want.Tasks[2].Version + 1}
 	want.UndoID, want.UndoUntil = 0, 0
 	for run := 1; run <= 2; run++ {
-		logPath := filepath.Join(root, fmt.Sprintf("run-%d.log", run))
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		args := []string{"-main", "-data-dir", profileDir,
-			"-output", filepath.Join(root, fmt.Sprintf("run-%d", run)), "-log-file", logPath, "-quit-after", "3s"}
-		if runtime.GOOS == "darwin" {
-			args = append(args, "-quick-add-test-shortcut")
-		}
-		cmd := exec.CommandContext(ctx, binary, args...)
-		cmd.WaitDelay = 5 * time.Second
-		started := time.Now()
-		out, err := cmd.CombinedOutput()
-		if len(out) > 0 {
-			_ = os.WriteFile(filepath.Join(root, fmt.Sprintf("run-%d-process.log", run)), out, 0600)
-		}
-		timedOut := ctx.Err() != nil
-		cancel()
-		if err != nil || timedOut {
-			t.Fatalf("packaged run %d failed (timeout=%t): %v\n%s", run, timedOut, err, out)
-		}
-		if time.Since(started) < 2*time.Second {
-			t.Fatalf("run %d exited before its application timer", run)
-		}
+		logPath := runPackagedProfile(t, binary, profileDir, root, fmt.Sprintf("run-%d", run))
 		checkSmokeStartup(t, logPath, p.saved.ID, want.NewTaskDraft)
 		got := readSmokeProfile(t, profileDir)
 		if !reflect.DeepEqual(got, want) {
@@ -128,6 +87,64 @@ func TestPackagedApplicationSmoke(t *testing.T) {
 		}
 		reopened.close()
 	}
+}
+
+func packagedExecutable(t *testing.T) string {
+	t.Helper()
+	binary := os.Getenv("SIDELET_SMOKE_EXE")
+	if binary == "" {
+		t.Skip("set SIDELET_SMOKE_EXE to test a packaged native executable")
+	}
+	binary, err := filepath.Abs(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(binary); err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("packaged executable unavailable: %v", err)
+	}
+	return binary
+}
+
+func packagedFixtureRoot(t *testing.T, prefix string) string {
+	t.Helper()
+	root := t.TempDir()
+	if output := os.Getenv("SIDELET_SMOKE_OUTPUT"); output != "" {
+		if err := os.MkdirAll(output, 0700); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		root, err = os.MkdirTemp(output, prefix)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("retained synthetic fixture and logs: %s", root)
+	}
+	return root
+}
+
+func runPackagedProfile(t *testing.T, binary, dir, output, label string) string {
+	t.Helper()
+	logPath := filepath.Join(output, label+".log")
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	args := []string{"-main", "-data-dir", dir, "-output", filepath.Join(output, label), "-log-file", logPath, "-quit-after", "3s"}
+	if runtime.GOOS == "darwin" {
+		args = append(args, "-quick-add-test-shortcut")
+	}
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.WaitDelay = 5 * time.Second
+	started := time.Now()
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		_ = os.WriteFile(filepath.Join(output, label+"-process.log"), out, 0600)
+	}
+	if err != nil || ctx.Err() != nil {
+		t.Fatalf("packaged run %s failed (timeout=%t): %v\n%s", label, ctx.Err() != nil, err, out)
+	}
+	if time.Since(started) < 2*time.Second {
+		t.Fatalf("run %s exited before its application timer", label)
+	}
+	return logPath
 }
 
 func readSmokeProfile(t *testing.T, dir string) profileState {
