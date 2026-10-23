@@ -30,8 +30,8 @@ $Harness = Join-Path $SideletRoot "build/bin/sidelet-smoke-$Arch.test.exe"
 try {
     # Compile while elevated, execute both the test and the actual packaged EXE
     # here. SQLite fixture creation, migration, writes and reopen all run reduced.
-    & $Harness `
-        -test.v -test.timeout=2m '-test.run=^TestPackagedApplication(Smoke|Upgrade)$' 2>&1 |
+    $SmokeArguments = @('-test.v','-test.timeout=2m','-test.run=^TestPackagedApplication(Smoke|Upgrade)$')
+    & $Harness @SmokeArguments 2>&1 |
         Tee-Object -FilePath (Join-Path $Results 'packaged-tests.log')
     if ($LASTEXITCODE -ne 0) { throw 'Non-admin packaged smoke/upgrade tests failed.' }
     & (Join-Path $PSScriptRoot 'test-windows-installer-lifecycle.ps1') -Arch $Arch -TokenProbe $TokenProbe -SmokeRoot $env:SIDELET_SMOKE_OUTPUT
