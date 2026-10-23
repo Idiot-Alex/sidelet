@@ -18,6 +18,8 @@ if ($LASTEXITCODE -ne 0 -or $HostArch -ne $Arch) {
 }
 if (-not $IsWindows) { throw 'Run this script with PowerShell 7 on Windows.' }
 
+Invoke-RecordedGo -Arguments @('test','-json','./tools/windows-ci') -Log 'permission-helper-tests.jsonl'
+Invoke-RecordedGo -Arguments @('vet','./tools/windows-ci') -Log 'permission-helper-vet.log'
 Invoke-RecordedGo -Arguments @('test','-json','./cmd/sidelet','./internal/...') -Log 'tests.jsonl'
 Invoke-RecordedGo -Arguments @('vet','./cmd/sidelet','./internal/...') -Log 'vet.log'
 Invoke-RecordedGo -Arguments @('-C','tools/windows-release','test','-json','./...') -Log 'release-tool-tests.jsonl'

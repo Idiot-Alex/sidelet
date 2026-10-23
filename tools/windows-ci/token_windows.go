@@ -21,8 +21,8 @@ type tokenState struct {
 }
 
 func tokenInfo(token windows.Token, class uint32) ([]byte, error) {
-	// Fixed-size classes such as TokenElevation can reject a zero-byte size
-	// probe with ERROR_BAD_LENGTH. Start with storage, as x/sys token helpers do.
+	// Variable-size classes only. Fixed-size TokenElevation requires its exact
+	// structure size on Windows, even when a larger buffer would fit.
 	for size := uint32(128); ; {
 		buf := make([]byte, size)
 		err := windows.GetTokenInformation(token, class, &buf[0], size, &size)
@@ -37,11 +37,14 @@ func tokenInfo(token windows.Token, class uint32) ([]byte, error) {
 
 func inspectToken(token windows.Token) (tokenState, error) {
 	var state tokenState
-	elevation, err := tokenInfo(token, windows.TokenElevation)
-	if err != nil {
+	var elevation, returned uint32
+	if err := windows.GetTokenInformation(token, windows.TokenElevation, (*byte)(unsafe.Pointer(&elevation)), uint32(unsafe.Sizeof(elevation)), &returned); err != nil {
 		return state, err
 	}
-	state.Elevated = *(*uint32)(unsafe.Pointer(&elevation[0])) != 0
+	if returned != uint32(unsafe.Sizeof(elevation)) {
+		return state, fmt.Errorf("unexpected elevation information length: %d", returned)
+	}
+	state.Elevated = elevation != 0
 	label, err := tokenInfo(token, windows.TokenIntegrityLevel)
 	if err != nil {
 		return state, err
