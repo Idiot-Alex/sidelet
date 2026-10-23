@@ -1,6 +1,6 @@
 # Windows 自动验证
 
-更新：2026-10-23。工作流：`.github/workflows/windows.yml`。
+更新：2026-10-24。工作流：`.github/workflows/windows.yml`。
 
 主线桌面源码、构建脚本、依赖、资产或打包配置改变时，在 push / pull request 上运行；也可在 Actions 中手动运行。两项任务分别使用 Windows x64 和 Windows ARM64 主机，Go 版本取自根 `go.mod`。官方 Action 固定到提交 SHA，仓库 token 仅有读取内容权限；不会自动发布 Release 或修改官网。
 
@@ -53,6 +53,8 @@ build 41 的 [主界面布局复验](https://github.com/Idiot-Alex/sidelet/actio
 build 43 的 [草稿持久化复验](https://github.com/Idiot-Alex/sidelet/actions/runs/39967751427) 两架构全部通过，源码 `ef5a0e0`：x64 5 分 10 秒，ARM64 5 分 23 秒。新增 SQLite 草稿、失败 / 重试与事务回滚测试通过；最终包确认主窗口从 SQLite 恢复草稿、临时任务清理后仍保留、两次退出后资料一致且锁释放。既有输入、提醒、登录启动及安装器生命周期继续通过。后续已下载并复核两架构产物，证据位于 `build/results/windows-build43-39967751427/verified.json`，见 [草稿记录](NEW_TASK_DRAFT_20261023.md)。
 
 同为 build 43 的 [发布验收补充](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`：x64 4 分 52 秒，ARM64 5 分 23 秒。新增打包程序升级 SQLite v1、保留回执与迁移后草稿恢复检查；安装器各次启动比对完整草稿。前一轮 ARM64 暴露的测试时间戳依赖已改为可控时间验证，应用运行逻辑不变。最新 ZIP / 安装器已下载到 `build/releases/` 并复验，记录见 `build/results/windows-upgrade-39975853709/verified.json` 和 [升级验收说明](WINDOWS_UPGRADE_20261023.md)。
+
+build 43 的 [非管理员进程验收](https://github.com/Idiot-Alex/sidelet/actions/runs/39988133295) 最终通过两架构，源码 `aa88e85`：x64 第一次尝试通过（5 分 14 秒），ARM64 第三次尝试通过（6 分 50 秒）。新增受限 Medium 进程的完整安装生命周期和 SQLite 冒烟 / 升级 / 草稿恢复检查，每架构核对 14 份实际令牌报告。最终包已下载至 `build/releases/` 并校验，证据在 `build/results/windows-nonadmin-39988133295/`。ARM64 前两次尝试分别在临时编译器清理、原有提示框区域检查失败；提示框异常未稳定复现，继续跟踪，见 [详细记录](WINDOWS_NONADMIN_20261023.md)。
 
 CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。构建与原有桌面输入测试仍以管理员进程运行；新增受限进程检查的结果单独记录，不代表独立普通账户登录或 UAC 交互已通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 

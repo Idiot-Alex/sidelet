@@ -65,4 +65,6 @@ Windows 按用户安装包的构建、升级和卸载保护见 [安装器记录]
 
 Windows 打包程序的旧数据库升级、安装 / 重装后的草稿保留与回退说明见 [升级验收记录](docs/mygo/WINDOWS_UPGRADE_20261023.md)。
 
+Windows 受限 Medium 权限下的安装、卸载和 SQLite 恢复检查见 [非管理员进程验收](docs/mygo/WINDOWS_NONADMIN_20261023.md)。
+
 Windows 登录启动、系统禁用状态与卸载清理见 [登录启动记录](docs/mygo/WINDOWS_LOGIN_STARTUP.md)。

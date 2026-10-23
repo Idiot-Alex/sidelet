@@ -61,7 +61,7 @@ build 41 的 [双架构任务](https://github.com/Idiot-Alex/sidelet/actions/run
 
 build 43 的 [最新补充验收](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`；首次安装、升级 / 修复和卸载重装后的完整草稿恢复均已核对。最终两架构 ZIP 和安装器已下载到 `build/releases/` 并校验，证据位于 `build/results/windows-upgrade-39975853709/`。
 
-上述历史运行使用管理员进程。新增 CI 将完整生命周期移至受限 Medium 进程，并在每次安装器 / 卸载器和已安装应用启动时核对实际令牌，见 [非管理员进程验收](WINDOWS_NONADMIN_20261023.md)。即使受限进程检查通过，仍不能替代独立普通账户、UAC、SmartScreen 和安装向导交互验收。
+2026-10-24 的 [非管理员进程验收](https://github.com/Idiot-Alex/sidelet/actions/runs/39988133295) 最终通过两架构，源码 `aa88e85`。完整生命周期已移至受限 Medium 进程，每架构 9 次安装 / 卸载进程和 3 次已安装应用启动均核对真实令牌；任务与完整草稿恢复通过。最终包已下载并校验。失败尝试、受限进程与真实普通账户的区别见 [详细记录](WINDOWS_NONADMIN_20261023.md)。这仍不能替代独立普通账户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：
 
