@@ -38,8 +38,11 @@ func run(args []string) (int, error) {
 	if len(args) >= 3 && args[0] == "setup" {
 		return runSetup(args[1], args[2:])
 	}
+	if len(args) == 2 && args[0] == "access" {
+		return 0, checkMachineWriteDenied(args[1])
+	}
 	if len(args) != 3 || args[0] != "suite" || args[1] != runtime.GOARCH {
-		return 0, fmt.Errorf("usage: windows-ci suite <native arch> <repo> | check <pid> <report> | setup <report> <exe> [args...]")
+		return 0, fmt.Errorf("usage: windows-ci suite <native arch> <repo> | check <pid> <report> | access <report> | setup <report> <exe> [args...]")
 	}
 	root, err := filepath.Abs(args[2])
 	if err != nil {

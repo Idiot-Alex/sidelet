@@ -14,23 +14,10 @@ New-Item -ItemType Directory -Force $Results | Out-Null
 & $TokenProbe check $PID (Join-Path $Results 'powershell-token.json')
 if ($LASTEXITCODE -ne 0) { throw 'Lifecycle PowerShell process is not running with the required reduced permissions.' }
 
-# A behavioral negative check as well as inspecting token metadata. Request a
-# write-capable handle to an existing system key, without creating/changing it.
-$Machine = [Microsoft.Win32.RegistryKey]::OpenBaseKey('LocalMachine','Registry64')
-$Denied = $false
-try {
-    try {
-        $Key = $Machine.OpenSubKey('SOFTWARE',$true)
-        if ($null -ne $Key) { $Key.Dispose() }
-    } catch {
-        if ($_.Exception -is [UnauthorizedAccessException] -or $_.Exception.InnerException -is [UnauthorizedAccessException]) {
-            $Denied = $true
-        } else { throw }
-    }
-} finally { $Machine.Dispose() }
-if (-not $Denied) { throw 'Reduced process unexpectedly has machine-wide software registry write access.' }
-@{ machineSoftwareWriteAccess = 'denied'; modifiedSystemRegistry = $false } |
-    ConvertTo-Json | Set-Content (Join-Path $Results 'access-check.json') -Encoding utf8
+# Inspect the native ERROR_ACCESS_DENIED result, avoiding .NET/PowerShell
+# exception wrapping. The helper does not create or change any system key.
+& $TokenProbe access (Join-Path $Results 'access-check.json')
+if ($LASTEXITCODE -ne 0) { throw 'System registry write-access denial check failed.' }
 
 $Info = Get-Content -Raw 'packaging/macos/app.json' | ConvertFrom-Json
 $Name = "Sidelet-$($Info.version)-build$($Info.build)-windows-$Arch-local"

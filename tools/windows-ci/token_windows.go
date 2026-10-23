@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 type tokenState struct {
@@ -85,6 +86,26 @@ func (state tokenState) validate() error {
 		return fmt.Errorf("expected non-elevated medium-integrity token without admin access: %+v", state)
 	}
 	return nil
+}
+
+func checkMachineWriteDenied(report string) error {
+	state, err := inspectToken(windows.GetCurrentProcessToken())
+	if err != nil {
+		return err
+	}
+	if err := state.validate(); err != nil {
+		return err
+	}
+	// Open an existing key requesting write access. Never create or modify it.
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE`, registry.WRITE|registry.WOW64_64KEY)
+	if err == nil {
+		key.Close()
+		return fmt.Errorf("restricted process unexpectedly has machine-wide software registry write access")
+	}
+	if err != windows.ERROR_ACCESS_DENIED {
+		return fmt.Errorf("expected ERROR_ACCESS_DENIED opening machine software key, got: %w", err)
+	}
+	return os.WriteFile(report, []byte("{\"machineSoftwareWriteAccess\":\"denied\",\"modifiedSystemRegistry\":false}\n"), 0600)
 }
 
 func recordProcess(pid uint32, report string) error {

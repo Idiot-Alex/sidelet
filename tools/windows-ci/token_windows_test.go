@@ -25,6 +25,9 @@ func TestRestrictedChildProbe(t *testing.T) {
 	if _, err := run([]string{"check", strconv.Itoa(os.Getpid()), filepath.Join(t.TempDir(), "token.json")}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := run([]string{"access", filepath.Join(t.TempDir(), "access.json")}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRestrictedChildKeepsJobEnvironment(t *testing.T) {
@@ -108,7 +111,7 @@ func TestRunRefusesNonHostedMachine(t *testing.T) {
 	for _, env := range [][2]string{{"", ""}, {"true", "self-hosted"}, {"false", "github-hosted"}} {
 		t.Setenv("GITHUB_ACTIONS", env[0])
 		t.Setenv("RUNNER_ENVIRONMENT", env[1])
-		for _, args := range [][]string{{"suite", "amd64", "."}, {"check", "1", "unused.json"}, {"setup", "unused.json", "unused.exe"}} {
+		for _, args := range [][]string{{"suite", "amd64", "."}, {"check", "1", "unused.json"}, {"access", "unused.json"}, {"setup", "unused.json", "unused.exe"}} {
 			if _, err := run(args); err == nil {
 				t.Fatalf("accepted non-hosted environment %v for %v", env, args)
 			}
