@@ -19,6 +19,7 @@ type tokenState struct {
 	AdminAttributes uint32                      `json:"adminAttributes"`
 	Privileges      []windows.LUIDAndAttributes `json:"privileges"`
 	OtherEnabled    bool                        `json:"otherEnabledPrivileges"`
+	DefaultDACL     string                      `json:"defaultDACL"`
 }
 
 func tokenInfo(token windows.Token, class uint32) ([]byte, error) {
@@ -52,6 +53,20 @@ func inspectToken(token windows.Token) (tokenState, error) {
 	}
 	state.Integrity = (*windows.Tokenmandatorylabel)(unsafe.Pointer(&label[0])).Label.Sid.String()
 	runtime.KeepAlive(label)
+	daclInfo, err := tokenInfo(token, windows.TokenDefaultDacl)
+	if err != nil {
+		return state, err
+	}
+	dacl := *(**windows.ACL)(unsafe.Pointer(&daclInfo[0]))
+	descriptor, err := windows.NewSecurityDescriptor()
+	if err != nil {
+		return state, err
+	}
+	if err := descriptor.SetDACL(dacl, true, false); err != nil {
+		return state, err
+	}
+	state.DefaultDACL = descriptor.String()
+	runtime.KeepAlive(daclInfo)
 	groups, err := token.GetTokenGroups()
 	if err != nil {
 		return state, err
@@ -161,6 +176,9 @@ func restrictedToken() (windows.Token, error) {
 		runtime.KeepAlive(medium)
 	}
 	if err == nil {
+		err = setUserObjectDefaults(token)
+	}
+	if err == nil {
 		var state tokenState
 		state, err = inspectToken(token)
 		if err == nil {
@@ -172,4 +190,32 @@ func restrictedToken() (windows.Token, error) {
 		return 0, err
 	}
 	return token, nil
+}
+
+// A filtered token can retain an administrator-oriented default DACL. New
+// pipes/process objects must be accessible to the actual user after the admin
+// SID is disabled. Only NEW objects of this token use these defaults; existing
+// files, registry keys, accounts and system policy are untouched.
+func setUserObjectDefaults(token windows.Token) error {
+	user, err := token.GetTokenUser()
+	if err != nil {
+		return err
+	}
+	owner := struct{ Owner *windows.SID }{user.User.Sid}
+	if err := windows.SetTokenInformation(token, windows.TokenOwner, (*byte)(unsafe.Pointer(&owner)), uint32(unsafe.Sizeof(owner))); err != nil {
+		return err
+	}
+	runtime.KeepAlive(user)
+	descriptor, err := windows.SecurityDescriptorFromString("D:(A;;GA;;;SY)(A;;GA;;;" + user.User.Sid.String() + ")")
+	if err != nil {
+		return err
+	}
+	dacl, _, err := descriptor.DACL()
+	if err != nil {
+		return err
+	}
+	value := struct{ DefaultDACL *windows.ACL }{dacl}
+	err = windows.SetTokenInformation(token, windows.TokenDefaultDacl, (*byte)(unsafe.Pointer(&value)), uint32(unsafe.Sizeof(value)))
+	runtime.KeepAlive(descriptor)
+	return err
 }

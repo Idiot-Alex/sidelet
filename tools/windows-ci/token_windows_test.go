@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,6 +28,22 @@ func TestRestrictedChildProbe(t *testing.T) {
 	}
 	if _, err := run([]string{"access", filepath.Join(t.TempDir(), "access.json")}); err != nil {
 		t.Fatal(err)
+	}
+	// PowerShell/native command output capture creates pipes in the reduced
+	// process itself. A parent-created inherited pipe doesn't test that DACL.
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("restricted child cannot create its own output pipe: %v", err)
+	}
+	defer reader.Close()
+	defer writer.Close()
+	if _, err := writer.WriteString("pipe probe"); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+	data, err := io.ReadAll(reader)
+	if err != nil || string(data) != "pipe probe" {
+		t.Fatalf("restricted pipe roundtrip: %q, %v", data, err)
 	}
 }
 

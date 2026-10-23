@@ -23,10 +23,14 @@ $Info = Get-Content -Raw 'packaging/macos/app.json' | ConvertFrom-Json
 $Name = "Sidelet-$($Info.version)-build$($Info.build)-windows-$Arch-local"
 $env:SIDELET_SMOKE_EXE = Join-Path $SideletRoot "build/results/windows-ci-$Arch/unpacked/$Name/Sidelet.exe"
 $env:SIDELET_SMOKE_OUTPUT = Join-Path $Results 'smoke'
+$Harness = Join-Path $SideletRoot "build/bin/sidelet-smoke-$Arch.test.exe"
+@($TokenProbe,$Harness,$env:SIDELET_SMOKE_EXE) | ForEach-Object {
+    @{ path = $_; sddl = (Get-Acl -LiteralPath $_).Sddl; sha256 = (Get-FileHash -LiteralPath $_).Hash }
+} | ConvertTo-Json | Set-Content (Join-Path $Results 'executable-access.json') -Encoding utf8
 try {
     # Compile while elevated, execute both the test and the actual packaged EXE
     # here. SQLite fixture creation, migration, writes and reopen all run reduced.
-    & (Join-Path $SideletRoot "build/bin/sidelet-smoke-$Arch.test.exe") `
+    & $Harness `
         -test.v -test.timeout=2m '-test.run=^TestPackagedApplication(Smoke|Upgrade)$' 2>&1 |
         Tee-Object -FilePath (Join-Path $Results 'packaged-tests.log')
     if ($LASTEXITCODE -ne 0) { throw 'Non-admin packaged smoke/upgrade tests failed.' }
