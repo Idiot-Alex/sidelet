@@ -61,7 +61,7 @@ build 41 的 [双架构任务](https://github.com/Idiot-Alex/sidelet/actions/run
 
 build 43 的 [最新补充验收](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`；首次安装、升级 / 修复和卸载重装后的完整草稿恢复均已核对。最终两架构 ZIP 和安装器已下载到 `build/releases/` 并校验，证据位于 `build/results/windows-upgrade-39975853709/`。
 
-托管 runner 为管理员账户，即便安装器声明 `RequestExecutionLevel user`、只写 HKCU 和用户目录，仍不能替代普通用户、UAC、SmartScreen 和安装向导交互验收。
+上述历史运行使用管理员进程。新增 CI 将完整生命周期移至受限 Medium 进程，并在每次安装器 / 卸载器和已安装应用启动时核对实际令牌，见 [非管理员进程验收](WINDOWS_NONADMIN_20261023.md)。即使受限进程检查通过，仍不能替代独立普通账户、UAC、SmartScreen 和安装向导交互验收。
 
 参考：NSIS 官方命令行和脚本手册：
 

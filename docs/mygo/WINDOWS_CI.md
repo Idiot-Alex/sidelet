@@ -18,6 +18,7 @@
 10. build 38 起，使用两个独立进程及系统鼠标/键盘事件验证后台输入、光标保持、卡片保存/取消和正式全局快捷添加；见 [跨进程输入记录](WINDOWS_CROSS_PROCESS_INPUT.md)。
 11. build 39 起，运行实际 EXE 的系统通知提交、回执落库、正常重启去重、卡片完成 / 推迟撤回检查；横幅及 UI Automation 激活单独记录，见 [通知适配记录](WINDOWS_NOTIFICATIONS.md)。
 12. build 43 补充验证打包 EXE 将旧 SQLite v1 升级到 v2，任务 / 设置 / 提醒回执保持，迁移后新建草稿可以保存并重启恢复；安装器各次启动也检查完整草稿，见 [旧库升级验收](WINDOWS_UPGRADE_20261023.md)。
+13. 受限 Medium 权限下重跑 SQLite 冒烟 / 升级及完整安装器生命周期，并核对 PowerShell、每次安装 / 卸载进程和实际已安装应用的令牌；见 [非管理员进程验收](WINDOWS_NONADMIN_20261023.md)。
 
 测试只创建独立合成资料。启动冒烟通过 `-quit-after` 控制正常退出，单次进程另有 45 秒超时；跨进程输入测试使用 90 秒总超时，结束只清理自己启动的两个进程。默认测试跳过可执行文件冒烟；显式设置 `SIDELET_SMOKE_EXE` 才运行，跨进程系统输入还要求 GitHub 托管临时主机。`SIDELET_SMOKE_OUTPUT` 可指定诊断父目录，测试始终在其下创建随机新目录，不复用现有资料。
 
@@ -53,7 +54,7 @@ build 43 的 [草稿持久化复验](https://github.com/Idiot-Alex/sidelet/actio
 
 同为 build 43 的 [发布验收补充](https://github.com/Idiot-Alex/sidelet/actions/runs/39975853709) 两架构全部通过，源码 `b3f1779`：x64 4 分 52 秒，ARM64 5 分 23 秒。新增打包程序升级 SQLite v1、保留回执与迁移后草稿恢复检查；安装器各次启动比对完整草稿。前一轮 ARM64 暴露的测试时间戳依赖已改为可控时间验证，应用运行逻辑不变。最新 ZIP / 安装器已下载到 `build/releases/` 并复验，记录见 `build/results/windows-upgrade-39975853709/verified.json` 和 [升级验收说明](WINDOWS_UPGRADE_20261023.md)。
 
-CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。托管 Windows runner 以管理员身份运行，不能代表普通用户权限下已经通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
+CI 检查的是托管 Windows 环境中的自动测试，不是完整人工验收。物理键鼠、第三方应用特殊控件、多屏、输入法候选、通知横幅 / 声音 / 点击仍需单独测试。构建与原有桌面输入测试仍以管理员进程运行；新增受限进程检查的结果单独记录，不代表独立普通账户登录或 UAC 交互已通过。清单见 [Windows 打包记录](WINDOWS_PACKAGE.md)。
 
 官方依据：
 
