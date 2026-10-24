@@ -2,68 +2,37 @@ package main
 
 import (
 	"errors"
+	"github.com/egoist/mygo/ui"
 	"reflect"
 	"testing"
-
-	"github.com/egoist/mygo/ui"
 )
 
-func TestGlassRenderingKeepsForegroundOpaqueAndFallsBack(t *testing.T) {
+func TestMainWindowAlwaysOpaque(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
-		t.Run(theme, func(t *testing.T) {
-			m, v, u := webUITester(t)
-			m.UITheme = theme
-			m.Preferences.Appearance.Translucent = true
-			u.SetVibrancy(true)
-			base := webTheme(theme)
-			if v.visual == base || v.visual.Text != base.Text || v.visual.Accent != base.Accent || v.visual.TextMuted.A != 255 {
-				t.Fatal("glass changed text/action opacity or did not select the glass theme")
-			}
-			if alpha := u.Image().RGBAAt(10, 10).A; alpha == 0 || alpha == 255 {
-				t.Fatal("main background did not expose the system material", alpha)
-			}
-			if base.Background.A != 255 || base.Surface.A != 255 || base.Field.A != 255 {
-				t.Fatal("glass mutated shared opaque theme")
-			}
-			if cardInputBackingAlpha(m) <= .01 || cardInputBackingAlpha(m) >= .1 {
-				t.Fatal("glass backing no longer balances hit testing and transparency")
-			}
-			u.SetVibrancy(false)
-			if u.Image().RGBAAt(10, 10).A != 255 || v.visual != base {
-				t.Fatal("unsupported compositor did not restore an opaque surface")
-			}
-			u.SetVibrancy(true)
-			u.SetPreferences(ui.Preferences{HighContrast: true})
-			if u.Image().RGBAAt(10, 10).A != 255 {
-				t.Fatal("high contrast kept a translucent background")
-			}
-			u.SetPreferences(ui.Preferences{})
-			m.reduceTransparency = true
-			u.Frame()
-			if u.Image().RGBAAt(10, 10).A != 255 || cardInputBackingAlpha(m) != 1 {
-				t.Fatal("system transparency preference left translucent paint/backing")
-			}
-			m.reduceTransparency = false
-			m.open(0)
-			views := &views{m: m}
-			card := ui.NewTester(views.webCard, 320, 220)
-			card.SetVibrancy(true)
-			if alpha := card.Image().RGBAAt(160, 6).A; alpha == 0 || alpha == 255 {
-				t.Fatal("card background did not expose the material", alpha)
-			}
-			card.SetVibrancy(false)
-			if card.Image().RGBAAt(160, 6).A != 255 {
-				t.Fatal("card lacks opaque fallback")
-			}
-			m.close()
-			stack := ui.NewTester(views.webStack, stackWidth, stackHeight)
-			if stack.Image().RGBAAt(140, 30).A != 0 {
-				t.Fatal("glass painted a background behind empty sidebar space")
-			}
-		})
+		m, v, u := webUITester(t)
+		m.UITheme = theme
+		// Old saved preferences must never reactivate main-window transparency.
+		m.Preferences.Appearance.Translucent = true
+		m.Preferences.Appearance.DesktopTranslucent = true
+		u.SetVibrancy(true)
+		u.Frame()
+		if v.visual != webTheme(theme) || u.Image().RGBAAt(10, 10).A != 255 {
+			t.Fatal("main window must remain opaque", theme)
+		}
+		m.open(0)
+		views := &views{m: m}
+		card := ui.NewTester(views.webCard, 320, 220)
+		card.SetVibrancy(true)
+		if alpha := card.Image().RGBAAt(160, 6).A; alpha == 0 || alpha == 255 {
+			t.Fatal("desktop card lost transparency", alpha)
+		}
+		m.Preferences.Appearance.DesktopTranslucent = false
+		card.Frame()
+		if card.Image().RGBAAt(160, 6).A != 255 || cardInputBackingAlpha(m) != 1 {
+			t.Fatal("desktop card did not restore opaque background")
+		}
 	}
 }
-
 func TestGlassPreferencePreservesDraftAndOnlyPublishesAfterCommit(t *testing.T) {
 	dir := t.TempDir()
 	m, s, p := profileFixture(t, dir)
@@ -82,18 +51,18 @@ func TestGlassPreferencePreservesDraftAndOnlyPublishesAfterCommit(t *testing.T) 
 	if err := u.Click("设置"); err != nil {
 		t.Fatal(err)
 	}
-	if err := u.Click("启用半透明玻璃"); err != nil {
+	if err := u.Click("启用悬浮任务半透明"); err != nil {
 		t.Fatal(err)
 	}
-	if !m.Preferences.Appearance.Translucent || !p.saved.Preferences.Appearance.Translucent || v.newTitle != "切换玻璃时保留的草稿" || !reflect.DeepEqual(tasks, m.Tasks) {
+	if !m.Preferences.Appearance.DesktopTranslucent || !p.saved.Preferences.Appearance.DesktopTranslucent || v.newTitle != "切换玻璃时保留的草稿" || !reflect.DeepEqual(tasks, m.Tasks) {
 		t.Fatal("glass toggle did not persist or affected tasks/draft")
 	}
 	write := p.write
 	p.write = func(string, []byte) error { return errors.New("glass preference disk failure") }
-	if err := u.Click("启用半透明玻璃"); err != nil {
+	if err := u.Click("启用悬浮任务半透明"); err != nil {
 		t.Fatal(err)
 	}
-	if !v.failed || !m.Preferences.Appearance.Translucent || v.visual.Background.A == 255 {
+	if !v.failed || !m.Preferences.Appearance.DesktopTranslucent || v.visual.Background.A != 255 {
 		t.Fatal("failed preference write published a different appearance")
 	}
 	p.write = write
@@ -102,7 +71,7 @@ func TestGlassPreferencePreservesDraftAndOnlyPublishesAfterCommit(t *testing.T) 
 	}
 	p.close()
 	m2, s2, _ := profileFixture(t, dir)
-	if !m2.Preferences.Appearance.Translucent || newNativeTasksView(s2).newTitle != "切换玻璃时保留的草稿" || !reflect.DeepEqual(tasks, m2.Tasks) {
+	if !m2.Preferences.Appearance.DesktopTranslucent || newNativeTasksView(s2).newTitle != "切换玻璃时保留的草稿" || !reflect.DeepEqual(tasks, m2.Tasks) {
 		t.Fatal("glass setting or draft did not survive restart")
 	}
 }

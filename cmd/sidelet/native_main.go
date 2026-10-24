@@ -63,7 +63,6 @@ type nativeTasksView struct {
 	pickerHour, pickerMinute      string
 	pickerError                   string
 	formRemind, formTemporary     bool
-	positionOpen                  bool
 	moreID, deleteID              int
 	returnMoreFocus               int
 	menuFocus                     bool

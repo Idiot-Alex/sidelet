@@ -199,7 +199,7 @@ func TestFormalExpiryInvalidatesQueuedCallbacks(t *testing.T) {
 func TestFormalLayoutControlsGeometryAndDragOffset(t *testing.T) {
 	m, v, u := webUITester(t)
 	m.WorkX, m.WorkY, m.WorkWidth, m.WorkHeight = 100, 30, 1600, 1000
-	if err := u.Click("桌面位置"); err != nil {
+	if err := u.Click("设置"); err != nil {
 		t.Fatal(err)
 	}
 	if err := u.Click("桌面标签密度"); err != nil {

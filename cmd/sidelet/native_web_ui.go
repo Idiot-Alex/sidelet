@@ -9,27 +9,33 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Keep the earlier laboratory renderer for the historical comparison. The
-// default main window now follows TodoManager / AppHeader / theme.css.
+// A quiet, single-surface task list. The keyed editor keeps its input state
+// when it opens alongside the list or reflows on smaller windows.
 func (v *nativeTasksView) render(c *ui.Context) {
 	defer v.autosaveNewTaskDraft(c)
-	v.visual = surfaceTheme(c, v.service.m)
+	v.visual = webTheme(v.service.m.UITheme)
 	c.SetTheme(v.visual.Theme)
+	c.Root().Background(v.visual.Surface)
 	v.reconcile()
 	width, _ := c.Size()
-	pad, bottom, gap, asideWidth, panelPad := float32(32), float32(36), float32(28), float32(300), float32(24)
+	pad, bottom, gap, asideWidth, panelPad := float32(32), float32(20), float32(28), float32(320), float32(0)
 	if width <= 900 {
-		pad, gap, asideWidth, panelPad = 24, 18, 260, 16
-		bottom = 30
+		pad, gap, asideWidth, panelPad = 28, 24, 288, 0
+		bottom = 16
 	}
 	if width <= 650 {
 		pad = 16
 		bottom = 24
 	}
 	ui.Column(c).Fill().Padding(0, pad, bottom).Children(func() {
+		if bar := c.TitleBar(); bar.Height > 0 {
+			ui.Row(c).Height(bar.Height).Shrink(0).Padding(0, bar.Right, 0, bar.Left).DragWindow().Children(func() {
+				ui.Text(c, "Sidelet").FontSize(12).FontWeight(500).TextColor(v.visual.TextMuted)
+			})
+		}
 		v.webHeader(c)
 		v.webDraftSaveError(c)
-		ui.Scroll(c.Key("page")).Grow(1).Padding(20, 0, 0).Children(func() {
+		ui.Scroll(c.Key("page")).Grow(1).Padding(16, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
 			}
@@ -55,7 +61,6 @@ func (v *nativeTasksView) render(c *ui.Context) {
 				// not replace text-input state, selection or IME composition.
 				ui.Column(c.Key("task-list-pane")).Grow(1).MinWidth(0).Children(func() {
 					v.webTaskList(c, panelPad)
-					v.webPosition(c)
 				})
 				if editorOpen {
 					pane := ui.Box(c.Key("task-editor-pane")).Shrink(0)
@@ -64,7 +69,7 @@ func (v *nativeTasksView) render(c *ui.Context) {
 					} else {
 						pane.WidthPercent(100)
 					}
-					pane.Children(func() { v.webForm(c, 20) })
+					pane.Children(func() { v.webForm(c, 18) })
 				}
 			})
 		})
@@ -93,21 +98,17 @@ func (v *nativeTasksView) render(c *ui.Context) {
 
 func (v *nativeTasksView) webHeader(c *ui.Context) {
 	t := v.visual
-	ui.Row(c).Height(64).Gap(20).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Gap(10).Grow(1).Children(func() {
+	ui.Row(c).Height(68).Gap(20).TextColor(t.Text).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Gap(12).Grow(1).AlignItems(ui.Center).Children(func() {
 			title := "我的任务"
 			if v.settingsOpen {
 				title = "设置"
 			}
-			ui.Text(c, title).Font(t.HeadingFont).FontSize(21).FontWeight(t.HeadingWeight).LineHeight(1.3).LetterSpacing(-.525)
-			if !v.settingsOpen {
-				ui.Text(c, fmt.Sprint(v.service.m.activeCount())).FontSize(11).FontWeight(500).LineHeight(1.3).Padding(3, 7).Radius(5).Background(t.Soft).TextColor(t.Accent)
-			}
+			ui.Text(c, title).Font(t.HeadingFont).FontSize(23).FontWeight(600).LineHeight(1.3)
 		})
 		ui.Row(c).Gap(6).Children(func() {
 			if v.settingsOpen {
-				ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle)
-				b := webButton(c, "返回我的任务", false).Border(0, ui.Transparent).Gap(7).Disabled(v.exportBusy())
+				b := webButton(c, "返回我的任务", false).TextColor(v.visual.Text).Border(0, ui.Transparent).Gap(7).Disabled(v.exportBusy())
 				b.Children(func() { webIcon(c, "back", 16); webActionText(c, "返回我的任务") })
 				if b.Clicked() {
 					v.settingsOpen = false
@@ -127,7 +128,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 					v.setLabelsHidden(false)
 				}
 			}
-			b = webIconTextButton(c.Key("settings"), "设置", "设置", "settings", 17).Height(34).Disabled(v.service.m.Arranging)
+			b = webIconTextButton(c.Key("settings"), "设置", "设置", "settings", 17).TextColor(v.visual.Text).Height(34).Disabled(v.service.m.Arranging)
 			if b.Clicked() {
 				v.moreID, v.deleteID = 0, 0
 				v.settingsOpen = true
@@ -135,7 +136,7 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 					_ = v.service.CheckLogin()
 				}
 			}
-			webIconTextButton(c.Key("main-more"), "更多窗口操作", "更多", "more", 17).Height(34).Menu(v.webWindowMenu)
+			webIconTextButton(c.Key("main-more"), "更多窗口操作", "更多", "more", 17).TextColor(v.visual.Text).Height(34).Menu(v.webWindowMenu)
 		})
 	})
 }
@@ -147,20 +148,16 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 	}
 	t := v.visual
 	pending := v.service.m.activeCount()
-	paddingTop := float32(16)
 	width, _ := c.Size()
-	if width <= 900 {
-		paddingTop = 14
-	}
-	ui.Column(c).WidthPercent(100).MinHeight(360).Padding(paddingTop, pad, 12).Radius(t.Radius).Background(t.Surface).Children(func() {
-		ui.Row(c).Gap(4).Padding(0, 0, 15).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Children(func() {
+	ui.Column(c).WidthPercent(100).Padding(0, pad, 4).Children(func() {
+		ui.Row(c).Gap(4).Padding(0, 0, 12).AlignItems(ui.Center).Children(func() {
 			for _, f := range []struct {
 				name      string
 				count     int
 				done, all bool
 			}{{"待办", pending, false, false}, {"已完成", v.service.m.totalCount() - pending, true, false}, {"全部", v.service.m.totalCount(), false, true}} {
 				selected := v.filterAll == f.all && (f.all || v.showDone == f.done)
-				b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).Border(0, ui.Transparent).Padding(7, 12)
+				b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).TextColor(t.TextMuted).Border(0, ui.Transparent).FontSize(13).Padding(7, 12)
 				if selected {
 					b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
 				}
@@ -172,7 +169,7 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 			}
 			if width > 900 {
 				ui.Spacer(c)
-				ui.Row(c).Gap(6).Shrink(0).TextColor(t.Subtle).Children(func() {
+				ui.Row(c).Gap(6).Shrink(0).TextColor(v.visual.Text).Children(func() {
 					ui.Box(c).Size(5, 5).Radius(2.5).Background(t.Accent)
 					text := "自动保存在本机"
 					if v.service.m.profile == nil {
@@ -198,15 +195,15 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 				continue
 			}
 			count++
-			row := ui.Column(c.Key(fmt.Sprintf("task-%d", item.ID))).Padding(15, 10).Margin(0, -10).Radius(6)
+			row := ui.Column(c.Key(fmt.Sprintf("task-%d", item.ID))).Padding(15, 12)
 			if count < visibleCount {
 				row.BorderColor(t.Border).BorderWidth(0, 0, 1, 0)
 			}
 			if row.Hovered() {
-				row.Background(t.Alt)
+				row.Background(t.Alt).Radius(8)
 			}
 			if v.editID == item.ID {
-				row.Background(t.Soft).DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + 6, W: 2, H: r.H - 12}, t.Accent, 1) })
+				row.Background(t.Soft).Radius(8)
 			}
 			showActions := row.Hovered() || row.FocusWithin() || v.editID == item.ID || v.moreID == item.ID
 			row.Children(func() {
@@ -222,7 +219,7 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 				} else if v.service.m.totalCount() == 0 {
 					title = "从一件小事开始"
 				}
-				ui.Text(c, title).Font(t.HeadingFont).FontSize(21).FontWeight(600).LineHeight(1.375).Margin(22, 0, 10)
+				ui.Text(c, title).TextColor(v.visual.Text).Font(t.HeadingFont).FontSize(21).FontWeight(600).LineHeight(1.375).Margin(22, 0, 10)
 				text := "可以切换筛选查看其他任务。"
 				if v.service.m.totalCount() == 0 {
 					text = "写下接下来想做的事，让它留在视野里。"
@@ -243,7 +240,7 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 
 func (v *nativeTasksView) webNewTaskEntry(c *ui.Context) {
 	t := v.visual
-	b := webButton(c.Key("new-task-entry"), "新建任务", false).WidthPercent(100).Height(44).Margin(14, 0, 4).Padding(0, 12).Gap(10).Border(0, ui.Transparent).Background(t.Field).Justify(ui.Start).TextColor(t.Accent)
+	b := webButton(c.Key("new-task-entry"), "新建任务", false).WidthPercent(100).Height(44).Margin(0, 0, 12).Padding(0, 12).Gap(10).Border(1, t.Border).Background(t.Field).Justify(ui.Start).TextColor(t.Accent)
 	if v.focusNewEntry {
 		b.Focus()
 		v.focusNewEntry = false
@@ -257,7 +254,7 @@ func (v *nativeTasksView) webNewTaskEntry(c *ui.Context) {
 				caption += " · " + v.newTitle
 			}
 		}
-		ui.Text(c, caption).FontSize(13).MaxLines(1).Ellipsis("…").Grow(1).MinWidth(0)
+		ui.Text(c, caption).FontSize(14).MaxLines(1).Ellipsis("…").Grow(1).MinWidth(0)
 	})
 	if b.Clicked() {
 		v.openNewTask()
@@ -295,7 +292,7 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 		}
 		b := ui.ButtonBase(c).Label("编辑："+item.Title).Grow(1).Shrink(1).MinWidth(0).Padding(2, 0).Justify(ui.Start).TextColor(t.Text)
 		b.Children(func() {
-			x := ui.Text(c, item.Title).FontSize(15).FontWeight(500).LineHeight(1.5).MaxLines(2)
+			x := ui.Text(c, item.Title).FontSize(15).FontWeight(500).LineHeight(1.6).MaxLines(2)
 			if item.Done {
 				x.TextColor(t.Subtle).Strikethrough()
 			}
@@ -303,12 +300,19 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 		if b.Clicked() {
 			v.beginEdit(item)
 		}
-		actions := ui.Row(c).Gap(2).Shrink(0)
-		if !showActions {
-			actions.Opacity(0)
+		if item.Priority != 0 && !item.Done {
+			fg, bg := t.Warning, t.WarningSoft
+			if item.Priority == 3 {
+				fg, bg = t.Danger, t.DangerSoft
+			}
+			ui.Text(c, priorityName(item.Priority)).FontSize(11).LineHeight(1.4).NoWrap().Padding(3, 6).Margin(3, 0, 0).Radius(4).TextColor(fg).Background(bg).Shrink(0)
 		}
+		actions := ui.Row(c).Gap(2).Shrink(0)
 		actions.Children(func() {
 			b := webIconButton(c, "编辑任务："+item.Title, "edit", 15)
+			if !showActions {
+				b.Opacity(0)
+			}
 			if b.Clicked() {
 				v.beginEdit(item)
 			}
@@ -318,15 +322,20 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 				label = "固定到桌面：" + item.Title
 				caption, icon = "放到桌面", "desktop-add"
 			}
-			b = webIconTextButton(c, label, caption, icon, 15)
+			b = webIconButton(c, label, icon, 15).Tooltip(caption)
 			if !item.Unpinned {
 				b.TextColor(t.Accent)
+			} else if !showActions {
+				b.Opacity(0)
 			}
 			if b.Clicked() {
 				_, err := v.service.SetPinned(item.ID, item.Unpinned, item.Version)
 				v.result(err, "")
 			}
 			more := webIconButton(c, "更多操作："+item.Title, "more", 17)
+			if !showActions {
+				more.Opacity(0)
+			}
 			if v.returnMoreFocus == item.ID {
 				more.Focus()
 				v.returnMoreFocus = 0
@@ -342,10 +351,10 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			}
 		})
 	})
-	v.webTaskStatus(c, item)
 	if item.Note != "" {
-		ui.Text(c, strings.ReplaceAll(item.Note, "\n", " ")).FontSize(13).LineHeight(1.5).TextColor(t.TextMuted).MaxLines(1).Ellipsis("…").Margin(5, 0, 0, 30)
+		ui.Text(c, strings.ReplaceAll(item.Note, "\n", " ")).FontSize(13).LineHeight(1.5).TextColor(t.TextMuted).MaxLines(1).Ellipsis("…").Margin(2, 0, 0, 30)
 	}
+	v.webTaskStatus(c, item)
 	if item.SnoozedUntil > v.service.m.now().UnixMilli() {
 		ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(4, 0, 0, 30).TextColor(t.Subtle).Children(func() {
 			if item.SnoozedUntil > v.service.m.now().UnixMilli() {
@@ -365,19 +374,12 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 }
 
 func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {
-	if item.DueAt == 0 && (item.Priority == 0 || item.Done) && item.Unpinned && (!item.Remind || item.Done) && !item.Temporary {
+	if item.DueAt == 0 && (!item.Remind || item.Done) && !item.Temporary {
 		return
 	}
 	t := v.visual
 	status := ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(4, 0, 0, 30).TextColor(t.Subtle)
 	status.Children(func() {
-		if item.Priority != 0 && !item.Done {
-			fg, bg := t.Warning, t.WarningSoft
-			if item.Priority == 3 {
-				fg, bg = t.Danger, t.DangerSoft
-			}
-			ui.Text(c, priorityName(item.Priority)).FontSize(11).LineHeight(1.4).NoWrap().Padding(2, 5).Radius(4).TextColor(fg).Background(bg)
-		}
 		if item.DueAt > 0 {
 			color := t.TextMuted
 			if !item.Done && item.DueAt < v.service.m.now().UnixMilli() {
@@ -395,9 +397,6 @@ func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {
 			}
 			ui.Text(c, label).FontSize(12).Tooltip(tip)
 		}
-		if !item.Unpinned {
-			ui.Row(c).Gap(4).Children(func() { webIcon(c, "desktop", 12); ui.Text(c, "桌面").FontSize(12) })
-		}
 		if item.Temporary {
 			ui.Text(c, "临时").FontSize(12)
 		}
@@ -406,7 +405,8 @@ func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {
 
 func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 	t := v.visual
-	ui.Column(c).Padding(pad).Radius(t.Radius).Background(t.Surface).Disabled(v.service.m.Arranging).Children(func() {
+	form := ui.Column(c).Padding(pad).Radius(t.Radius).Background(t.Field).Border(1, t.Border).Disabled(v.service.m.Arranging)
+	glassPanel(c, form, t, t.Radius).Children(func() {
 		ui.Row(c).Gap(9).Margin(0, 0, 16).Children(func() {
 			icon, title := "plus", "新建任务"
 			if v.editID > 0 {
@@ -423,7 +423,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			if v.editID > 0 {
 				value, label = &v.draft, "编辑任务标题"
 			}
-			field := webTextInput(c.Key("title"), value).Label(label).Placeholder("接下来想做什么？").Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).Height(38)
+			field := webTextInput(c.Key("title"), value).Label(label).Placeholder("接下来想做什么？").FontSize(15).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Surface).Height(42)
 			if v.focusNew && v.editID == 0 || v.focusEdit && v.editID > 0 {
 				field.Focus()
 				v.focusNew, v.focusEdit = false, false
@@ -464,7 +464,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				ui.Text(c, shortcut+" "+action).FontSize(10).Height(14).FixedLineHeight(14).TextColor(t.Subtle)
 			})
 			if v.noteOpen || v.editID > 0 {
-				note := webTextArea(c.Key("note"), &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Field).LineHeight(1.6)
+				note := webTextArea(c.Key("note"), &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Surface).LineHeight(1.6)
 				if v.focusNote {
 					note.Focus()
 					v.focusNote = false
@@ -525,7 +525,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				v.webSubmit()
 			}
 			if v.editID > 0 {
-				b = webButton(c, "取消编辑", false).Grow(1).Height(36).FixedLineHeight(14).Padding(10, 8)
+				b = webButton(c, "取消编辑", false).Height(36).FixedLineHeight(14).Padding(10, 12).Border(0, ui.Transparent)
 				b.Children(func() { ui.Text(c, "取消编辑") })
 				if b.Clicked() {
 					v.cancelEdit()
@@ -609,7 +609,7 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 	if width <= 900 {
 		vertical, horizontal, gap = 20, 20, 14
 	}
-	ui.Column(c).Label("外观设置").WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Padding(vertical, horizontal).Children(func() {
+	ui.Column(c).Label("外观设置").WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Padding(vertical, horizontal).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 		headingHeight := float32(19)
 		if t.ID == "paper" {
 			headingHeight = 23
@@ -657,7 +657,8 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 				if b.Clicked() {
 					_, err := v.service.Theme(item.id)
 					if v.result(err, "") {
-						v.visual = preview
+						v.visual = webTheme(v.service.m.UITheme)
+						c.Invalidate()
 						if v.onThemeChanged != nil {
 							v.onThemeChanged(item.id)
 						}
@@ -667,35 +668,31 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 		})
 		ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(18, 0, 0).Children(func() {
 			ui.Column(c).Grow(1).Children(func() {
-				ui.Text(c, "半透明玻璃").FontSize(13).FontWeight(500)
-				hint := "让主窗口和浮动卡片透出模糊背景，文字保持清晰。"
-				if v.service.m.reduceTransparency || c.Preferences().HighContrast {
-					hint = "系统已降低透明度或提高对比度，当前使用实色背景。"
-				} else if v.service.m.Preferences.Appearance.Translucent && !c.Vibrancy() {
-					hint = "当前系统暂不支持背景模糊，已使用实色背景。"
+				ui.Text(c, "悬浮任务半透明").FontSize(13).FontWeight(500)
+				ui.Text(c, "让桌面悬浮卡片透出背景，主窗口始终使用实色。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+			})
+			on := v.service.m.Preferences.Appearance.DesktopTranslucent
+			if webSwitch(c, &on, "启用悬浮任务半透明").Changed() {
+				value := v.service.m.Preferences
+				value.Appearance.DesktopTranslucent = on
+				_, err := v.service.SavePreferences(value)
+				v.result(err, "")
+			}
+		})
+		if runtime.GOOS == "darwin" {
+			ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(20, 0, 0).Children(func() {
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, "在 Dock 中显示").FontSize(13).FontWeight(500).Height(16).FixedLineHeight(16)
+					ui.Text(c, "点击图标打开任务窗口。关闭后仍可从顶部菜单栏进入。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+				})
+				on := v.service.m.Preferences.Appearance.ShowDockIcon
+				if webSwitch(c, &on, "在 Dock 中显示").Disabled(!dockPreferenceAvailable() || v.service.applyDock == nil).Changed() {
+					value := v.service.m.Preferences
+					value.Appearance.ShowDockIcon = on
+					_, err := v.service.SavePreferences(value)
+					v.result(err, "")
 				}
-				ui.Text(c, hint).FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
 			})
-			on := v.service.m.Preferences.Appearance.Translucent
-			if webSwitch(c, &on, "启用半透明玻璃").Changed() {
-				value := v.service.m.Preferences
-				value.Appearance.Translucent = on
-				_, err := v.service.SavePreferences(value)
-				v.result(err, "")
-			}
-		})
-		ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(20, 0, 0).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
-				ui.Text(c, "在 Dock 中显示").FontSize(13).FontWeight(500).Height(16).FixedLineHeight(16)
-				ui.Text(c, "点击图标打开任务窗口。关闭后仍可从顶部菜单栏进入。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
-			})
-			on := v.service.m.Preferences.Appearance.ShowDockIcon
-			if webSwitch(c, &on, "在 Dock 中显示").Disabled(!dockPreferenceAvailable() || v.service.applyDock == nil).Changed() {
-				value := v.service.m.Preferences
-				value.Appearance.ShowDockIcon = on
-				_, err := v.service.SavePreferences(value)
-				v.result(err, "")
-			}
-		})
+		}
 	})
 }

@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -72,6 +73,9 @@ func buildWebTheme(id string) *visualTheme {
 		return float32(n)
 	}
 	t := ui.LightTheme()
+	if id == "graphite" {
+		t = ui.DarkTheme()
+	}
 	t.Dark = id == "graphite"
 	t.Background, t.Surface, t.Border = color("app-bg"), color("surface"), color("line")
 	t.SurfaceHover, t.SurfacePressed = color("surface-alt"), color("accent-soft")
@@ -80,6 +84,11 @@ func buildWebTheme(id string) *visualTheme {
 	t.Danger, t.Warning, t.Focus = color("danger"), color("warning"), t.Accent
 	t.Radius, t.FontSize = number("control-radius"), 13
 	t.Font = "system-ui, Helvetica Neue, PingFang SC, sans-serif"
+	if runtime.GOOS == "windows" {
+		// Explicit CJK fallback avoids the system choosing a serif face for
+		// Chinese glyphs missing from Segoe UI.
+		t.Font = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif"
+	}
 	d := &visualTheme{Theme: t, ID: id, Alt: color("surface-alt"), Field: color("field"), Subtle: color("subtle"), Soft: color("accent-soft"), WarningSoft: color("warning-soft"), DangerSoft: color("danger-soft"), Radius: number("radius"), HeadingWeight: int(number("heading-weight"))}
 	d.HeadingFont = t.Font
 	if id == "paper" {
@@ -106,12 +115,11 @@ func webButton(c *ui.Context, label string, primary bool) ui.Element {
 	return b
 }
 
-// Match theme.css: a 2px keyboard outline separated by a 3px gap.
-// Pointer clicks retain their normal appearance.
+// Keep keyboard focus on the control edge without a second outer frame.
 func webFocus(c *ui.Context, e ui.Element, radius float32) ui.Element {
 	e.FocusRing(false).DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if e.FocusVisible() {
-			p.Stroke(ui.Rect{X: r.X - 5, Y: r.Y - 5, W: r.W + 10, H: r.H + 10}, c.Theme().Focus, radius+5, 2)
+			p.Stroke(ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}, c.Theme().Focus, max(0, radius-1), 2)
 		}
 	})
 	return e

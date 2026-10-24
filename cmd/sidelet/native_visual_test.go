@@ -166,7 +166,7 @@ func TestFormalKeyboardOutlineAndActionBaseline(t *testing.T) {
 			if math.Abs(float64(button.Y+button.H/2-text.Y-text.H/2)) > .5 || text.H != 16 {
 				t.Fatal("action text baseline box not centered", button, text)
 			}
-			pixel := u.Image().RGBAAt(int(button.X-4), int(button.Y+button.H/2))
+			pixel := u.Image().RGBAAt(int(button.X+1), int(button.Y+button.H/2))
 			if pixel.R == theme.Focus.R && pixel.G == theme.Focus.G && pixel.B == theme.Focus.B {
 				t.Fatal("pointer click drew keyboard outline")
 			}
@@ -175,13 +175,13 @@ func TestFormalKeyboardOutlineAndActionBaseline(t *testing.T) {
 				t.Fatal("Tab didn't reach input")
 			}
 			field := visualRect(t, u, "输入草稿")
-			pixel = u.Image().RGBAAt(int(field.X-4), int(field.Y+field.H/2))
+			pixel = u.Image().RGBAAt(int(field.X+1), int(field.Y+field.H/2))
 			if pixel.R != theme.Focus.R || pixel.G != theme.Focus.G || pixel.B != theme.Focus.B {
-				t.Fatal("missing separated 2px keyboard outline", pixel)
+				t.Fatal("missing inset keyboard outline", pixel)
 			}
 			gap := u.Image().RGBAAt(int(field.X-2), int(field.Y+field.H/2))
 			if gap.R == theme.Focus.R && gap.G == theme.Focus.G && gap.B == theme.Focus.B {
-				t.Fatal("outline gap was painted")
+				t.Fatal("focus outline extended outside the control")
 			}
 		})
 	}

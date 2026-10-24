@@ -158,7 +158,7 @@ func (v *views) webStack(c *ui.Context) {
 }
 
 func (v *views) webCard(c *ui.Context) {
-	t := surfaceTheme(c, v.m)
+	t := desktopSurfaceTheme(c, v.m)
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
 	m := v.m
@@ -184,7 +184,13 @@ func (v *views) webCard(c *ui.Context) {
 	if v.snoozing && !m.Editing {
 		footerHeight = 95
 	}
-	ui.Column(c).Fill().Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
+	cardSurface := t.Surface
+	if t.Background.A > cardSurface.A {
+		// A floating card has no main-window base coat behind its surface.
+		cardSurface = t.Background
+	}
+	panel := ui.Column(c).Fill().Radius(t.Radius).Border(1, t.Border).Background(cardSurface)
+	glassPanel(c, panel, t, t.Radius).Children(func() {
 		ui.Row(c).Height(40).Shrink(0).Padding(10, 16, 2).Children(func() {
 			label := "当前任务"
 			if m.Editing {

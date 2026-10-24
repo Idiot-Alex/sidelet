@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+	"runtime"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
@@ -18,17 +21,51 @@ var glassThemes = func() map[string]*visualTheme {
 		theme.SurfaceHover = base.SurfaceHover.Alpha(.7)
 		theme.SurfacePressed = base.SurfacePressed.Alpha(.85)
 		visual.Alt, visual.Field, visual.Soft = base.Alt.Alpha(.7), base.Field.Alpha(.82), base.Soft.Alpha(.88)
+		if runtime.GOOS == "windows" {
+			// Keep the canvas optically clear. Reading surfaces supply their
+			// own contrast, rather than tinting the whole window gray.
+			theme.Background = base.Background.Alpha(.06)
+			if id == "graphite" {
+				theme.Background = base.Background.Alpha(.22)
+			}
+			theme.Surface = base.Surface.Alpha(.32)
+			theme.Border = ui.RGB(255, 255, 255).Alpha(.48)
+			theme.TextMuted = base.Text
+			visual.Subtle = base.TextMuted
+			visual.Alt = base.Surface.Alpha(.7)
+			visual.Field = base.Surface.Alpha(.56)
+		}
 		out[id] = &visual
 	}
 	return out
 }()
 
-func (m *model) glassAllowed() bool {
-	return m.Preferences.Appearance.Translucent && !m.reduceTransparency
+// A thin reflection and bright inner edge give transparent surfaces a visible
+// boundary. These are paint only: they do not intercept input or fade text.
+func glassPanel(c *ui.Context, panel ui.Element, t *visualTheme, radius float32) ui.Element {
+	if t.Surface.A == 255 {
+		return panel
+	}
+	base := webTheme(t.ID)
+	from, to := base.Surface.Alpha(.72), base.Surface.Alpha(.62)
+	highlight := ui.RGB(255, 255, 255).Alpha(.68)
+	if t.Dark {
+		from, to = base.Surface.Alpha(.78), base.Surface.Alpha(.60)
+		highlight = ui.RGB(255, 255, 255).Alpha(.24)
+	}
+	return panel.LinearGradient(ui.LinearGradient{From: from, To: to, Angle: 155}).
+		Border(1, highlight).Radius(radius).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		p.FillGradient(ui.Rect{X: r.X + radius, Y: r.Y + 1, W: max(0, r.W-2*radius), H: 1},
+			ui.LinearGradient{From: highlight, To: highlight.Alpha(0), Angle: 90}, 0)
+	})
+}
+
+func (m *model) desktopGlassAllowed() bool {
+	return m.Preferences.Appearance.DesktopTranslucent && !m.reduceTransparency
 }
 
 func cardInputBackingAlpha(m *model) float64 {
-	if m.glassAllowed() {
+	if m.desktopGlassAllowed() {
 		// Keep a real hit surface above WindowServer's transparent-pixel
 		// threshold, without painting an opaque panel behind the blur.
 		return .05
@@ -36,11 +73,15 @@ func cardInputBackingAlpha(m *model) float64 {
 	return 1
 }
 
-func surfaceTheme(c *ui.Context, m *model) *visualTheme {
+func desktopSurfaceTheme(c *ui.Context, m *model) *visualTheme {
+	return surfaceThemeFor(c, m, m.desktopGlassAllowed())
+}
+
+func surfaceThemeFor(c *ui.Context, m *model, enabled bool) *visualTheme {
 	base := webTheme(m.UITheme)
 	// Unsupported compositors and accessibility settings always keep a
 	// readable, opaque background. No window-wide opacity is applied.
-	if m.glassAllowed() && c.Vibrancy() && !c.Preferences().HighContrast {
+	if enabled && c.Vibrancy() && !c.Preferences().HighContrast {
 		return glassThemes[base.ID]
 	}
 	return base
@@ -66,13 +107,19 @@ func (g *nativeGlassWindow) update(m *model) {
 	if g.window == nil {
 		return
 	}
-	enabled := m.glassAllowed()
+	enabled := m.desktopGlassAllowed()
 	if !g.initialized || enabled != g.enabled {
 		material := mygo.VibrancyNone
 		if enabled {
 			material = g.material
 		}
 		g.window.SetVibrancy(material)
+		if err := configureClearTransparency(g.window, enabled); err != nil {
+			// Disable the SDK capability flag too, so the renderer selects the
+			// opaque theme instead of leaving an unreadable black backdrop.
+			g.window.SetVibrancy(mygo.VibrancyNone)
+			log.Printf("clear transparency unavailable; using opaque background: %v", err)
+		}
 	}
 	radius := float32(0)
 	if enabled && g.card {

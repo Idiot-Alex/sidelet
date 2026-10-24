@@ -21,7 +21,9 @@ type Startup struct {
 type Appearance struct {
 	Theme        string `json:"theme"`
 	ShowDockIcon bool   `json:"showDockIcon"`
-	Translucent  bool   `json:"translucent,omitempty"`
+	// Deprecated: accepted only for compatibility with old settings files; ignored by the UI.
+	Translucent        bool `json:"translucent,omitempty"`
+	DesktopTranslucent bool `json:"desktopTranslucent,omitempty"`
 }
 type Value struct {
 	Version    int        `json:"version"`

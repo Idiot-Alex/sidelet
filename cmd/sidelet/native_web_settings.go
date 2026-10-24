@@ -49,11 +49,11 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 	if width <= 900 {
 		vertical, horizontal = 20, 20
 	}
-	ui.Column(c).WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Radius(t.Radius).Background(t.Surface).Children(func() {
+	panel := ui.Column(c).WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Radius(t.Radius).Background(t.Surface).TextColor(t.Text)
+	glassPanel(c, panel, t, t.Radius).Children(func() {
 		if v.failed && v.status != "" {
 			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Background(t.DangerSoft).Padding(12, 16).Radius(t.Radius)
 		}
-		v.webAppearance(c)
 		section := func(title string, body func(), status ...notificationPresentation) {
 			ui.Column(c).Padding(vertical, horizontal).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10).Children(func() {
@@ -67,6 +67,58 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			})
 		}
 		hint := func(text string) { ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).LineHeight(1.6).Margin(5, 0) }
+		section("桌面任务位置", func() { v.webPosition(c) })
+		section("新任务组默认值", func() {
+			hint("仅在创建新任务组时使用。现有任务组的位置与密度可在上方“桌面任务位置”中调整。")
+			prefs := v.service.m.Preferences
+			side := "右侧"
+			if prefs.Edge.DefaultSide == "left" {
+				side = "左侧"
+			}
+			density := "标准"
+			if prefs.Edge.DefaultDensity == "compact" {
+				density = "紧凑"
+			}
+			if prefs.Edge.DefaultDensity == "relaxed" {
+				density = "宽松"
+			}
+			for i, item := range []struct {
+				label   string
+				value   *string
+				options []string
+			}{
+				{"默认屏幕边缘", &side, []string{"左侧", "右侧"}}, {"默认标签密度", &density, []string{"紧凑", "标准", "宽松"}},
+			} {
+				row := ui.Row(c).AlignItems(ui.Center).Padding(15, 0)
+				if i == 1 {
+					row.Padding(15, 0, 0).Margin(8, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0)
+				}
+				row.Children(func() {
+					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
+					field := webSelect(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
+					if field.Changed() {
+						value := v.service.m.Preferences
+						if item.label == "默认屏幕边缘" {
+							value.Edge.DefaultSide = "right"
+							if side == "左侧" {
+								value.Edge.DefaultSide = "left"
+							}
+						} else {
+							value.Edge.DefaultDensity = "normal"
+							if density == "紧凑" {
+								value.Edge.DefaultDensity = "compact"
+							}
+							if density == "宽松" {
+								value.Edge.DefaultDensity = "relaxed"
+							}
+						}
+						_, err := v.service.SavePreferences(value)
+						v.result(err, "")
+					}
+				})
+			}
+		})
+		v.webAppearance(c)
 		section("启动行为", func() {
 			l := v.service.login
 			status := "unsupported"
@@ -126,56 +178,6 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 					v.result(err, "")
 				}
 			})
-		})
-		section("新任务组默认值", func() {
-			hint("仅在创建新任务组时使用。现有任务组的位置与密度可在“我的任务”中调整。")
-			prefs := v.service.m.Preferences
-			side := "右侧"
-			if prefs.Edge.DefaultSide == "left" {
-				side = "左侧"
-			}
-			density := "标准"
-			if prefs.Edge.DefaultDensity == "compact" {
-				density = "紧凑"
-			}
-			if prefs.Edge.DefaultDensity == "relaxed" {
-				density = "宽松"
-			}
-			for i, item := range []struct {
-				label   string
-				value   *string
-				options []string
-			}{
-				{"默认屏幕边缘", &side, []string{"左侧", "右侧"}}, {"默认标签密度", &density, []string{"紧凑", "标准", "宽松"}},
-			} {
-				row := ui.Row(c).AlignItems(ui.Center).Padding(15, 0)
-				if i == 1 {
-					row.Padding(15, 0, 0).Margin(8, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0)
-				}
-				row.Children(func() {
-					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
-					field := webSelect(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
-					if field.Changed() {
-						value := v.service.m.Preferences
-						if item.label == "默认屏幕边缘" {
-							value.Edge.DefaultSide = "right"
-							if side == "左侧" {
-								value.Edge.DefaultSide = "left"
-							}
-						} else {
-							value.Edge.DefaultDensity = "normal"
-							if density == "紧凑" {
-								value.Edge.DefaultDensity = "compact"
-							}
-							if density == "宽松" {
-								value.Edge.DefaultDensity = "relaxed"
-							}
-						}
-						_, err := v.service.SavePreferences(value)
-						v.result(err, "")
-					}
-				})
-			}
 		})
 		notification := v.notificationPresentation()
 		section("系统通知", func() {
@@ -265,78 +267,60 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Text(c, e.status).FontSize(12).TextColor(color).LineHeight(1.6).Margin(8, 0, 0)
 			}
 		})
-		ui.Text(c, "Sidelet").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(10, 0, 18)
+		ui.Text(c, v.service.m.persistenceHint()).FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(10, 0, 18)
 	})
 }
 
 func (v *nativeTasksView) webPosition(c *ui.Context) {
 	t := v.visual
-	ui.Column(c).WidthPercent(100).Margin(4, 0, 0).Padding(0, 16).Disabled(v.service.m.Arranging).Children(func() {
-		b := webButton(c, "桌面位置", false).AlignSelf(ui.Start).Height(40).Border(0, ui.Transparent).Padding(8, 0).Gap(7)
-		b.Children(func() {
-			webIcon(c, "layout", 16)
-			ui.Text(c, "桌面位置")
-			side := "左侧"
-			if v.service.m.Side == "right" {
-				side = "右侧"
-			}
-			ui.Text(c, side).FontSize(11)
-			webIcon(c, "chevron", 12)
-		})
-		if b.Clicked() {
-			v.positionOpen = !v.positionOpen
+	ui.Row(c).WidthPercent(100).Gap(16).AlignItems(ui.End).TextColor(t.Text).Disabled(v.service.m.Arranging).Children(func() {
+		m := v.service.m
+		side := "左侧"
+		if m.Side == "right" {
+			side = "右侧"
 		}
-		if v.positionOpen {
-			ui.Row(c).WidthPercent(100).Gap(16).AlignItems(ui.End).Padding(4, 0, 16).Children(func() {
-				m := v.service.m
-				side := "左侧"
-				if m.Side == "right" {
-					side = "右侧"
+		ui.Column(c).Grow(1).Gap(8).Children(func() {
+			ui.Text(c, "屏幕边缘").FontSize(12).TextColor(t.TextMuted)
+			edge := webSelect(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
+			if edge.Changed() {
+				value := "left"
+				if side == "右侧" {
+					value = "right"
 				}
-				ui.Column(c).Grow(1).Gap(8).Children(func() {
-					ui.Text(c, "屏幕边缘").FontSize(12).TextColor(t.TextMuted)
-					edge := webSelect(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
-					if edge.Changed() {
-						value := "left"
-						if side == "右侧" {
-							value = "right"
-						}
-						_, err := v.service.Layout(value, m.Offset, m.itemHeight())
-						v.result(err, "")
-					}
-				})
-				ui.Column(c).Grow(1).Gap(8).Children(func() {
-					ui.Text(c, fmt.Sprintf("中心位置 %d%%", int(m.Offset*100+.5))).FontSize(12).TextColor(t.TextMuted)
-					offset := m.Offset
-					slider := ui.Slider(c, &offset, 0, 1).Label("桌面中心位置").Height(36)
-					if slider.Changed() {
-						_, err := v.service.Layout(m.Side, offset, m.itemHeight())
-						v.result(err, "")
-					}
-				})
-				ui.Column(c).Grow(1).Gap(8).Children(func() {
-					ui.Text(c, "标签密度").FontSize(12).TextColor(t.TextMuted)
-					density := "标准"
-					if m.itemHeight() == 40 {
-						density = "紧凑"
-					}
-					if m.itemHeight() == 56 {
-						density = "宽松"
-					}
-					field := webSelect(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
-					if field.Changed() {
-						height := 44
-						if density == "紧凑" {
-							height = 40
-						}
-						if density == "宽松" {
-							height = 56
-						}
-						_, err := v.service.Layout(m.Side, m.Offset, height)
-						v.result(err, "")
-					}
-				})
-			})
-		}
+				_, err := v.service.Layout(value, m.Offset, m.itemHeight())
+				v.result(err, "")
+			}
+		})
+		ui.Column(c).Grow(1).Gap(8).Children(func() {
+			ui.Text(c, fmt.Sprintf("中心位置 %d%%", int(m.Offset*100+.5))).FontSize(12).TextColor(t.TextMuted)
+			offset := m.Offset
+			slider := ui.Slider(c, &offset, 0, 1).Label("桌面中心位置").Height(36)
+			if slider.Changed() {
+				_, err := v.service.Layout(m.Side, offset, m.itemHeight())
+				v.result(err, "")
+			}
+		})
+		ui.Column(c).Grow(1).Gap(8).Children(func() {
+			ui.Text(c, "标签密度").FontSize(12).TextColor(t.TextMuted)
+			density := "标准"
+			if m.itemHeight() == 40 {
+				density = "紧凑"
+			}
+			if m.itemHeight() == 56 {
+				density = "宽松"
+			}
+			field := webSelect(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
+			if field.Changed() {
+				height := 44
+				if density == "紧凑" {
+					height = 40
+				}
+				if density == "宽松" {
+					height = 56
+				}
+				_, err := v.service.Layout(m.Side, m.Offset, height)
+				v.result(err, "")
+			}
+		})
 	})
 }

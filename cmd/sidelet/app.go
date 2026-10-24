@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -271,7 +272,6 @@ func (s *TasksService) Open(id int) (err error) {
 type nativeApp struct {
 	service           *TasksService
 	window            *mygo.Window
-	glass             nativeGlassWindow
 	bounds            mygo.Rectangle
 	onState           func(string)
 	quitting          bool
@@ -320,12 +320,14 @@ func (h *nativeApp) show() {
 	}
 	opts := mygo.WindowOptions{Title: "Sidelet · 任务", Width: 760, Height: 600, MinWidth: 560, MinHeight: 460, BackgroundColor: "#f7f8f4"}
 	if h.native {
-		opts.Transparent, opts.Vibrancy = true, mygo.VibrancySidebar
 		opts.Title = "Sidelet"
+		if runtime.GOOS == "windows" {
+			opts.TitleBarStyle = mygo.TitleBarHidden
+		}
 		// Wails sizes the formal task window by its content area. MyGo's
 		// default includes the title bar, shrinking the page by that height.
 		opts.UseContentSize = true
-		opts.Width, opts.Height, opts.MinWidth, opts.MinHeight = 1120, 800, 820, 600
+		opts.Width, opts.Height, opts.MinWidth, opts.MinHeight = 860, 620, 820, 600
 		h.view = newNativeTasksView(h.service)
 		h.view.onHide = func() {
 			if h.window != nil && h.flushMainDraft() {
@@ -342,14 +344,13 @@ func (h *nativeApp) show() {
 			}
 		}
 		h.view.visual = webTheme(h.service.m.UITheme)
-		opts.BackgroundColor = "#00000000"
+		opts.BackgroundColor = "#f7f8f4"
 		h.view.onThemeChanged(h.service.m.UITheme)
 		opts.Content = ui.View(h.view.render)
 	}
 	w := mygo.NewWindow(opts)
 	h.window = w
 	if h.native {
-		h.glass.bind(w, h.service.m, mygo.VibrancySidebar, false)
 		cancelOrder := func() {
 			if h.view != nil {
 				h.view.order.Epoch++
@@ -385,14 +386,13 @@ func (h *nativeApp) show() {
 }
 
 func (h *nativeApp) publish() {
+	if h.native && h.quick != nil && h.quick.window != nil {
+		h.quick.window.Invalidate()
+	}
 	if h.window != nil {
 		if h.native {
-			h.glass.update(h.service.m)
 			h.view.reconcile()
 			h.window.Invalidate()
-			if h.quick != nil && h.quick.window != nil {
-				h.quick.window.Invalidate()
-			}
 			return
 		}
 
