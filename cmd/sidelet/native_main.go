@@ -46,6 +46,7 @@ type nativeTasksView struct {
 	theme                         *ui.Theme
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
+	newFormOpen, focusNewEntry    bool
 	formNote                      string
 	noteOpen, focusNote           bool
 	newTaskDraft                  *taskFormDraft
@@ -83,6 +84,20 @@ func newNativeTasksView(s *TasksService) *nativeTasksView {
 	v := &nativeTasksView{service: s, newPriority: "普通", theme: t}
 	v.restoreNewTaskDraft(s.m.newTaskDraft)
 	return v
+}
+
+func (v *nativeTasksView) openNewTask() {
+	v.newFormOpen, v.focusNew = true, true
+	v.moreID, v.deleteID = 0, 0
+}
+
+func (v *nativeTasksView) collapseNewTask() {
+	// A failed write keeps the editor visible and its retry action available.
+	if v.flushNewTaskDraft() {
+		v.newFormOpen, v.focusNew, v.focusNote = false, false, false
+		v.focusNewEntry = true
+		v.datePickerOpen, v.pickerCalendarOpen = false, false
+	}
 }
 
 func (v *nativeTasksView) result(err error, success string) bool {

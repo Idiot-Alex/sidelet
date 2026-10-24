@@ -66,7 +66,7 @@ func (v *views) webOverflowCard(c *ui.Context) {
 		v.closeCard()
 		return
 	}
-	t := webTheme(m.UITheme)
+	t := surfaceTheme(c, m)
 	if v.renderPresence {
 		v.presence(v.sourceInside, c.Root().Hovered())
 	}

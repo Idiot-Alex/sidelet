@@ -79,6 +79,7 @@ func (v *nativeTasksView) restoreNewTaskDraft(d *persistedNewTaskDraft) {
 	if d == nil {
 		return
 	}
+	v.newFormOpen = true
 	v.newTitle, v.newPriority, v.formPin = d.Title, priorityName(d.Priority), d.Pin
 	v.formNote, v.formDue, v.formRemind, v.formTemporary = d.Note, d.Due, d.Remind, d.Temporary
 	v.noteOpen, v.optionsOpen = d.NoteOpen, d.OptionsOpen

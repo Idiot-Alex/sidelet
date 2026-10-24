@@ -271,6 +271,7 @@ func (s *TasksService) Open(id int) (err error) {
 type nativeApp struct {
 	service           *TasksService
 	window            *mygo.Window
+	glass             nativeGlassWindow
 	bounds            mygo.Rectangle
 	onState           func(string)
 	quitting          bool
@@ -319,6 +320,7 @@ func (h *nativeApp) show() {
 	}
 	opts := mygo.WindowOptions{Title: "Sidelet · 任务", Width: 760, Height: 600, MinWidth: 560, MinHeight: 460, BackgroundColor: "#f7f8f4"}
 	if h.native {
+		opts.Transparent, opts.Vibrancy = true, mygo.VibrancySidebar
 		opts.Title = "Sidelet"
 		// Wails sizes the formal task window by its content area. MyGo's
 		// default includes the title bar, shrinking the page by that height.
@@ -338,18 +340,16 @@ func (h *nativeApp) show() {
 			} else {
 				mygo.Theme.SetSource(mygo.ThemeLight)
 			}
-			if h.window != nil {
-				_ = h.window.SetBackgroundColor(productionDesign.Themes[id]["app-bg"])
-			}
 		}
 		h.view.visual = webTheme(h.service.m.UITheme)
-		opts.BackgroundColor = productionDesign.Themes[h.service.m.UITheme]["app-bg"]
+		opts.BackgroundColor = "#00000000"
 		h.view.onThemeChanged(h.service.m.UITheme)
 		opts.Content = ui.View(h.view.render)
 	}
 	w := mygo.NewWindow(opts)
 	h.window = w
 	if h.native {
+		h.glass.bind(w, h.service.m, mygo.VibrancySidebar, false)
 		cancelOrder := func() {
 			if h.view != nil {
 				h.view.order.Epoch++
@@ -387,6 +387,7 @@ func (h *nativeApp) show() {
 func (h *nativeApp) publish() {
 	if h.window != nil {
 		if h.native {
+			h.glass.update(h.service.m)
 			h.view.reconcile()
 			h.window.Invalidate()
 			if h.quick != nil && h.quick.window != nil {

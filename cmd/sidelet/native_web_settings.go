@@ -45,18 +45,18 @@ func webSwitch(c *ui.Context, value *bool, label string) ui.Element {
 func (v *nativeTasksView) webSettings(c *ui.Context) {
 	t := v.visual
 	width, _ := c.Size()
-	vertical, horizontal := float32(22), float32(24)
+	vertical, horizontal := float32(18), float32(24)
 	if width <= 900 {
 		vertical, horizontal = 20, 20
 	}
-	ui.Column(c).WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Gap(16).Children(func() {
+	ui.Column(c).WidthPercent(100).MaxWidth(850).Margin(0, ui.Auto).Radius(t.Radius).Background(t.Surface).Children(func() {
 		if v.failed && v.status != "" {
 			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Background(t.DangerSoft).Padding(12, 16).Radius(t.Radius)
 		}
 		v.webAppearance(c)
 		section := func(title string, body func(), status ...notificationPresentation) {
-			ui.Column(c).Padding(vertical, horizontal).Border(1, t.Border).Radius(t.Radius).Background(t.Surface).Children(func() {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(0, 0, 14).Children(func() {
+			ui.Column(c).Padding(vertical, horizontal).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10).Children(func() {
 					ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600)
 					if len(status) > 0 {
 						state := status[0]
@@ -77,7 +77,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Column(c).Grow(1).Children(func() {
 					ui.Text(c, "登录后启动 Sidelet").FontSize(13).FontWeight(500)
 					hint("自动在后台运行，让桌面任务和提醒保持可用。")
-					ui.Text(c, "系统状态："+loginLabel(status)).FontSize(11).TextColor(t.TextMuted)
+					ui.Text(c, "系统状态："+loginLabel(status)).FontSize(12).TextColor(t.TextMuted)
 				})
 				on := loginRegistered(status)
 				if webSwitch(c, &on, "登录后启动 Sidelet").Disabled(l == nil || status == "unsupported" || status == "unknown" || status == "otherLocation").Changed() {
@@ -96,7 +96,6 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			if l != nil && l.error != "" && (!v.failed || v.status != l.error) {
 				ui.Text(c, l.error).FontSize(12).TextColor(t.Danger).LineHeight(1.6).Margin(5, 0)
 			}
-			hint("此开关仅管理 Sidelet 的登录项。")
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				for _, name := range []string{"打开系统登录项", "检查登录状态"} {
 					b := webButton(c, name, false).Padding(8, 12).Background(t.Field).TextColor(t.Text).Disabled(l == nil || status == "unsupported")
@@ -235,8 +234,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				}
 				ui.Text(c, "随时记下任务").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 8)
 			})
-			hint("在任何应用中都可使用。Enter 保存，Esc 取消并返回之前的应用。")
-			hint("支持“明天下午3点 联系客户”等简单时间，默认不固定到桌面、不发送系统通知。")
+			hint("Enter 保存，Esc 返回之前的应用。支持“明天下午3点 联系客户”等简单时间。")
 			b := webButton(c, "打开快速添加", false).AlignSelf(ui.Start).Height(36).Padding(8, 12).Gap(6).Margin(12, 0, 0).Background(t.Field).TextColor(t.Text)
 			b.Children(func() { webIcon(c, "plus", 14); webActionText(c, "打开快速添加") })
 			if b.Clicked() && v.onQuickAdd != nil {
@@ -244,7 +242,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			}
 		})
 		section("导出任务", func() {
-			hint("导出全部任务，包含已完成、未固定和暂时隐藏的任务。JSON 保留完整任务字段与桌面布局，CSV 适合用表格查看。")
+			hint("导出全部已保存任务。JSON 保留完整内容与桌面布局，CSV 适合用表格查看。")
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				for _, name := range []string{"导出 JSON", "导出 CSV"} {
 					b := webButton(c, name, false).Padding(8, 12).Gap(7).Background(t.Field).TextColor(t.Text).Disabled(v.exportBusy() || v.onExport == nil)
@@ -258,8 +256,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 					}
 				}
 			})
-			hint("导出的是点击时已保存的数据，不包含未提交的草稿。旧版任务可通过迁移工具导入。")
-			hint("旧版导入任务保留原创建和更新时间；其他未记录的时间及屏幕标识导出为空值。")
+			hint("未提交的草稿不包含在导出文件中。")
 			if e := v.service.export; e != nil && e.status != "" {
 				color := t.TextMuted
 				if e.failed {
@@ -268,17 +265,17 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Text(c, e.status).FontSize(12).TextColor(color).LineHeight(1.6).Margin(8, 0, 0)
 			}
 		})
-		ui.Text(c, "Sidelet").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(6, 0, 0)
+		ui.Text(c, "Sidelet").FontSize(11).TextColor(t.Subtle).AlignSelf(ui.Center).Padding(10, 0, 18)
 	})
 }
 
 func (v *nativeTasksView) webPosition(c *ui.Context) {
 	t := v.visual
-	ui.Column(c).Margin(14, 0, 0).Padding(0, 16).Border(1, t.Border).Radius(t.Radius).Disabled(v.service.m.Arranging).Children(func() {
-		b := webButton(c, "桌面位置", false).Border(0, ui.Transparent).Padding(15, 0).Gap(7)
+	ui.Column(c).WidthPercent(100).Margin(4, 0, 0).Padding(0, 16).Disabled(v.service.m.Arranging).Children(func() {
+		b := webButton(c, "桌面位置", false).AlignSelf(ui.Start).Height(40).Border(0, ui.Transparent).Padding(8, 0).Gap(7)
 		b.Children(func() {
 			webIcon(c, "layout", 16)
-			ui.Text(c, "桌面位置").Grow(1)
+			ui.Text(c, "桌面位置")
 			side := "左侧"
 			if v.service.m.Side == "right" {
 				side = "右侧"
@@ -290,50 +287,55 @@ func (v *nativeTasksView) webPosition(c *ui.Context) {
 			v.positionOpen = !v.positionOpen
 		}
 		if v.positionOpen {
-			ui.Column(c).Gap(10).Padding(0, 0, 16).Children(func() {
-				ui.Text(c, "屏幕边缘").FontSize(12).TextColor(t.TextMuted)
+			ui.Row(c).WidthPercent(100).Gap(16).AlignItems(ui.End).Padding(4, 0, 16).Children(func() {
 				m := v.service.m
 				side := "左侧"
 				if m.Side == "right" {
 					side = "右侧"
 				}
-				edge := webSelect(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
-				if edge.Changed() {
-					value := "left"
-					if side == "右侧" {
-						value = "right"
+				ui.Column(c).Grow(1).Gap(8).Children(func() {
+					ui.Text(c, "屏幕边缘").FontSize(12).TextColor(t.TextMuted)
+					edge := webSelect(c, &side, []string{"左侧", "右侧"}).Label("桌面边缘").Height(36).Background(t.Field)
+					if edge.Changed() {
+						value := "left"
+						if side == "右侧" {
+							value = "right"
+						}
+						_, err := v.service.Layout(value, m.Offset, m.itemHeight())
+						v.result(err, "")
 					}
-					_, err := v.service.Layout(value, m.Offset, m.itemHeight())
-					v.result(err, "")
-				}
-				ui.Text(c, fmt.Sprintf("中心位置 %d%%", int(m.Offset*100+.5))).FontSize(12).TextColor(t.TextMuted)
-				offset := m.Offset
-				slider := ui.Slider(c, &offset, 0, 1).Label("桌面中心位置")
-				if slider.Changed() {
-					_, err := v.service.Layout(m.Side, offset, m.itemHeight())
-					v.result(err, "")
-				}
-				ui.Text(c, "标签密度").FontSize(12).TextColor(t.TextMuted)
-				density := "标准"
-				if m.itemHeight() == 40 {
-					density = "紧凑"
-				}
-				if m.itemHeight() == 56 {
-					density = "宽松"
-				}
-				field := webSelect(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
-				if field.Changed() {
-					height := 44
-					if density == "紧凑" {
-						height = 40
+				})
+				ui.Column(c).Grow(1).Gap(8).Children(func() {
+					ui.Text(c, fmt.Sprintf("中心位置 %d%%", int(m.Offset*100+.5))).FontSize(12).TextColor(t.TextMuted)
+					offset := m.Offset
+					slider := ui.Slider(c, &offset, 0, 1).Label("桌面中心位置").Height(36)
+					if slider.Changed() {
+						_, err := v.service.Layout(m.Side, offset, m.itemHeight())
+						v.result(err, "")
 					}
-					if density == "宽松" {
-						height = 56
+				})
+				ui.Column(c).Grow(1).Gap(8).Children(func() {
+					ui.Text(c, "标签密度").FontSize(12).TextColor(t.TextMuted)
+					density := "标准"
+					if m.itemHeight() == 40 {
+						density = "紧凑"
 					}
-					_, err := v.service.Layout(m.Side, m.Offset, height)
-					v.result(err, "")
-				}
-
+					if m.itemHeight() == 56 {
+						density = "宽松"
+					}
+					field := webSelect(c, &density, []string{"紧凑", "标准", "宽松"}).Label("桌面标签密度").Height(36).Background(t.Field)
+					if field.Changed() {
+						height := 44
+						if density == "紧凑" {
+							height = 40
+						}
+						if density == "宽松" {
+							height = 56
+						}
+						_, err := v.service.Layout(m.Side, m.Offset, height)
+						v.result(err, "")
+					}
+				})
 			})
 		}
 	})

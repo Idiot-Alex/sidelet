@@ -41,6 +41,7 @@ type model struct {
 	profile                             *profile
 	newTaskDraft                        *persistedNewTaskDraft
 	storageError                        string
+	reduceTransparency                  bool
 	Preferences                         settings.Value `json:"preferences"`
 	Quiet                               bool           `json:"quiet,omitempty"`
 	ReminderGeneration                  int64          `json:"reminderGeneration,omitempty"`

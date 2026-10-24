@@ -158,7 +158,7 @@ func (v *views) webStack(c *ui.Context) {
 }
 
 func (v *views) webCard(c *ui.Context) {
-	t := webTheme(v.m.UITheme)
+	t := surfaceTheme(c, v.m)
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
 	m := v.m
@@ -177,6 +177,7 @@ func (v *views) webCard(c *ui.Context) {
 		v.presence(v.sourceInside, c.Root().Hovered())
 	}
 	item := m.Tasks[m.Opened]
+	_, cardViewportHeight := c.Size()
 	var reading ui.Element
 	var errorHeight float32
 	footerHeight := float32(61) // 36px controls + 24px padding + top border.
@@ -189,7 +190,7 @@ func (v *views) webCard(c *ui.Context) {
 			if m.Editing {
 				label = "快速编辑"
 			}
-			ui.Text(c, label).FontSize(11).LetterSpacing(.33).TextColor(t.TextMuted).Grow(1)
+			ui.Text(c, label).FontSize(11).TextColor(t.Subtle).Grow(1)
 			if webIconButton(c, "关闭快速卡片", "close", 16).Radius(6).Clicked() {
 				v.closeCard()
 			}
@@ -229,7 +230,9 @@ func (v *views) webCard(c *ui.Context) {
 					})
 					ui.Column(c.Key("card-note")).Gap(6).Children(func() {
 						ui.Text(c, "备注").FontSize(11).Height(15).FixedLineHeight(15).TextColor(t.TextMuted)
-						note := webTextArea(c, &m.DraftNote).Label("卡片备注").Height(124).Padding(9).LineHeight(1.6).Background(t.Field)
+						// Use the available editor space without resizing the
+						// native card or changing its desktop anchor.
+						note := webTextArea(c, &m.DraftNote).Label("卡片备注").Height(max(96, cardViewportHeight-222)).Padding(9).LineHeight(1.6).Background(t.Field)
 						if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) && m.save() {
 							v.notify("save")
 						}

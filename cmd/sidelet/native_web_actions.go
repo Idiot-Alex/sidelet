@@ -9,6 +9,10 @@ import (
 // Native menus supply keyboard navigation and dismissal on both platforms;
 // recovery actions remain visible in the header while their mode is active.
 func (v *nativeTasksView) webWindowMenu(menu *ui.Menu) {
+	if menu.Item("快速添加").Disabled(v.service.m.Arranging).Chosen() && v.onQuickAdd != nil {
+		v.onQuickAdd()
+	}
+	menu.Separator()
 	arrange := "整理桌面"
 	if v.service.m.Arranging {
 		arrange = "完成整理"

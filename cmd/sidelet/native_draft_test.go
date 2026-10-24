@@ -61,7 +61,7 @@ func TestNewTaskDraftIMEAndClearing(t *testing.T) {
 	v := newNativeTasksView(s)
 	u := ui.NewTester(v.render, 1120, 1100)
 	u.SetFocused(true)
-	if err := u.Click("新任务标题"); err != nil {
+	if err := u.Click("新建任务"); err != nil {
 		t.Fatal(err)
 	}
 	u.Compose("ni", 2)
@@ -101,7 +101,7 @@ func TestNewTaskDraftRestoresAcrossRestartWhileEditingExistingTask(t *testing.T)
 			v := newNativeTasksView(s)
 			u := ui.NewTester(v.render, 1120, 1100)
 			u.SetFocused(true)
-			if err := u.Click("新任务标题"); err != nil {
+			if err := u.Click("新建任务"); err != nil {
 				t.Fatal(err)
 			}
 			u.Type("跨重启中文草稿")

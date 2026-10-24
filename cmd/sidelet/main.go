@@ -157,6 +157,7 @@ func main() {
 		}
 	}
 	var stack, card, backgroundProbe *mygo.Window
+	var cardGlass nativeGlassWindow
 	openedAtLogin := false
 	cardAnchorY := 0
 	resizeCard := func() {
@@ -243,6 +244,7 @@ func main() {
 	input.onEvent = logState
 	input.pointerPresence = v.presence
 	v.changed = func(event string) {
+		cardGlass.update(m)
 		if event == "native-main-quiet" {
 			v.session.Close()
 			v.hoverDeadline = time.Time{}
@@ -291,6 +293,20 @@ func main() {
 	}
 	onQuitCleanup(func() { input.close() })
 	mygo.App.WhenReady(func() {
+		updateTransparency := func() {
+			prefs := mygo.Theme.Preferences()
+			m.reduceTransparency = prefs.ReduceTransparency || prefs.HighContrast
+			cardGlass.update(m)
+			if card != nil {
+				card.Invalidate()
+			}
+			if h != nil {
+				h.publish()
+			}
+			input.sync()
+		}
+		updateTransparency()
+		onQuitCleanup(mygo.Theme.OnUpdated(updateTransparency))
 		openedAtLogin = mygo.App.WasOpenedAtLogin()
 		if h != nil && h.native {
 			_ = h.service.CheckLogin()
@@ -432,7 +448,8 @@ func main() {
 			}
 			if card == nil {
 				card = mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet MyGo 任务卡片", Width: cardWidth, Height: cardHeight, Hidden: true, Frameless: true,
-					Transparent: true, AlwaysOnTop: true, DisableResize: true, Content: ui.View(v.card)})
+					Transparent: true, Vibrancy: mygo.VibrancyPopover, AlwaysOnTop: true, DisableResize: true, Content: ui.View(v.card)})
+				cardGlass.bind(card, m, mygo.VibrancyPopover, true)
 				input.bindCard(card)
 			}
 			x := m.X + 20

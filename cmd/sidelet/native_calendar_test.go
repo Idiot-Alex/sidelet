@@ -11,7 +11,7 @@ import (
 func TestLocalizedCalendarNavigatesMonthEndsAndSaves(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
 		t.Run(theme, func(t *testing.T) {
-			m, v, u := webUITester(t)
+			m, v, u := webEditorTester(t)
 			m.UITheme, v.visual = theme, webTheme(theme)
 			m.clock = func() time.Time { return time.Date(2028, 1, 30, 16, 0, 0, 0, time.Local) }
 			v.newTitle, v.formDue = "月底计划", "2028/01/31 17:45"
@@ -88,7 +88,7 @@ func TestLocalizedPickerRejectsInvalidClockAndDSTGapKeepsPrecision(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, v, u := webUITester(t)
+	m, v, u := webEditorTester(t)
 	m.clock = func() time.Time { return time.Date(2026, 3, 7, 0, 0, 0, 0, zone) }
 	v.formDue, v.newTitle = "2026/03/07 02:30", "未提交计划"
 	u.SetSize(1120, 1100)

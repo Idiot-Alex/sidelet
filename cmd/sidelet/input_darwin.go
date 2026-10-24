@@ -235,8 +235,9 @@ func (a *overlayInput) install(w *mygo.Window, r inputRegion) {
 		panelAPI.setFrame(p.panel, objc.RegisterName("setFrame:display:"), frame, true)
 		p.frame = frame
 	}
-	// This backing lies below the identical MyGo paint and gives WindowServer
-	// an actual hit region. Rounded corners remain transparent in both layers.
+	// This backing lies below the MyGo paint and gives WindowServer an
+	// actual hit region. Glass cards retain a lightly painted hit surface
+	// so the native blur can sample the desktop rather than an opaque panel.
 	color := uiFaceColor()
 	if r.task >= 0 && r.task < len(a.m.Tasks) {
 		color = priorityColor(a.m.Tasks[r.task].Priority)
@@ -251,10 +252,12 @@ func (a *overlayInput) install(w *mygo.Window, r inputRegion) {
 			color = webTheme(a.m.UITheme).Surface
 		}
 	}
+	alpha := 1.0
 	if r.key == "card" {
 		radius = 12
+		alpha = cardInputBackingAlpha(a.m)
 	}
-	nativeColor := panelAPI.color(objc.ID(objc.GetClass("NSColor")), objc.RegisterName("colorWithDeviceRed:green:blue:alpha:"), float64(color.R)/255, float64(color.G)/255, float64(color.B)/255, 1)
+	nativeColor := panelAPI.color(objc.ID(objc.GetClass("NSColor")), objc.RegisterName("colorWithDeviceRed:green:blue:alpha:"), float64(color.R)/255, float64(color.G)/255, float64(color.B)/255, alpha)
 	layer := send(p.view, "layer")
 	send(layer, "setBackgroundColor:", send(nativeColor, "CGColor"))
 	panelAPI.setFloat(layer, objc.RegisterName("setCornerRadius:"), radius)

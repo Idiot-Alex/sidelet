@@ -18,6 +18,15 @@ func webUITester(t *testing.T) (*model, *nativeTasksView, *ui.Tester) {
 	return m, v, u
 }
 
+func webEditorTester(t *testing.T) (*model, *nativeTasksView, *ui.Tester) {
+	t.Helper()
+	m, v, u := webUITester(t)
+	if err := u.Click("新建任务"); err != nil {
+		t.Fatal(err)
+	}
+	return m, v, u
+}
+
 func TestFormalUIEditorNotesIMEAndConflict(t *testing.T) {
 	m, v, u := webUITester(t)
 	if err := u.Click("编辑：整理今天的工作"); err != nil {

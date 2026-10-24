@@ -72,6 +72,7 @@ func TestLongTaskStatusDoesNotOverlapEditorOrActions(t *testing.T) {
 				t.Fatal(err)
 			}
 			v := newNativeTasksView(s)
+			v.openNewTask()
 			u := ui.NewTester(v.render, 1120, 800)
 			u.SetFocused(true)
 			for _, width := range []int{1120, 900, 850, 820} {

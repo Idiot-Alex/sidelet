@@ -154,7 +154,7 @@ func webCardButton(c *ui.Context, label string, primary bool) ui.Element {
 	b := webButton(c, label, primary).FontWeight(400).Grow(1).Height(36).Padding(0, 5).Gap(5)
 	if !primary {
 		t := webThemeFor(c)
-		b.Background(t.Alt).TextColor(t.Text)
+		b.Background(t.Field).Border(0, ui.Transparent).TextColor(t.Text)
 		if b.Hovered() || b.Pressed() {
 			b.Background(t.Soft)
 		}
@@ -163,6 +163,11 @@ func webCardButton(c *ui.Context, label string, primary bool) ui.Element {
 }
 
 func webThemeFor(c *ui.Context) *visualTheme {
+	for _, theme := range glassThemes {
+		if theme.Theme == c.Theme() {
+			return theme
+		}
+	}
 	for _, theme := range webThemes {
 		if theme.Theme == c.Theme() {
 			return theme

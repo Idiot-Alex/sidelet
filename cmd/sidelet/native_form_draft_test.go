@@ -12,7 +12,7 @@ func TestMainNewDraftSurvivesEditExitAndFilter(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
 		for _, exit := range []string{"cancel", "escape", "save", "filter", "complete"} {
 			t.Run(theme+"/"+exit, func(t *testing.T) {
-				m, v, u := webUITester(t)
+				m, v, u := webEditorTester(t)
 				m.UITheme, v.visual = theme, webTheme(theme)
 				m.clock = func() time.Time { return time.Date(2026, 10, 23, 10, 0, 0, 0, time.Local) }
 				u.SetSize(1120, 1100)
@@ -78,7 +78,7 @@ func TestMainNewDraftSurvivesEditExitAndFilter(t *testing.T) {
 }
 
 func TestMainRepeatedSelectionPreservesEditAndConflict(t *testing.T) {
-	m, v, u := webUITester(t)
+	m, v, u := webEditorTester(t)
 	_ = u.Click("编辑：整理今天的工作")
 	v.draft, v.formNote = "未保存标题", "未保存备注"
 	u.Frame()
@@ -99,7 +99,7 @@ func TestMainRepeatedSelectionPreservesEditAndConflict(t *testing.T) {
 }
 
 func TestMainPartialDeadlineSurvivesEditAndRemainsInvalid(t *testing.T) {
-	m, v, u := webUITester(t)
+	m, v, u := webEditorTester(t)
 	u.SetSize(1120, 1100)
 	v.newTitle = "日期尚未填完"
 	_ = u.Click("截止时间与更多选项")
@@ -127,7 +127,7 @@ func TestMainPartialDeadlineSurvivesEditAndRemainsInvalid(t *testing.T) {
 func TestMainNoteShortcutKeepsNewlinesCompositionAndValidation(t *testing.T) {
 	for _, mods := range []ui.Modifiers{ui.Super, ui.Ctrl} {
 		t.Run(fmt.Sprint(mods), func(t *testing.T) {
-			m, v, u := webUITester(t)
+			m, v, u := webEditorTester(t)
 			_ = u.Click("新任务标题")
 			u.Type("快捷添加")
 			if err := u.Click("展开备注"); err != nil {

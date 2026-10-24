@@ -80,6 +80,7 @@ func TestTaskFormVisualArtifacts(t *testing.T) {
 		m.UITheme, v.visual = theme, webTheme(theme)
 		now := time.Date(2026, 10, 23, 10, 0, 0, 0, time.Local)
 		m.clock = func() time.Time { return now }
+		v.openNewTask()
 		v.newTitle, v.formNote = "整理下周的计划", "先排好顺序，再开始第一件事。"
 		v.formDue, v.newPriority = "2026/10/24 14:30", "重要"
 		v.formRemind, v.formTemporary, v.formPin = true, true, true

@@ -17,6 +17,7 @@ func TestPreferencesRoundTripAndFailedReplace(t *testing.T) {
 	}
 	v := s.Value
 	v.Startup.ShowMainWindow = true
+	v.Appearance.Translucent = true
 	v.Edge = Edge{"left", "compact"}
 	if err := s.Save(v); err != nil {
 		t.Fatal(err)
@@ -109,7 +110,7 @@ func TestThemesAndLegacyPreferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := Open(dir)
-	if s.LoadError != nil || s.Value.Appearance.Theme != "mac" || s.Value.Edge.DefaultSide != "left" || !s.Value.Startup.ShowMainWindow {
+	if s.LoadError != nil || s.Value.Appearance.Theme != "mac" || s.Value.Appearance.Translucent || s.Value.Edge.DefaultSide != "left" || !s.Value.Startup.ShowMainWindow {
 		t.Fatalf("legacy preferences lost: %+v", s)
 	}
 	for _, theme := range []string{"paper", "graphite", "mac"} {

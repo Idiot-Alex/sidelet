@@ -21,6 +21,7 @@ type Startup struct {
 type Appearance struct {
 	Theme        string `json:"theme"`
 	ShowDockIcon bool   `json:"showDockIcon"`
+	Translucent  bool   `json:"translucent,omitempty"`
 }
 type Value struct {
 	Version    int        `json:"version"`
