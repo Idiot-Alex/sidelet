@@ -92,7 +92,7 @@ func TestNotificationSettingsRefreshAfterSystemPermissionChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := newNativeTasksView(s)
-	v.settingsOpen = true
+	v.settingsOpen, v.settingsTab = true, "system"
 	u := ui.NewTester(v.render, 1120, 2000)
 	u.SetFocused(true)
 	if !u.HasText("打开系统通知设置") {

@@ -50,6 +50,12 @@ func (v *views) webStack(c *ui.Context) {
 		case "已逾期":
 			dueColor = t.Danger
 		}
+		markerColor := t.Accent
+		if task.Priority == 2 {
+			markerColor = t.Warning
+		} else if task.Priority == 3 {
+			markerColor = t.Danger
+		}
 		r := m.markerRect(i)
 		preview := m.previewRect(i)
 		if m.expanded(i) {
@@ -76,14 +82,23 @@ func (v *views) webStack(c *ui.Context) {
 			handle.HandleInput(func(ev ui.InputEvent) bool { return v.pointer(index, ev) })
 		}
 		handle.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if handle.Hovered() {
+			if task.Priority == 2 || task.Priority == 3 {
+				// Two/three bars distinguish priority even without color.
+				for n := 0; n < task.Priority; n++ {
+					x := r.X + r.W/2 - float32(task.Priority*4-2)/2 + float32(n*4)
+					p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-18)/2, W: 2, H: 18}, markerColor, 1)
+				}
+			} else if handle.Hovered() {
 				for _, dx := range []float32{r.W/2 - 3, r.W/2 + 1} {
 					for _, dy := range []float32{r.H/2 - 6, r.H/2 - 1, r.H/2 + 4} {
-						p.Fill(ui.Rect{X: r.X + dx, Y: r.Y + dy, W: 2, H: 2}, dueColor, 1)
+						p.Fill(ui.Rect{X: r.X + dx, Y: r.Y + dy, W: 2, H: 2}, markerColor, 1)
 					}
 				}
 			} else {
-				p.Fill(ui.Rect{X: r.X + r.W/2 - 1.5, Y: r.Y + (r.H-23)/2, W: 3, H: 23}, dueColor, 1.5)
+				p.Fill(ui.Rect{X: r.X + r.W/2 - 1.5, Y: r.Y + (r.H-23)/2, W: 3, H: 23}, markerColor, 1.5)
+			}
+			if dueLabel(task, m.now()) != "" {
+				p.Fill(ui.Rect{X: r.X + r.W/2 - 2, Y: r.Y + r.H - 7, W: 4, H: 4}, dueColor, 2)
 			}
 		})
 		if handle.Hovered() {
@@ -104,6 +119,13 @@ func (v *views) webStack(c *ui.Context) {
 				ui.Box(c).Grow(1).MinWidth(0).Height(18).ClipX().Children(func() {
 					ui.Text(c, task.Title).Absolute().Left(8 * (1 - progress)).WidthPercent(100).FontSize(13).Height(18).FixedLineHeight(18).MaxLines(1).Ellipsis("…").Opacity(progress)
 				})
+				if task.Priority == 2 || task.Priority == 3 {
+					bg := t.WarningSoft
+					if task.Priority == 3 {
+						bg = t.DangerSoft
+					}
+					ui.Text(c, priorityName(task.Priority)).FontSize(10).NoWrap().Shrink(0).Padding(2, 4).Radius(3).TextColor(markerColor).Background(bg)
+				}
 				if task.DueAt > 0 {
 					label := dueLabel(task, m.now())
 					if label != "" {

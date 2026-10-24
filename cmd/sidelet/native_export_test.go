@@ -232,6 +232,7 @@ func TestNativeExportUIBusyFeedbackDraftAndReopenedView(t *testing.T) {
 			e.dialog = func(*mygo.Window, string, string) (string, error) { close(entered); <-release; return "", nil }
 			v := newNativeTasksView(s)
 			v.settingsOpen, v.newTitle, v.formNote = true, "未提交标题", "未提交备注"
+			v.settingsTab = "data"
 			v.onExport = func(f string) { e.start(f, nil) }
 			u := ui.NewTester(v.render, 1120, 800)
 			u.Scroll(600, 600, 0, 2400)
@@ -250,7 +251,7 @@ func TestNativeExportUIBusyFeedbackDraftAndReopenedView(t *testing.T) {
 			}
 			// Destroy the view while the worker remains in a dialog.
 			v = newNativeTasksView(s)
-			v.settingsOpen = true
+			v.settingsOpen, v.settingsTab = true, "data"
 			close(release)
 			awaitExport(t, finished)
 			u = ui.NewTester(v.render, 1120, 800)

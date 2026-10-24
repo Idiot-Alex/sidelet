@@ -35,7 +35,14 @@ func (v *nativeTasksView) render(c *ui.Context) {
 		}
 		v.webHeader(c)
 		v.webDraftSaveError(c)
-		ui.Scroll(c.Key("page")).Grow(1).Padding(16, 0, 0).Children(func() {
+		if v.settingsOpen {
+			v.webSettingsNavigation(c)
+		}
+		pageKey := "page"
+		if v.settingsOpen {
+			pageKey = "settings-" + v.settingsTab
+		}
+		ui.Scroll(c.Key(pageKey)).Grow(1).Padding(16, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
 			}
@@ -416,9 +423,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 		})
 		ui.Column(c.Key(fmt.Sprintf("task-form-%d", v.editID))).Gap(7).Children(func() {
-			if v.editID > 0 {
-				ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
-			}
+			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
 			value, label := &v.newTitle, "新任务标题"
 			if v.editID > 0 {
 				value, label = &v.draft, "编辑任务标题"
@@ -484,7 +489,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				marker = "▾"
 			}
 			ui.Text(c, marker).FontSize(12).FixedLineHeight(16)
-			ui.Text(c, "截止时间与更多选项")
+			ui.Text(c, "日期、提醒与优先级")
 		})
 		if b.Clicked() {
 			v.optionsOpen = !v.optionsOpen
@@ -666,19 +671,6 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 				}
 			}
 		})
-		ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(18, 0, 0).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
-				ui.Text(c, "悬浮任务半透明").FontSize(13).FontWeight(500)
-				ui.Text(c, "让桌面悬浮卡片透出背景，主窗口始终使用实色。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
-			})
-			on := v.service.m.Preferences.Appearance.DesktopTranslucent
-			if webSwitch(c, &on, "启用悬浮任务半透明").Changed() {
-				value := v.service.m.Preferences
-				value.Appearance.DesktopTranslucent = on
-				_, err := v.service.SavePreferences(value)
-				v.result(err, "")
-			}
-		})
 		if runtime.GOOS == "darwin" {
 			ui.Row(c).Gap(28).AlignItems(ui.Center).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Margin(20, 0, 0).Padding(20, 0, 0).Children(func() {
 				ui.Column(c).Grow(1).Children(func() {
@@ -693,6 +685,23 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 					v.result(err, "")
 				}
 			})
+		}
+	})
+}
+
+func (v *nativeTasksView) webDesktopTransparency(c *ui.Context) {
+	t := v.visual
+	ui.Row(c).Gap(28).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).Children(func() {
+			ui.Text(c, "悬浮任务半透明").FontSize(13).FontWeight(500)
+			ui.Text(c, "让桌面悬浮卡片透出背景，主窗口始终使用实色。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+		})
+		on := v.service.m.Preferences.Appearance.DesktopTranslucent
+		if webSwitch(c, &on, "启用悬浮任务半透明").Changed() {
+			value := v.service.m.Preferences
+			value.Appearance.DesktopTranslucent = on
+			_, err := v.service.SavePreferences(value)
+			v.result(err, "")
 		}
 	})
 }

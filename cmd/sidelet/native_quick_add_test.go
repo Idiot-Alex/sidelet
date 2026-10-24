@@ -244,7 +244,7 @@ func TestNativeQuickShortcutConflictCleanupAndStaleCallbacks(t *testing.T) {
 	m, v, u := webUITester(t)
 	_ = m
 	v.service.quickShortcut = &nativeQuickShortcut{error: "快捷键注册失败，可能已被其他应用占用。"}
-	v.settingsOpen = true
+	v.settingsOpen, v.settingsTab = true, "data"
 	u.Frame()
 	u.Scroll(600, 600, 0, 2400)
 	if !u.HasText(v.service.quickShortcut.error) {

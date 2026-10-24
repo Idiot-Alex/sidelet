@@ -87,11 +87,12 @@ func buildWebTheme(id string) *visualTheme {
 	if runtime.GOOS == "windows" {
 		// Explicit CJK fallback avoids the system choosing a serif face for
 		// Chinese glyphs missing from Segoe UI.
-		t.Font = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif"
+		t.Font = "Microsoft YaHei, Segoe UI, sans-serif"
+		t.FontSize = 14
 	}
 	d := &visualTheme{Theme: t, ID: id, Alt: color("surface-alt"), Field: color("field"), Subtle: color("subtle"), Soft: color("accent-soft"), WarningSoft: color("warning-soft"), DangerSoft: color("danger-soft"), Radius: number("radius"), HeadingWeight: int(number("heading-weight"))}
 	d.HeadingFont = t.Font
-	if id == "paper" {
+	if id == "paper" && runtime.GOOS != "windows" {
 		d.HeadingFont = "Iowan Old Style, Songti SC, STSong, Georgia, serif"
 	}
 	return d
@@ -102,7 +103,7 @@ func webIcon(c *ui.Context, name string, size float32) {
 }
 
 func webButton(c *ui.Context, label string, primary bool) ui.Element {
-	b := ui.ButtonBase(c).Label(label).FontSize(12).LineHeight(4.0/3).Padding(7, 10).Radius(c.Theme().Radius).Border(1, c.Theme().Border).TextColor(c.Theme().TextMuted)
+	b := ui.ButtonBase(c).Label(label).FontSize(13).LineHeight(4.0/3).Padding(7, 10).Radius(c.Theme().Radius).Border(1, c.Theme().Border).TextColor(c.Theme().TextMuted)
 	webFocus(c, b, c.Theme().Radius)
 	if primary {
 		b.Background(c.Theme().Accent).Border(1, c.Theme().Accent).TextColor(c.Theme().AccentText).FontWeight(550)

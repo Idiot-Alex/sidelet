@@ -210,7 +210,7 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 				t.Fatal(err)
 			}
 			v := newNativeTasksView(s)
-			v.settingsOpen = true
+			v.settingsOpen, v.settingsTab = true, "system"
 			if err := s.CheckLogin(); err != nil {
 				t.Fatal(err)
 			}
@@ -233,8 +233,15 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 				t.Fatal("switch did not commit")
 			}
 			b.status = "requiresApproval"
-			focus("检查登录状态")
-			u.Key(0, ui.KeyEnter)
+			if u.HasText("检查登录状态") {
+				t.Fatal("healthy login state exposes refresh button")
+			}
+			if err := u.Click("返回我的任务"); err != nil {
+				t.Fatal(err)
+			}
+			if err := u.Click("设置"); err != nil {
+				t.Fatal(err)
+			}
 			if !u.HasText("系统状态：等待系统批准") || !u.HasText("请在系统登录项中允许 Sidelet；完成后返回这里检查状态。") {
 				t.Fatal("approval status missing")
 			}
@@ -250,8 +257,12 @@ func TestLoginSettingsUIThemes(t *testing.T) {
 				t.Fatal("external state not reflected")
 			}
 			b.status = "disabledBySystem"
-			focus("检查登录状态")
-			u.Key(0, ui.KeyEnter)
+			if err := u.Click("返回我的任务"); err != nil {
+				t.Fatal(err)
+			}
+			if err := u.Click("设置"); err != nil {
+				t.Fatal(err)
+			}
 			if !u.HasText("系统状态：已在系统中禁用") || !u.HasText("你已在系统中禁用 Sidelet 的自动启动；开启此开关将重新允许。") {
 				t.Fatal("system-disabled explanation missing")
 			}

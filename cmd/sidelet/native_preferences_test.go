@@ -264,7 +264,9 @@ func TestFormalQuietAndPreferencesUIKeepsMainDraft(t *testing.T) {
 			if err := u.Click("设置"); err != nil {
 				t.Fatal(err)
 			}
-			u.Scroll(600, 600, 0, 400)
+			if err := u.Click("通知与启动"); err != nil {
+				t.Fatal(err)
+			}
 			focus := func(label string) {
 				for i := 0; i < 30 && !u.Focused(label); i++ {
 					u.Key(0, ui.KeyTab)
@@ -278,19 +280,11 @@ func TestFormalQuietAndPreferencesUIKeepsMainDraft(t *testing.T) {
 			if !m.Preferences.Startup.ShowMainWindow {
 				t.Fatal("startup switch did not commit")
 			}
-			focus("默认屏幕边缘")
-			u.Key(0, ui.KeySpace)
-			u.Key(0, ui.KeyHome)
-			u.Key(0, ui.KeyEnter)
-			if m.Preferences.Edge.DefaultSide != "left" {
-				t.Fatal("default edge did not save")
+			if err := u.Click("桌面任务"); err != nil {
+				t.Fatal(err)
 			}
-			focus("默认标签密度")
-			u.Key(0, ui.KeySpace)
-			u.Key(0, ui.KeyEnd)
-			u.Key(0, ui.KeyEnter)
-			if m.Preferences.Edge.DefaultDensity != "relaxed" || m.Side != "left" || m.itemHeight() != 44 {
-				t.Fatal("default density missing or altered current layout")
+			if u.HasText("默认屏幕边缘") || u.HasText("新任务组默认值") || v.draft != "保留主窗口草稿" {
+				t.Fatal("removed defaults remain visible or draft was lost")
 			}
 		})
 	}
@@ -319,6 +313,9 @@ func TestWindowsNotificationSettingsDoNotClaimPermission(t *testing.T) {
 	v.service.notificationAuthorization = "systemManaged"
 	v.service.notificationStatus = notificationMessage("systemManaged", nil)
 	if err := u.Click("设置"); err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Click("通知与启动"); err != nil {
 		t.Fatal(err)
 	}
 	u.Scroll(600, 600, 0, 600)

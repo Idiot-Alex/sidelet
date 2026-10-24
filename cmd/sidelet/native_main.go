@@ -46,6 +46,7 @@ type nativeTasksView struct {
 	theme                         *ui.Theme
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
+	settingsTab                   string
 	newFormOpen, focusNewEntry    bool
 	formNote                      string
 	noteOpen, focusNote           bool

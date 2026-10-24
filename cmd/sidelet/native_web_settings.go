@@ -55,6 +55,16 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Background(t.DangerSoft).Padding(12, 16).Radius(t.Radius)
 		}
 		section := func(title string, body func(), status ...notificationPresentation) {
+			group := "system"
+			switch title {
+			case "桌面任务位置", "悬浮卡片":
+				group = "desktop"
+			case "导出任务", "快速添加":
+				group = "data"
+			}
+			if v.settingsTab != group {
+				return
+			}
 			ui.Column(c).Padding(vertical, horizontal).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10).Children(func() {
 					ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600)
@@ -68,57 +78,10 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 		}
 		hint := func(text string) { ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).LineHeight(1.6).Margin(5, 0) }
 		section("桌面任务位置", func() { v.webPosition(c) })
-		section("新任务组默认值", func() {
-			hint("仅在创建新任务组时使用。现有任务组的位置与密度可在上方“桌面任务位置”中调整。")
-			prefs := v.service.m.Preferences
-			side := "右侧"
-			if prefs.Edge.DefaultSide == "left" {
-				side = "左侧"
-			}
-			density := "标准"
-			if prefs.Edge.DefaultDensity == "compact" {
-				density = "紧凑"
-			}
-			if prefs.Edge.DefaultDensity == "relaxed" {
-				density = "宽松"
-			}
-			for i, item := range []struct {
-				label   string
-				value   *string
-				options []string
-			}{
-				{"默认屏幕边缘", &side, []string{"左侧", "右侧"}}, {"默认标签密度", &density, []string{"紧凑", "标准", "宽松"}},
-			} {
-				row := ui.Row(c).AlignItems(ui.Center).Padding(15, 0)
-				if i == 1 {
-					row.Padding(15, 0, 0).Margin(8, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0)
-				}
-				row.Children(func() {
-					ui.Text(c, item.label).FontSize(13).FontWeight(500).Grow(1)
-					field := webSelect(c, item.value, item.options).Label(item.label).MinWidth(128).Height(36).Background(t.Field)
-					if field.Changed() {
-						value := v.service.m.Preferences
-						if item.label == "默认屏幕边缘" {
-							value.Edge.DefaultSide = "right"
-							if side == "左侧" {
-								value.Edge.DefaultSide = "left"
-							}
-						} else {
-							value.Edge.DefaultDensity = "normal"
-							if density == "紧凑" {
-								value.Edge.DefaultDensity = "compact"
-							}
-							if density == "宽松" {
-								value.Edge.DefaultDensity = "relaxed"
-							}
-						}
-						_, err := v.service.SavePreferences(value)
-						v.result(err, "")
-					}
-				})
-			}
-		})
-		v.webAppearance(c)
+		section("悬浮卡片", func() { v.webDesktopTransparency(c) })
+		if v.settingsTab == "" {
+			v.webAppearance(c)
+		}
 		section("启动行为", func() {
 			l := v.service.login
 			status := "unsupported"
@@ -150,6 +113,9 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 			}
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				for _, name := range []string{"打开系统登录项", "检查登录状态"} {
+					if name == "检查登录状态" && (l == nil || status == "unsupported" || (l.error == "" && (status == "enabled" || status == "notRegistered"))) {
+						continue
+					}
 					b := webButton(c, name, false).Padding(8, 12).Background(t.Field).TextColor(t.Text).Disabled(l == nil || status == "unsupported")
 					b.Children(func() { ui.Text(c, name) })
 					if b.Clicked() {
@@ -237,14 +203,9 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				ui.Text(c, "随时记下任务").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 8)
 			})
 			hint("Enter 保存，Esc 返回之前的应用。支持“明天下午3点 联系客户”等简单时间。")
-			b := webButton(c, "打开快速添加", false).AlignSelf(ui.Start).Height(36).Padding(8, 12).Gap(6).Margin(12, 0, 0).Background(t.Field).TextColor(t.Text)
-			b.Children(func() { webIcon(c, "plus", 14); webActionText(c, "打开快速添加") })
-			if b.Clicked() && v.onQuickAdd != nil {
-				v.onQuickAdd()
-			}
 		})
 		section("导出任务", func() {
-			hint("导出全部已保存任务。JSON 保留完整内容与桌面布局，CSV 适合用表格查看。")
+			hint("导出已保存任务（不含草稿）：JSON 保留完整数据，CSV 用于表格查看。")
 			ui.Row(c).Gap(8).Margin(12, 0, 0).Children(func() {
 				for _, name := range []string{"导出 JSON", "导出 CSV"} {
 					b := webButton(c, name, false).Padding(8, 12).Gap(7).Background(t.Field).TextColor(t.Text).Disabled(v.exportBusy() || v.onExport == nil)
@@ -258,7 +219,6 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 					}
 				}
 			})
-			hint("未提交的草稿不包含在导出文件中。")
 			if e := v.service.export; e != nil && e.status != "" {
 				color := t.TextMuted
 				if e.failed {
@@ -322,5 +282,21 @@ func (v *nativeTasksView) webPosition(c *ui.Context) {
 				v.result(err, "")
 			}
 		})
+	})
+}
+
+func (v *nativeTasksView) webSettingsNavigation(c *ui.Context) {
+	t := v.visual
+	ui.Row(c).Gap(6).Padding(8, 0, 12).Children(func() {
+		for _, tab := range []struct{ id, label string }{{"", "外观"}, {"desktop", "桌面任务"}, {"system", "通知与启动"}, {"data", "数据与快捷键"}} {
+			b := webButton(c, tab.label, false).Border(0, ui.Transparent).Padding(9, 14)
+			if v.settingsTab == tab.id {
+				b.Background(t.Soft).TextColor(t.Accent).FontWeight(600)
+			}
+			b.Children(func() { ui.Text(c, tab.label) })
+			if b.Clicked() {
+				v.settingsTab = tab.id
+			}
+		}
 	})
 }

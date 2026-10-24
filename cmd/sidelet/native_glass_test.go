@@ -51,6 +51,9 @@ func TestGlassPreferencePreservesDraftAndOnlyPublishesAfterCommit(t *testing.T) 
 	if err := u.Click("设置"); err != nil {
 		t.Fatal(err)
 	}
+	if err := u.Click("桌面任务"); err != nil {
+		t.Fatal(err)
+	}
 	if err := u.Click("启用悬浮任务半透明"); err != nil {
 		t.Fatal(err)
 	}

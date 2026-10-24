@@ -27,6 +27,27 @@ func webEditorTester(t *testing.T) (*model, *nativeTasksView, *ui.Tester) {
 	return m, v, u
 }
 
+func TestSettingsCategoriesPreserveDraftAndHideUnrelatedControls(t *testing.T) {
+	_, v, u := webEditorTester(t)
+	u.Type("分类切换前的草稿")
+	for _, label := range []string{"设置", "桌面任务"} {
+		if err := u.Click(label); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !u.HasText("屏幕边缘") || u.HasText("默认屏幕边缘") || u.HasText("导出 JSON") {
+		t.Fatal("desktop category did not isolate current layout and collapse defaults")
+	}
+	for _, label := range []string{"通知与启动", "数据与快捷键", "外观", "返回我的任务"} {
+		if err := u.Click(label); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if v.newTitle != "分类切换前的草稿" || !u.HasText("添加任务") {
+		t.Fatal("settings navigation lost task draft")
+	}
+}
+
 func TestFormalUIEditorNotesIMEAndConflict(t *testing.T) {
 	m, v, u := webUITester(t)
 	if err := u.Click("编辑：整理今天的工作"); err != nil {
@@ -146,6 +167,9 @@ func TestFormalUIThemesAndSettings(t *testing.T) {
 			t.Fatal("theme not shared with overlay model")
 		}
 	}
+	if err := u.Click("数据与快捷键"); err != nil {
+		t.Fatal(err)
+	}
 	u.Scroll(600, 600, 0, 1800)
 	if !u.HasText("导出任务") || !u.HasText("快速添加") {
 		t.Fatal("settings sections missing")
@@ -219,6 +243,36 @@ func TestFormalUIHoverDelayAndLeaveBridge(t *testing.T) {
 	}
 	if next, _ := v.webHover(-1, now.Add(2500*time.Millisecond)); next != -1 {
 		t.Fatal("leave did not collapse after delay")
+	}
+}
+
+func TestSidebarPriorityVisibleCollapsedAndExpanded(t *testing.T) {
+	for _, theme := range []string{"mac", "paper", "graphite"} {
+		for _, side := range []string{"left", "right"} {
+			for _, priority := range []int{2, 3} {
+				m := newModel()
+				m.UITheme, m.Side = theme, side
+				m.Tasks[0].Priority = priority
+				m.Tasks[0].DueAt = m.now().Add(-time.Hour).UnixMilli()
+				v := &views{m: m}
+				u := ui.NewTester(v.stack, stackWidth, stackHeight)
+				r := m.markerRect(0)
+				ink := webTheme(theme).Warning
+				if priority == 3 {
+					ink = webTheme(theme).Danger
+				}
+				pixel := u.Image().RGBAAt(r.X+r.Width/2-(priority*4-2)/2+1, r.Y+r.Height/2)
+				if pixel.R != ink.R || pixel.G != ink.G || pixel.B != ink.B {
+					t.Fatalf("priority missing on collapsed marker: %s/%s/%d", theme, side, priority)
+				}
+				u.Move(float32(r.X+r.Width/2), float32(r.Y+r.Height/2))
+				v.hoverDeadline = time.Unix(1, 0)
+				u.Frame()
+				if !u.HasText(priorityName(priority)) {
+					t.Fatal("expanded preview lacks priority label")
+				}
+			}
+		}
 	}
 }
 

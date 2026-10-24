@@ -25,10 +25,13 @@ func TestNativeUIVisualArtifacts(t *testing.T) {
 		m.UITheme, v.visual = theme, webTheme(theme)
 		now := time.Date(2026, 10, 23, 10, 0, 0, 0, time.Local)
 		m.clock = func() time.Time { return now }
-		_, err := v.service.SaveTask(1, "整理今天的工作", "先完成最重要的一件事", 2, true, now.Add(time.Hour).UnixMilli(), true, false, m.Tasks[0].Version)
+		_, err := v.service.SaveTask(1, "整理下周产品评审资料：核对设计稿、补充需求说明并确认所有待办负责人", "核对最新版本与评审意见。\n补齐移动端和桌面端的差异说明。\n会前发送给所有参与者。", 2, true, now.Add(time.Hour).UnixMilli(), true, false, m.Tasks[0].Version)
 		if err != nil {
 			t.Fatal(err)
 		}
+		_, _ = v.service.SaveTask(2, "联系客户确认交付时间", "等待对方回复", 3, false, now.Add(-time.Hour).UnixMilli(), false, false, m.Tasks[1].Version)
+		_, _ = v.service.SetDone(3, true, m.Tasks[2].Version)
+		v.filterAll = true
 		v.service.notificationAuthorization = "systemManaged"
 		v.service.notificationStatus = notificationMessage("systemManaged", nil)
 		for _, state := range []string{"tasks", "compact", "settings", "notification-denied", "notification-error"} {
@@ -41,6 +44,7 @@ func TestNativeUIVisualArtifacts(t *testing.T) {
 				h = 2000
 			}
 			if state == "notification-denied" {
+				v.settingsTab = "system"
 				v.service.notificationAuthorization = "denied"
 				v.service.notificationStatus = notificationMessage("denied", nil)
 			}
