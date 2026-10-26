@@ -10,6 +10,7 @@
   let download = $state<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
   let filename = $state('');
   let version = $state('');
+  let build = $state('');
   let bytes = $state(0);
   let hash = $state('');
   let minimumOS = $state('13.0');
@@ -34,14 +35,16 @@
         if (!response.ok) throw new Error('manifest unavailable');
         const manifest = await response.json();
         if (!manifest.available) { if (alive) download = 'unavailable'; return; }
-        if (typeof manifest.filename !== 'string' || !/^Sidelet-[\w.-]+-arm64\.dmg$/.test(manifest.filename)
+        if (typeof manifest.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(manifest.version)
+          || typeof manifest.build !== 'string' || !/^\d+$/.test(manifest.build)
+          || manifest.filename !== `Sidelet-${manifest.version}-build${manifest.build}-local-arm64.dmg`
           || manifest.url !== `downloads/${manifest.filename}` || !Number.isSafeInteger(manifest.bytes) || manifest.bytes <= 0
           || typeof manifest.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(manifest.sha256)) throw new Error('invalid manifest');
         const installer = await fetch(`${base}${manifest.url}`, { method: 'HEAD', signal: controller.signal });
         const contentLength = Number(installer.headers.get('content-length'));
         if (!installer.ok || installer.headers.get('content-type')?.includes('text/html') || (contentLength > 0 && contentLength !== manifest.bytes)) throw new Error('installer unavailable');
         if (!alive) return;
-        filename = manifest.filename; version = String(manifest.version); bytes = manifest.bytes; hash = manifest.sha256; minimumOS = String(manifest.minimumOS);
+        filename = manifest.filename; version = manifest.version; build = manifest.build; bytes = manifest.bytes; hash = manifest.sha256; minimumOS = String(manifest.minimumOS);
         download = 'ready';
       } catch {
         if (alive) download = 'error';
@@ -109,7 +112,7 @@
           {#if download === 'ready'}
             <a class="button primary" href={`${base}downloads/${filename}`} download={filename}>下载 macOS 预览版<span aria-hidden="true">↓</span></a>
             <p class="platform-note">Apple Silicon（M 系列） · macOS {minimumOS} 及以上</p>
-            <p class="release-note">版本 {version}，{(bytes / 1024 / 1024).toFixed(1)} MB。本地签名预览版，尚未经过 Apple 公证。</p>
+            <p class="release-note">版本 {version}（build {build}），{(bytes / 1024 / 1024).toFixed(1)} MB。本地签名预览版，尚未经过 Apple 公证。</p>
             <details class="checksum"><summary>查看安装包校验信息</summary><p>SHA-256</p><code>{hash}</code><a href={`${base}downloads/${filename}.sha256`} download>下载校验文件</a></details>
           {:else if download === 'loading'}
             <button class="button primary" disabled>正在检查安装包…</button><p class="platform-note">macOS Apple Silicon 预览版</p>

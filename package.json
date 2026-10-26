@@ -2,6 +2,7 @@
   "name": "sidelet",
   "private": true,
   "scripts": {
+    "test:website": "npm --prefix website test",
     "dev:website": "npm --prefix website run dev",
     "build:website": "npm --prefix website run build",
     "check:website": "npm --prefix website run check",

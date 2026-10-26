@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test scripts/*.test.mjs",
     "dev": "node scripts/prepare-download.mjs && vite --host 127.0.0.1",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "build": "npm run check && node scripts/prepare-download.mjs && vite build",
+    "build": "npm test && npm run check && node scripts/prepare-download.mjs && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

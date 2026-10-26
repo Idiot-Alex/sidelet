@@ -1,29 +1,7 @@
 name: Windows
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/windows.yml'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'scripts/**'
-      - 'tools/**'
-      - 'packaging/**'
-      - 'assets/**'
-      - 'go.mod'
-      - 'go.sum'
-  pull_request:
-    paths:
-      - '.github/workflows/windows.yml'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'scripts/**'
-      - 'tools/**'
-      - 'packaging/**'
-      - 'assets/**'
-      - 'go.mod'
-      - 'go.sum'
+  # Run explicitly before Windows releases or platform-specific verification.
   workflow_dispatch:
 
 permissions:

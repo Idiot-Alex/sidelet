@@ -9,6 +9,7 @@ Sidelet 是使用 Go + MyGo 构建的原生桌面任务应用。桌面端已切�
 ```sh
 bash scripts/go.sh run ./cmd/sidelet
 bash scripts/build-macos.sh arm64
+bash scripts/package-macos.sh arm64
 open build/bin/Sidelet.app
 bash scripts/build-windows.sh amd64
 bash scripts/package-windows.sh amd64
@@ -18,6 +19,8 @@ bash scripts/test-regression.sh
 macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，已通过 x64 / ARM64 原生 CI，完整交互仍待实机验收）。本地 macOS 包为 ad-hoc 签名，未公证。Windows 构建会嵌入 Sidelet 多尺寸图标、文件版本、产品信息和运行清单；`package-windows.sh` / `package-windows.ps1` 生成 ZIP 与 SHA-256，命令和实机验收见 [Windows 打包记录](docs/mygo/WINDOWS_PACKAGE.md)。
 
 测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。
+
+当前打包构建号为 46。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build46-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
 
 ## 数据与应用身份
 
@@ -43,7 +46,7 @@ SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。
 
 最近内存短测见 [测量记录](docs/mygo/MEMORY_20261015.md)。
 
-Windows 自动测试与产物位于仓库 Actions，运行范围和验收边界见 [CI 记录](docs/mygo/WINDOWS_CI.md)。
+Windows CI 仅手动触发，push / pull request 不会自动运行。需要时在仓库 Actions → Windows → Run workflow 启动，两架构测试与产物、运行范围和验收边界见 [CI 记录](docs/mygo/WINDOWS_CI.md)。
 
 Windows 侧栏透明命中、被动焦点、卡片交接和拖动适配见 [输入适配记录](docs/mygo/WINDOWS_INPUT.md)。
 
@@ -57,7 +60,9 @@ build 43 起，新建任务草稿自动保存至 SQLite，关闭窗口或重启�
 
 build 44 起，任务页默认单列，新建 / 编辑时展开编辑区；收起保留草稿。任务状态合并、设置页与浮动卡片整理见 [主界面布局记录](docs/mygo/MAIN_LAYOUT_20261023.md)。
 
-主窗口固定使用实色背景和细分隔任务列表，不提供背景透视。桌面位置与标签密度在设置页调整。外观设置仅保留“悬浮任务半透明”，默认关闭，开关保存在本机 SQLite 中。Windows 浮动卡片使用无模糊透明合成，macOS 使用原生磨砂材质；系统降低透明度、提高对比度或不支持原生材质时使用实色背景，侧边标签的空白区域仍完全透明。
+主窗口固定使用实色背景和细分隔任务列表，不提供背景透视。桌面位置与标签密度在设置页调整。透明效果仅保留“悬浮任务半透明”，默认关闭，开关保存在本机 SQLite 中。Windows 浮动卡片使用无模糊透明合成，macOS 使用原生磨砂材质；系统降低透明度、提高对比度或不支持原生材质时使用实色背景，侧边标签的空白区域仍完全透明。
+
+设置分为“外观、桌面任务、通知与启动、数据与快捷键”；“悬浮任务半透明”位于“桌面任务”。侧边优先级通过颜色与不同条数区分，展开后显示重要 / 紧急文字。build 46 收录这两次 UI 更新，详见 [最新布局说明](docs/mygo/MAIN_LAYOUT_20261023.md#2026-10-26build-46-收录最新界面行为)。
 
 macOS 浮动卡片点击后空白的输入层防遮挡修复见 [卡片窗口层级记录](docs/mygo/MACOS_CARD_ORDER_20261023.md)。
 

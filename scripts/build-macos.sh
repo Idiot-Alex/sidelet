@@ -33,6 +33,7 @@ swiftc -module-cache-path "$sidelet_root/.cache/clang" scripts/render-macos-icon
 iconutil -c icns "$sidelet_work/Sidelet.iconset" -o "$sidelet_staged/Contents/Resources/Sidelet.icns"
 python3 scripts/macos-bundle-info.py --plist "$sidelet_staged/Contents/Info.plist"
 plutil -lint "$sidelet_staged/Contents/Info.plist"
+python3 scripts/macos-package.py record-build "$sidelet_staged" "$sidelet_arch"
 codesign --force --sign - "$sidelet_staged"
 codesign --verify --strict "$sidelet_staged"
 rm -rf "$sidelet_bundle"

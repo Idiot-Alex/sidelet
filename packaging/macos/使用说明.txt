@@ -1,4 +1,4 @@
-Sidelet {{VERSION}} · MyGo 原生预览版
+Sidelet {{VERSION}}（build {{BUILD}}）· MyGo 原生预览版
 适用于 macOS 13 或更新版本，{{PLATFORM}}。
 
 安装

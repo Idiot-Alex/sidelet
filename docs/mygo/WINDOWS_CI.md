@@ -1,8 +1,10 @@
 # Windows 自动验证
 
-更新：2026-10-24。工作流：`.github/workflows/windows.yml`。
+更新：2026-10-26。工作流：`.github/workflows/windows.yml`。
 
-主线桌面源码、构建脚本、依赖、资产或打包配置改变时，在 push / pull request 上运行；也可在 Actions 中手动运行。两项任务分别使用 Windows x64 和 Windows ARM64 主机，Go 版本取自根 `go.mod`。官方 Action 固定到提交 SHA，仓库 token 仅有读取内容权限；不会自动发布 Release 或修改官网。
+工作流仅保留 `workflow_dispatch`，push 和 pull request 均不会自动触发。需要验证 Windows 改动或准备发布时，在仓库 Actions → Windows → Run workflow 中手动选择分支运行；日常 Mac 开发使用本地测试。本轮按用户要求改为手动触发，没有启动新的 Windows CI。
+
+保留两项任务，分别使用 Windows x64 和 Windows ARM64 主机，Go 版本取自根 `go.mod`。官方 Action 固定到提交 SHA，仓库 token 仅有读取内容权限；不会自动发布 Release 或修改官网。以下历史结果只对应其列出的提交，不代表后续提交自动获得 Windows 验证。
 
 `scripts/test-windows-ci.ps1` 用 PowerShell 7 执行以下检查：
 
