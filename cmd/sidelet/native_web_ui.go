@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+
 	"strings"
 	"time"
 
@@ -422,6 +423,13 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			ui.Box(c).TextColor(t.Accent).Children(func() { webIcon(c, icon, 18) })
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 		})
+		if v.editID > 0 && v.editID <= len(v.service.m.Tasks) {
+			item := v.service.m.Tasks[v.editID-1]
+			if !item.Deleted && item.Done && item.CompletedAt > 0 {
+				label := "完成于 " + time.UnixMilli(item.CompletedAt).In(v.service.m.now().Location()).Format("2006年1月2日 15:04")
+				ui.Text(c, label).FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 14)
+			}
+		}
 		ui.Column(c.Key(fmt.Sprintf("task-form-%d", v.editID))).Gap(7).Children(func() {
 			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
 			value, label := &v.newTitle, "新任务标题"
@@ -436,52 +444,18 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			if field.Submitted() {
 				v.webSubmit()
 			}
-			ui.Row(c.Key("note-heading")).Margin(7, 0, 0).AlignItems(ui.Center).Children(func() {
-				if v.editID > 0 {
-					ui.Text(c, "备注").FontSize(12).Height(20).FixedLineHeight(20).TextColor(t.TextMuted)
-				} else {
-					label, caption, marker := "展开备注", "添加备注", "▸"
-					if v.formNote != "" {
-						caption = "备注 · 已填写"
-					}
-					if v.noteOpen {
-						label, caption, marker = "收起备注", "备注", "▾"
-					}
-					b := webButton(c, label, false).Border(0, ui.Transparent).Padding(2, 0).Height(20).Gap(5)
-					b.Children(func() { ui.Text(c, marker); webActionText(c, caption) })
-					if b.Clicked() {
-						v.noteOpen = !v.noteOpen
-						v.focusNote = v.noteOpen
-					}
-				}
-				if !v.noteOpen && v.editID == 0 {
-					return
-				}
-				ui.Spacer(c)
-				shortcut := "Ctrl + Enter"
-				if runtime.GOOS == "darwin" {
-					shortcut = "⌘ Enter"
-				}
-				action := "添加"
-				if v.editID > 0 {
-					action = "保存"
-				}
-				ui.Text(c, shortcut+" "+action).FontSize(10).Height(14).FixedLineHeight(14).TextColor(t.Subtle)
-			})
-			if v.noteOpen || v.editID > 0 {
-				note := webTextArea(c.Key("note"), &v.formNote).Label("任务备注").Placeholder("补充要点，或留空").Height(84).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Surface).LineHeight(1.6)
-				if v.focusNote {
-					note.Focus()
-					v.focusNote = false
-				}
-				if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) {
-					v.webSubmit()
-				}
-			}
+			v.webTaskNote(c, false, v.webSubmit)
 		})
-		if v.editID == 0 {
-			webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").Height(15).FixedLineHeight(15).TextColor(t.Text).Margin(16, 0, 16)
-		}
+		ui.Row(c).Gap(12).AlignItems(ui.Center).Margin(14, 0).Children(func() {
+			ui.Text(c, "优先级").FontSize(12).TextColor(t.TextMuted)
+			value := &v.newPriority
+			if v.editID > 0 {
+				value = &v.draftPriority
+			}
+			webPriorityRadios(c, value)
+		})
+		ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 7)
+		v.webDeadline(c)
 		b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
 		b.Children(func() {
 			marker := "▸"
@@ -489,7 +463,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				marker = "▾"
 			}
 			ui.Text(c, marker).FontSize(12).FixedLineHeight(16)
-			ui.Text(c, "日期、提醒与优先级")
+			ui.Text(c, "提醒与更多设置")
 		})
 		if b.Clicked() {
 			v.optionsOpen = !v.optionsOpen
@@ -499,25 +473,20 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 		}
 		if v.optionsOpen {
 			ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
-				ui.Text(c, "截止时间").FontSize(12).TextColor(t.TextMuted)
-				v.webDeadline(c)
-				webCheckbox(c, &v.formRemind, "提醒我", 12).Height(16).Margin(9, 0, 9).Disabled(v.formDue == "")
-				hint := "默认只显示到期状态；设置截止时间后可开启通知。"
-				if v.formRemind {
-					hint = "到截止时间发送系统通知；Sidelet 需在后台运行。"
+				if v.formDue != "" {
+					webCheckbox(c, &v.formRemind, "提醒我", 12).Height(16).Margin(9, 0, 3)
+					if v.formRemind {
+						ui.Text(c, "到期时发送通知，需保持 Sidelet 运行。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.5)
+					}
 				}
-				ui.Text(c, hint).FontSize(12).TextColor(t.TextMuted).LineHeight(1.7).Margin(0, 0, 7)
-				ui.Text(c, "重要程度").FontSize(12).TextColor(t.TextMuted)
-				value := &v.newPriority
-				if v.editID > 0 {
-					value = &v.draftPriority
-				}
-				webSelect(c, value, priorityNames).Label("任务重要程度").Height(36).Background(t.Field)
-				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(9, 0, 0)
+				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(12, 0, 0).Tooltip("完成后自动移除，不保留完成记录")
 				if v.formTemporary {
 					ui.Text(c, "完成后保留 5 秒撤销时间，随后自动移除。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.7)
 				}
 			})
+		}
+		if v.editID == 0 {
+			webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").TextColor(t.Text).Margin(0, 0, 16)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			text, value := "添加任务", v.newTitle
@@ -570,6 +539,7 @@ func (v *nativeTasksView) webSubmit() {
 			v.noteOpen, v.focusNote = false, false
 			v.optionsOpen = false
 			v.newFormOpen = false
+			v.defaultDue = ""
 			v.focusNewEntry = true
 		}
 	}
@@ -579,14 +549,7 @@ func (v *nativeTasksView) webSubmit() {
 // Incomplete dates stay explicit rather than being presented as valid times.
 func (v *nativeTasksView) webFormSummary(c *ui.Context) {
 	t := v.visual
-	priority := v.newPriority
-	if v.editID > 0 {
-		priority = v.draftPriority
-	}
 	var parts []string
-	if priorityValue(priority) != 0 {
-		parts = append(parts, priority)
-	}
 	if v.formDue != "" {
 		if due, err := parseDue(v.formDue, v.originalDue, v.originalDueText, v.service.m.now().Location()); err == nil {
 			parts = append(parts, time.UnixMilli(due).In(v.service.m.now().Location()).Format("1/2 15:04"))
@@ -602,7 +565,7 @@ func (v *nativeTasksView) webFormSummary(c *ui.Context) {
 	}
 	if len(parts) > 0 {
 		ui.Box(c).Label("已选任务选项").Margin(-5, 0, 14).Children(func() {
-			ui.Text(c, strings.Join(parts, " · ")).FontSize(11).LineHeight(1.6).TextColor(t.TextMuted)
+			ui.Text(c, strings.Join(parts, " · ")).FontSize(12).LineHeight(1.6).TextColor(t.TextMuted)
 		})
 	}
 }

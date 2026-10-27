@@ -55,6 +55,7 @@ type nativeTasksView struct {
 	draftSaveError                string
 	filterAll                     bool
 	formDue                       string
+	defaultDue                    string
 	deadline                      deadlineSegments
 	originalDue                   int64
 	originalDueText               string
@@ -87,6 +88,10 @@ func newNativeTasksView(s *TasksService) *nativeTasksView {
 }
 
 func (v *nativeTasksView) openNewTask() {
+	if !v.newFormOpen && v.defaultDue == "" && v.captureNewTaskDraft() == nil {
+		v.formDue = localDue(defaultTaskDue(v.service.m.now()), v.service.m.now().Location())
+		v.defaultDue = v.formDue
+	}
 	v.newFormOpen, v.focusNew = true, true
 	v.moreID, v.deleteID = 0, 0
 }
@@ -227,7 +232,7 @@ func (v *nativeTasksView) renderLab(c *ui.Context) {
 				v.focusNew = false
 			}
 			submit := field.Submitted()
-			ui.Select(c, &v.newPriority, priorityNames).Label("新任务重要程度").MinWidth(90).Width(90).Height(36)
+			ui.Select(c, &v.newPriority, priorityNames).Label("新任务优先级").MinWidth(90).Width(90).Height(36)
 			if ui.PrimaryButton(c, "添加").Height(36).Clicked() || submit {
 				v.add()
 			}
@@ -293,7 +298,7 @@ func (v *nativeTasksView) editor(c *ui.Context) {
 		}
 	})
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Select(c, &v.draftPriority, priorityNames).Label("编辑任务重要程度").MinWidth(90).Width(90).Height(32)
+		ui.Select(c, &v.draftPriority, priorityNames).Label("编辑任务优先级").MinWidth(90).Width(90).Height(32)
 		ui.Spacer(c)
 		if ui.Button(c, "取消").Height(32).Clicked() {
 			v.cancelEdit()

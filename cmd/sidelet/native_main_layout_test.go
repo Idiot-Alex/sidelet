@@ -201,7 +201,7 @@ func TestMainNoteDisclosureKeepsContentAndNewFormState(t *testing.T) {
 			}
 			u.Type("需要保留的备注")
 			click("收起备注")
-			if v.formNote != "需要保留的备注" || !u.HasText("备注 · 已填写") {
+			if v.formNote != "需要保留的备注" || !u.HasText("需要保留的备注") {
 				t.Fatal("collapsed note became hidden data or lost its value")
 			}
 			click("编辑：整理今天的工作")

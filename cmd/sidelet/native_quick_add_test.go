@@ -9,7 +9,6 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"sidelet/internal/quickadd"
 )
 
 type testQuickFocus struct{ restores, releases int }
@@ -25,25 +24,25 @@ func quickFixture(s *TasksService) *nativeQuickAdd {
 	return q
 }
 
-func TestNativeQuickAddParsePreviewAndSaveShareOpeningDate(t *testing.T) {
+func TestNativeQuickAddLiteralTitleAndDefaultDateAcrossMidnight(t *testing.T) {
 	m, s, p := profileFixture(t, t.TempDir())
 	zone := time.FixedZone("CST", 8*3600)
 	ref := time.Date(2026, 12, 31, 23, 59, 0, 0, zone)
 	m.clock = func() time.Time { return ref }
 	q := quickFixture(s)
 	q.text = "明天下午三点半 联系客户"
-	u := ui.NewTester(q.render, 540, 260)
-	if !u.HasText("1/1 15:30") || !u.HasText("联系客户") {
-		t.Fatal("no parsed preview")
+	u := ui.NewTester(q.render, 540, 340)
+	if u.HasText("1/1 15:30") {
+		t.Fatal("title date was parsed")
 	}
 	revision := q.session.Revision
 	m.clock = func() time.Time { return ref.Add(2 * time.Minute) }
 	q.submit(revision)
-	want := time.Date(2027, 1, 1, 15, 30, 0, 0, zone).UnixMilli()
-	if len(m.Tasks) != 1 || m.Tasks[0].Title != "联系客户" || m.Tasks[0].DueAt != want || !m.Tasks[0].Unpinned || m.Tasks[0].Remind || m.Tasks[0].ReminderID != 0 || p.saved.Tasks[0].DueAt != want {
+	want := defaultTaskDue(ref)
+	if len(m.Tasks) != 1 || m.Tasks[0].Title != "明天下午三点半 联系客户" || m.Tasks[0].DueAt != want || !m.Tasks[0].Unpinned || m.Tasks[0].Remind || m.Tasks[0].ReminderID != 0 || p.saved.Tasks[0].DueAt != want {
 		t.Fatal("preview/save date changed or default reminder enabled", m.Tasks)
 	}
-	if q.session.Open || q.session.Saving || q.text != "" || q.pin || !q.recognize {
+	if q.session.Open || q.session.Saving || q.text != "" || q.pin {
 		t.Fatal("success did not reset")
 	}
 	q.submit(revision)
@@ -55,18 +54,18 @@ func TestNativeQuickAddParsePreviewAndSaveShareOpeningDate(t *testing.T) {
 	}
 }
 
-func TestNativeQuickAddRecognizeOffPinAndInvalidInput(t *testing.T) {
+func TestNativeQuickAddLiteralTitlePinAndInvalidInput(t *testing.T) {
 	m := newModel()
 	m.UITheme = "mac"
 	s := testService(m)
 	q := quickFixture(s)
-	q.text, q.recognize, q.pin = "明天下午3点 普通文字", false, true
+	q.text, q.pin = "明天下午3点 普通文字", true
 	q.submit(q.session.Revision)
 	item := m.Tasks[3]
-	if item.Title != "明天下午3点 普通文字" || item.DueAt != 0 || item.Unpinned || item.Remind {
+	if item.Title != "明天下午3点 普通文字" || item.DueAt != defaultTaskDue(q.session.Reference) || item.Unpinned || item.Remind {
 		t.Fatal("recognition switch ignored", item)
 	}
-	for _, text := range []string{"明天25:00 错误", "明天下午3点", "两行\n任务", strings.Repeat("字", 501)} {
+	for _, text := range []string{"两行\n任务", strings.Repeat("字", 501)} {
 		t.Run(text[:min(len(text), 20)], func(t *testing.T) {
 			q.session.Begin(m.now())
 			q.text = text
@@ -89,14 +88,14 @@ func TestNativeQuickAddStorageFailureKeepsInputOptionsAndRetryDate(t *testing.T)
 	p.write = func(string, []byte) error { return errors.New("模拟资料写入失败") }
 	q.submit(q.session.Revision)
 	after, _ := readPersistedProfile(t, p)
-	if !bytes.Equal(before, after) || len(m.Tasks) != 0 || q.text != "明天09:30 失败重试" || !q.pin || !q.recognize || !q.session.Open || q.session.Saving || q.error == "" || !q.focus {
+	if !bytes.Equal(before, after) || len(m.Tasks) != 0 || q.text != "明天09:30 失败重试" || !q.pin || !q.session.Open || q.session.Saving || q.error == "" || !q.focus {
 		t.Fatal("write failure lost state")
 	}
 	p.write = p.db.Write
 	m.clock = func() time.Time { return ref.Add(2 * time.Minute) }
 	q.submit(q.session.Revision)
-	want, _ := quickadd.Parse("明天09:30 失败重试", true, ref)
-	if len(m.Tasks) != 1 || m.Tasks[0].DueAt != want.DueAt || m.Tasks[0].Unpinned || q.error != "" {
+	want := defaultTaskDue(ref)
+	if len(m.Tasks) != 1 || m.Tasks[0].DueAt != want || m.Tasks[0].Unpinned || q.error != "" {
 		t.Fatal("retry did not use opening date")
 	}
 }
@@ -105,21 +104,21 @@ func TestNativeQuickAddBlurPreservesDraftAndDoesNotStealFocus(t *testing.T) {
 	m := newModel()
 	s := testService(m)
 	q := quickFixture(s)
-	q.text, q.pin, q.recognize = "失焦的草稿", true, false
+	q.text, q.pin = "失焦的草稿", true
 	token := &testQuickFocus{}
 	q.previous = token
 	q.ours = func() bool { return true }
 	hides := 0
 	q.hide = func() { hides++; q.blur() }
 	q.blur()
-	if token.restores != 0 || token.releases != 1 || hides != 1 || q.session.Open || q.text != "失焦的草稿" || !q.pin || q.recognize {
+	if token.restores != 0 || token.releases != 1 || hides != 1 || q.session.Open || q.text != "失焦的草稿" || !q.pin {
 		t.Fatal("blur discarded draft or restored focus")
 	}
 	q.session.Begin(m.now())
 	token = &testQuickFocus{}
 	q.previous = token
 	q.cancel()
-	if token.restores != 1 || token.releases != 1 || q.text != "" || q.pin || !q.recognize {
+	if token.restores != 1 || token.releases != 1 || q.text != "" || q.pin {
 		t.Fatal("explicit cancel did not restore/reset")
 	}
 	q.session.Begin(m.now())
@@ -168,7 +167,7 @@ func TestNativeQuickAddReentryAndBlurDuringSave(t *testing.T) {
 	}
 }
 
-func TestNativeQuickAddThreeThemePreviewSwitchIMEAndEscape(t *testing.T) {
+func TestNativeQuickAddThreeThemeLiteralTitleIMEAndEscape(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
 		t.Run(theme, func(t *testing.T) {
 			m := newModel()
@@ -176,17 +175,10 @@ func TestNativeQuickAddThreeThemePreviewSwitchIMEAndEscape(t *testing.T) {
 			m.clock = func() time.Time { return time.Date(2026, 10, 9, 8, 0, 0, 0, time.FixedZone("CST", 8*3600)) }
 			q := quickFixture(testService(m))
 			q.text = "明天下午3点 联系客户"
-			u := ui.NewTester(q.render, 540, 260)
+			u := ui.NewTester(q.render, 540, 340)
 			u.SetFocused(true)
-			if !u.HasText("10/10 15:00") || !u.HasText("联系客户") {
-				t.Fatal("preview missing")
-			}
-			if err := u.Click("识别时间"); err != nil {
-				t.Fatal(err)
-			}
-			u.Frame()
-			if q.recognize || !u.HasText("整句保存为标题，不设置截止时间。") {
-				t.Fatal("recognition checkbox inactive")
+			if _, ok := u.Find("快速添加选项"); ok {
+				t.Fatal("obsolete parsing menu remains")
 			}
 			if err := u.Click("固定到桌面"); err != nil {
 				t.Fatal(err)
@@ -194,7 +186,7 @@ func TestNativeQuickAddThreeThemePreviewSwitchIMEAndEscape(t *testing.T) {
 			if err := u.Click("添加"); err != nil {
 				t.Fatal(err)
 			}
-			if len(m.Tasks) != 4 || m.Tasks[3].Title != "明天下午3点 联系客户" || m.Tasks[3].DueAt != 0 || m.Tasks[3].Unpinned || m.Tasks[3].Remind {
+			if len(m.Tasks) != 4 || m.Tasks[3].Title != "明天下午3点 联系客户" || m.Tasks[3].DueAt != defaultTaskDue(q.session.Reference) || m.Tasks[3].Unpinned || m.Tasks[3].Remind {
 				t.Fatal("UI save lost option state")
 			}
 			q.session.Begin(m.now())
@@ -286,8 +278,27 @@ func TestNativeQuickAddBoundsStayInsideSmallAndNegativeDisplays(t *testing.T) {
 			}
 			continue
 		}
-		if !ok || bounds.X < area.X || bounds.Y < area.Y || bounds.X+bounds.Width > area.X+area.Width || bounds.Y+bounds.Height > area.Y+area.Height || bounds.Width > 540 || bounds.Height > 260 {
+		if !ok || bounds.X < area.X || bounds.Y < area.Y || bounds.X+bounds.Width > area.X+area.Width || bounds.Y+bounds.Height > area.Y+area.Height || bounds.Width > 540 || bounds.Height > 340 {
 			t.Fatal("quick add left work area", area, bounds)
+		}
+	}
+}
+
+func TestQuickAddRestoresPositionAndClampsToCurrentDisplay(t *testing.T) {
+	area := mygo.Rectangle{Width: 1920, Height: 1040}
+	initial, _ := quickAddBounds(area)
+	previous := mygo.Rectangle{X: 100, Y: 150, Width: 540, Height: 340}
+	if got := restoreQuickAddBounds(initial, previous, area); got != previous {
+		t.Fatalf("position was not remembered: %+v", got)
+	}
+	if got := restoreQuickAddBounds(initial, mygo.Rectangle{}, area); got != initial {
+		t.Fatal("first opening lost default placement")
+	}
+	for _, area := range []mygo.Rectangle{{X: -1280, Y: -100, Width: 1280, Height: 720}, {X: 20, Y: 30, Width: 320, Height: 200}} {
+		initial, _ := quickAddBounds(area)
+		got := restoreQuickAddBounds(initial, previous, area)
+		if got.X < area.X || got.Y < area.Y || got.X+got.Width > area.X+area.Width || got.Y+got.Height > area.Y+area.Height {
+			t.Fatalf("restored window outside new display: %+v", got)
 		}
 	}
 }
@@ -311,5 +322,50 @@ func TestNativeQuickAddReusedWindowDoesNotBlockApplicationQuit(t *testing.T) {
 	q.handleClose(e, false)
 	if !e.DefaultPrevented() || !q.session.Saving {
 		t.Fatal("close interrupted an in-flight save")
+	}
+}
+
+func TestQuickInlineDateKeepsCloseAccessibleAndEscapeLayered(t *testing.T) {
+	for _, theme := range []string{"mac", "paper", "graphite"} {
+		t.Run(theme, func(t *testing.T) {
+			m := newModel()
+			m.UITheme = theme
+			q := quickFixture(testService(m))
+			q.text = "保留草稿"
+			u := ui.NewTester(q.render, 540, 340)
+			u.SetFocused(true)
+			if err := u.Click("选择截止日期与时间"); err != nil {
+				t.Fatal(err)
+			}
+			u.SetSize(540, q.contentHeight())
+			if err := u.Click("选择截止日期"); err != nil {
+				t.Fatal(err)
+			}
+			u.SetSize(540, 400) // short work area: form scrolls, header stays put.
+			r := visualRect(t, u, "取消快速添加")
+			if r.Y < 0 || r.Y+r.H > 60 {
+				t.Fatalf("close button moved under date editor: %+v", r)
+			}
+			if !u.HasText("优先级") || u.HasText("重要程度") {
+				t.Fatal("priority wording not updated")
+			}
+			u.Key(0, ui.KeyEscape)
+			if q.details.pickerCalendarOpen || !q.details.datePickerOpen || !q.session.Open {
+				t.Fatal("Escape did not close just calendar")
+			}
+			u.Key(0, ui.KeyEscape)
+			if q.details.datePickerOpen || !q.session.Open || q.text != "保留草稿" {
+				t.Fatal("Escape discarded quick draft")
+			}
+			if err := u.Click("选择截止日期与时间"); err != nil {
+				t.Fatal(err)
+			}
+			if err := u.Click("取消快速添加"); err != nil {
+				t.Fatal(err)
+			}
+			if q.session.Open {
+				t.Fatal("header close blocked by date editor")
+			}
+		})
 	}
 }

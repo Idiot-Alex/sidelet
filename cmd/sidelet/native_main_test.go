@@ -18,7 +18,7 @@ func nativeTester(t *testing.T) (*model, *nativeTasksView, *ui.Tester) {
 func TestNativeMainAddEditCancelAndPriority(t *testing.T) {
 	m, v, u := nativeTester(t)
 	u.Type("原生新增任务")
-	if err := u.Click("新任务重要程度"); err != nil {
+	if err := u.Click("新任务优先级"); err != nil {
 		t.Fatal(err)
 	}
 	u.Key(0, ui.KeyEnd)

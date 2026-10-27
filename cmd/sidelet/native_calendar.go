@@ -37,94 +37,103 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 		ui.Text(c, chineseDay(v.pickerDate)).FontSize(12).FontFeatures("tnum").NoWrap()
 		webIcon(c, "calendar", 14)
 	})
-	ui.PopoverBase(c, b, open, func(panel ui.Element) {
-		panel.Padding(10).Gap(4).Border(1, t.Border).Radius(t.Radius).Background(t.Surface)
-		cur := *cursor
-		first := time.Date(cur.Year(), cur.Month(), 1, 0, 0, 0, 0, time.UTC)
-		grid := ui.Column(c.Key("calendar-grid")).Gap(3).Focusable().Role(ui.RoleTable).Label(first.Format("2006年1月")).AutoFocus()
-		move := func(day time.Time) { *cursor = day; c.Invalidate() }
-		choose := func(day time.Time) {
-			// The clock draft is separate; choosing a day doesn't normalize a
-			// nonexistent hour before the user has a chance to correct it.
-			v.pickerDate = day
-			*open = false
-			v.pickerError = ""
-			b.Focus()
-			c.Invalidate()
-		}
-		switch {
-		case grid.Shortcut(0, ui.KeyLeft):
-			move(cur.AddDate(0, 0, -1))
-		case grid.Shortcut(0, ui.KeyRight):
-			move(cur.AddDate(0, 0, 1))
-		case grid.Shortcut(0, ui.KeyUp):
-			move(cur.AddDate(0, 0, -7))
-		case grid.Shortcut(0, ui.KeyDown):
-			move(cur.AddDate(0, 0, 7))
-		case grid.Shortcut(0, ui.KeyPageUp):
-			move(calendarMonth(cur, -1))
-		case grid.Shortcut(0, ui.KeyPageDown):
-			move(calendarMonth(cur, 1))
-		case grid.Shortcut(0, ui.KeyHome):
-			move(first)
-		case grid.Shortcut(0, ui.KeyEnd):
-			move(first.AddDate(0, 1, -1))
-		case grid.Shortcut(0, ui.KeyEnter), grid.Shortcut(0, ui.KeySpace):
-			choose(cur)
-		}
-		grid.Children(func() {
-			ui.Row(c).Gap(4).Children(func() {
-				previous := webButton(c, "上个月", false).Size(28, 28).Padding(0).Tooltip("上个月")
-				previous.Children(func() { ui.Text(c, "‹").FontSize(18) })
-				if previous.Clicked() {
-					move(calendarMonth(cur, -1))
-					grid.Focus()
-				}
-				ui.Text(c, first.Format("2006年1月")).Grow(1).TextAlign(ui.Center).FontSize(13).FontWeight(550)
-				next := webButton(c, "下个月", false).Size(28, 28).Padding(0).Tooltip("下个月")
-				next.Children(func() { ui.Text(c, "›").FontSize(18) })
-				if next.Clicked() {
-					move(calendarMonth(cur, 1))
-					grid.Focus()
-				}
-			})
-			ui.Row(c).Children(func() {
-				for _, name := range []string{"一", "二", "三", "四", "五", "六", "日"} {
-					ui.Text(c, name).Width(32).FixedLineHeight(24).TextAlign(ui.Center).FontSize(11).TextColor(t.TextMuted).Role(ui.RoleColumnHeader)
-				}
-			})
-			start := first.AddDate(0, 0, -((int(first.Weekday()) + 6) % 7))
-			for week := range 6 {
-				ui.Row(c).Role(ui.RoleRow).Children(func() {
-					for column := range 7 {
-						day := start.AddDate(0, 0, week*7+column)
-						chosen := day.Equal(calendarDay(v.pickerDate))
-						cell := ui.Box(c).Size(32, 28).Center().Radius(5).Role(ui.RoleButton).Label(chineseDay(day)).Checked(chosen)
-						fg := t.Text
-						if day.Month() != first.Month() {
-							fg = t.Subtle
-						}
-						if chosen {
-							cell.Background(t.Accent)
-							fg = t.AccentText
-						} else if cell.Hovered() || day.Equal(cur) {
-							cell.Background(t.Soft)
-						}
-						if day.Equal(calendarDay(v.service.m.now())) && !chosen {
-							cell.Border(1, t.Accent)
-						}
-						cell.Children(func() { ui.Text(c, strconv.Itoa(day.Day())).FontSize(12).FontFeatures("tnum").TextColor(fg) })
-						if day.Equal(cur) {
-							grid.ActiveDescendant(cell)
-						}
-						if cell.Clicked() {
-							choose(day)
-						}
+	if *open {
+		ui.Column(c.Key("inline-calendar")).Children(func() {
+			ui.Box(c).Height(1).Background(t.Border)
+			cur := *cursor
+			first := time.Date(cur.Year(), cur.Month(), 1, 0, 0, 0, 0, time.UTC)
+			grid := ui.Column(c.Key("calendar-grid")).Gap(3).Focusable().Role(ui.RoleTable).Label(first.Format("2006年1月")).AutoFocus()
+			if b.Clicked() {
+				grid.ScrollIntoView()
+			}
+			move := func(day time.Time) { *cursor = day; c.Invalidate() }
+			choose := func(day time.Time) {
+				// The clock draft is separate; choosing a day doesn't normalize a
+				// nonexistent hour before the user has a chance to correct it.
+				v.pickerDate = day
+				*open = false
+				v.pickerError = ""
+				b.Focus()
+				c.Invalidate()
+			}
+			switch {
+			case grid.Shortcut(0, ui.KeyLeft):
+				move(cur.AddDate(0, 0, -1))
+			case grid.Shortcut(0, ui.KeyRight):
+				move(cur.AddDate(0, 0, 1))
+			case grid.Shortcut(0, ui.KeyUp):
+				move(cur.AddDate(0, 0, -7))
+			case grid.Shortcut(0, ui.KeyDown):
+				move(cur.AddDate(0, 0, 7))
+			case grid.Shortcut(0, ui.KeyPageUp):
+				move(calendarMonth(cur, -1))
+			case grid.Shortcut(0, ui.KeyPageDown):
+				move(calendarMonth(cur, 1))
+			case grid.Shortcut(0, ui.KeyHome):
+				move(first)
+			case grid.Shortcut(0, ui.KeyEnd):
+				move(first.AddDate(0, 1, -1))
+			case grid.Shortcut(0, ui.KeyEnter), grid.Shortcut(0, ui.KeySpace):
+				choose(cur)
+			}
+			grid.Children(func() {
+				ui.Row(c).Gap(4).Children(func() {
+					previous := webButton(c, "上个月", false).Size(28, 28).Padding(0).Tooltip("上个月")
+					previous.Children(func() { ui.Text(c, "‹").FontSize(18) })
+					if previous.Clicked() {
+						move(calendarMonth(cur, -1))
+						grid.Focus()
+					}
+					ui.Text(c, first.Format("2006年1月")).Grow(1).TextAlign(ui.Center).FontSize(13).FontWeight(550)
+					next := webButton(c, "下个月", false).Size(28, 28).Padding(0).Tooltip("下个月")
+					next.Children(func() { ui.Text(c, "›").FontSize(18) })
+					if next.Clicked() {
+						move(calendarMonth(cur, 1))
+						grid.Focus()
 					}
 				})
-			}
+				ui.Row(c).Children(func() {
+					for _, name := range []string{"一", "二", "三", "四", "五", "六", "日"} {
+						ui.Text(c, name).Width(32).FixedLineHeight(24).TextAlign(ui.Center).FontSize(11).TextColor(t.TextMuted).Role(ui.RoleColumnHeader)
+					}
+				})
+				start := first.AddDate(0, 0, -((int(first.Weekday()) + 6) % 7))
+				for week := range 6 {
+					ui.Row(c).Role(ui.RoleRow).Children(func() {
+						for column := range 7 {
+							day := start.AddDate(0, 0, week*7+column)
+							chosen := day.Equal(calendarDay(v.pickerDate))
+							cell := ui.Box(c).Size(32, 28).Center().Radius(5).Role(ui.RoleButton).Label(chineseDay(day)).Checked(chosen)
+							fg := t.Text
+							if day.Month() != first.Month() {
+								fg = t.Subtle
+							}
+							if chosen {
+								cell.Background(t.Accent)
+								fg = t.AccentText
+							} else if cell.Hovered() || day.Equal(cur) {
+								cell.Background(t.Soft)
+							}
+							if day.Equal(calendarDay(v.service.m.now())) && !chosen {
+								cell.Border(1, t.Accent)
+							}
+							cell.Children(func() { ui.Text(c, strconv.Itoa(day.Day())).FontSize(12).FontFeatures("tnum").TextColor(fg) })
+							if day.Equal(cur) {
+								grid.ActiveDescendant(cell)
+							}
+							if cell.Clicked() {
+								choose(day)
+							}
+						}
+					})
+				}
+			})
 		})
-	})
+		if c.Root().Shortcut(0, ui.KeyEscape) {
+			*open = false
+			b.Focus()
+		}
+	}
 }
 
 func (v *nativeTasksView) webTimeInput(c *ui.Context) {

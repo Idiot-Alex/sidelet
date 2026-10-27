@@ -117,6 +117,46 @@ func TestFormalUIAllFilterCanEditCompletedTask(t *testing.T) {
 	}
 }
 
+func TestCompletedTimeInTaskDetails(t *testing.T) {
+	m, v, u := webUITester(t)
+	now := time.Date(2026, 10, 26, 15, 30, 0, 0, time.FixedZone("UTC+8", 8*3600))
+	m.clock = func() time.Time { return now }
+	if _, err := v.service.SetDone(1, true, m.Tasks[0].Version); err != nil {
+		t.Fatal(err)
+	}
+	u.SetSize(1120, 778)
+	if err := u.Click("全部 3"); err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Click("编辑：整理今天的工作"); err != nil {
+		t.Fatal(err)
+	}
+	label := "完成于 2026年10月26日 15:30"
+	if !u.HasText(label) {
+		t.Fatal("completed task details lack local completion time")
+	}
+	if _, err := v.service.SetDone(1, false, m.Tasks[0].Version); err != nil {
+		t.Fatal(err)
+	}
+	u.SetSize(850, 600)
+	if u.HasText(label) {
+		t.Fatal("restored task retained completion label")
+	}
+	now = now.Add(time.Hour)
+	if _, err := v.service.SetDone(1, true, m.Tasks[0].Version); err != nil {
+		t.Fatal(err)
+	}
+	u.SetSize(1120, 778)
+	if !u.HasText("完成于 2026年10月26日 16:30") || u.HasText(label) {
+		t.Fatal("completion label did not update")
+	}
+	m.Tasks[0].CompletedAt = 0
+	u.SetSize(850, 600)
+	if u.HasText("完成于 1970年1月1日 08:00") {
+		t.Fatal("missing legacy timestamp shown as epoch")
+	}
+}
+
 func TestFormalUIPinDoesNotOpenCardAndUnpinnedDoesNotConsumeCapacity(t *testing.T) {
 	m, v, u := webUITester(t)
 	if err := u.Click("取消桌面固定：整理今天的工作"); err != nil {

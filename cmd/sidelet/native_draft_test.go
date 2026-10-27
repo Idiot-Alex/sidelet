@@ -118,6 +118,8 @@ func TestNewTaskDraftRestoresAcrossRestartWhileEditingExistingTask(t *testing.T)
 			if err := u.Click("截止年份"); err != nil {
 				t.Fatal(err)
 			}
+			u.Command("selectAll")
+			u.Key(0, ui.KeyBackspace)
 			u.Type("2027")
 			v.newPriority, v.formPin, v.formRemind, v.formTemporary = "紧急", true, true, true
 			u.Frame()

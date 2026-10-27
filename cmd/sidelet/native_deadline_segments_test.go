@@ -11,6 +11,7 @@ func TestDeadlineSegmentsKeyboardSaveClearAndPrecision(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
 		t.Run(theme, func(t *testing.T) {
 			m, v, u := webEditorTester(t)
+			v.resetScheduleDraft()
 			m.UITheme, v.visual = theme, webTheme(theme)
 			m.clock = func() time.Time { return time.Date(2028, 1, 30, 12, 30, 0, 0, time.Local) }
 			u.SetSize(1120, 1100)
@@ -108,6 +109,7 @@ func TestDeadlineSegmentsRejectPartialInvalidAndDSTDrafts(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, v, u := webEditorTester(t)
+	v.resetScheduleDraft()
 	m.clock = func() time.Time { return time.Date(2026, 3, 7, 12, 0, 0, 0, zone) }
 	u.SetSize(1120, 1100)
 	_ = u.Click("截止时间与更多选项")
@@ -142,6 +144,8 @@ func TestDeadlineSegmentsRejectPartialInvalidAndDSTDrafts(t *testing.T) {
 	if err := u.Click("新建任务"); err != nil {
 		t.Fatal(err)
 	}
+	v.resetScheduleDraft()
+	u.Frame()
 	_ = u.Click("截止时间与更多选项")
 	_ = u.Click("截止年份")
 	u.Key(ui.Alt, ui.KeyDown)

@@ -28,7 +28,11 @@ func TestQuickAddThroughReminderExportAndRestart(t *testing.T) {
 	}
 	s := open(now)
 	defer func() { s.Close() }()
-	parsed, err := quickadd.Parse("今天下午3点 =1+1 联系客户", true, now)
+	title, err := quickadd.Title("=1+1 联系客户")
+	parsed := struct {
+		Title string
+		DueAt int64
+	}{title, now.Add(time.Minute).UnixMilli()}
 	if err != nil {
 		t.Fatal(err)
 	}

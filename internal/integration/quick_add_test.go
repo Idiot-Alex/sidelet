@@ -22,7 +22,11 @@ func TestQuickAddFailureRetryAndDefaultPresentation(t *testing.T) {
 	defer s.Close()
 	var session quickadd.Session
 	session.Begin(now)
-	parsed, err := quickadd.Parse("明天下午3点 联系客户", true, session.Reference)
+	title, err := quickadd.Title("联系客户")
+	parsed := struct {
+		Title string
+		DueAt int64
+	}{title, time.Date(2026, 10, 7, 15, 0, 0, 0, now.Location()).UnixMilli()}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,8 +58,8 @@ func TestQuickAddFailureRetryAndDefaultPresentation(t *testing.T) {
 	if !session.StartSave(session.Revision) || session.StartSave(session.Revision) {
 		t.Fatal("duplicate save accepted")
 	}
-	parsedAgain, err := quickadd.Parse("明天下午3点 联系客户", true, session.Reference)
-	if err != nil || parsedAgain != parsed {
+	parsedAgain, err := quickadd.Title("联系客户")
+	if err != nil || parsedAgain != parsed.Title {
 		t.Fatal("retry changed preview")
 	}
 	v, err := s.Apply(a, now.Add(2*time.Minute))
@@ -70,7 +74,8 @@ func TestQuickAddFailureRetryAndDefaultPresentation(t *testing.T) {
 		t.Fatal("replayed save after success accepted")
 	}
 	session.Begin(now.Add(2 * time.Minute))
-	parsed, err = quickadd.Parse("明天下午3点 联系客户", false, session.Reference)
+	parsed.Title, err = quickadd.Title("明天下午3点 联系客户")
+	parsed.DueAt = 0
 	if err != nil {
 		t.Fatal(err)
 	}

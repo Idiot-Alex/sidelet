@@ -57,7 +57,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 		section := func(title string, body func(), status ...notificationPresentation) {
 			group := "system"
 			switch title {
-			case "桌面任务位置", "悬浮卡片":
+			case "桌面任务位置", "悬浮卡片", "侧栏助手":
 				group = "desktop"
 			case "导出任务", "快速添加":
 				group = "data"
@@ -78,6 +78,22 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 		}
 		hint := func(text string) { ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).LineHeight(1.6).Margin(5, 0) }
 		section("桌面任务位置", func() { v.webPosition(c) })
+		section("侧栏助手", func() {
+			ui.Row(c).Gap(20).AlignItems(ui.Center).Children(func() {
+				ui.Image(c, sidebarAvatarImage).Size(48, 48).Fit(ui.Contain)
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, "显示动漫头像").FontSize(13).FontWeight(500)
+					hint("轻点打开菜单；拖动可独立摆放头像，位置自动保存。")
+				})
+				on := !v.service.m.Preferences.Appearance.HideSidebarAvatar
+				if webSwitch(c, &on, "显示侧栏动漫头像").Changed() {
+					value := v.service.m.Preferences
+					value.Appearance.HideSidebarAvatar = !on
+					_, err := v.service.SavePreferences(value)
+					v.result(err, "")
+				}
+			})
+		})
 		section("悬浮卡片", func() { v.webDesktopTransparency(c) })
 		if v.settingsTab == "" {
 			v.webAppearance(c)
@@ -202,7 +218,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 				}
 				ui.Text(c, "随时记下任务").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 8)
 			})
-			hint("Enter 保存，Esc 返回之前的应用。支持“明天下午3点 联系客户”等简单时间。")
+			hint("Enter 添加，Esc 返回之前的应用。预计完成时间可在窗口中单独设置。")
 		})
 		section("导出任务", func() {
 			hint("导出已保存任务（不含草稿）：JSON 保留完整数据，CSV 用于表格查看。")

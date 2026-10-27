@@ -24,6 +24,10 @@ type Appearance struct {
 	// Deprecated: accepted only for compatibility with old settings files; ignored by the UI.
 	Translucent        bool `json:"translucent,omitempty"`
 	DesktopTranslucent bool `json:"desktopTranslucent,omitempty"`
+	HideSidebarAvatar  bool `json:"hideSidebarAvatar,omitempty"`
+	AvatarPositionSet  bool `json:"avatarPositionSet,omitempty"`
+	AvatarX            int  `json:"avatarX,omitempty"`
+	AvatarY            int  `json:"avatarY,omitempty"`
 }
 type Value struct {
 	Version    int        `json:"version"`

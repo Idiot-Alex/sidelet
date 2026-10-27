@@ -158,6 +158,7 @@ func main() {
 	}
 	var stack, card, backgroundProbe *mygo.Window
 	var cardGlass nativeGlassWindow
+	var avatar *nativeAvatar
 	openedAtLogin := false
 	cardAnchorY := 0
 	resizeCard := func() {
@@ -217,7 +218,7 @@ func main() {
 				data["quickAddDiagnosticKey"] = h.service.quickShortcut.diagnostic
 			}
 			if h.quick != nil {
-				data["quickAddSession"], data["quickAddText"], data["quickAddRecognize"], data["quickAddPin"] = h.quick.session, h.quick.text, h.quick.recognize, h.quick.pin
+				data["quickAddSession"], data["quickAddText"], data["quickAddPin"] = h.quick.session, h.quick.text, h.quick.pin
 				if h.quick.window != nil {
 					data["quickAddWindowID"], data["quickAddVisible"] = h.quick.window.ID(), h.quick.window.IsVisible()
 				}
@@ -285,6 +286,7 @@ func main() {
 				h.editItem.SetEnabled(m.Opened >= 0 && !m.Editing)
 			}
 		}
+		avatar.sync()
 		logState(event)
 	}
 	if h != nil {
@@ -499,6 +501,9 @@ func main() {
 				}
 			}
 			h.installMenu()
+			if h.native {
+				avatar = h.createAvatar()
+			}
 			if h.native {
 				h.service.quickShortcut = &nativeQuickShortcut{diagnostic: *quickShortcutFixture}
 				register := registerNativeQuickAddShortcut

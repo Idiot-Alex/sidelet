@@ -69,7 +69,7 @@ func (v *nativeTasksView) captureNewTaskDraft() *persistedNewTaskDraft {
 	if d.DeadlineSeen != d.Due || !d.DeadlineReady {
 		d.DeadlineParts, d.DeadlineSeen, d.DeadlineReady = [5]string{}, "", false
 	}
-	if d.Title == "" && d.Note == "" && d.Due == "" && d.Priority == 0 && !d.Pin && !d.Remind && !d.Temporary {
+	if d.Title == "" && d.Note == "" && (d.Due == "" || d.Due == v.defaultDue) && d.Priority == 0 && !d.Pin && !d.Remind && !d.Temporary {
 		return nil
 	}
 	return d

@@ -14,6 +14,7 @@ func TestScheduleDraftValidationPreservationAndClear(t *testing.T) {
 	for _, theme := range []string{"mac", "paper", "graphite"} {
 		t.Run(theme, func(t *testing.T) {
 			m, v, u := webEditorTester(t)
+			v.resetScheduleDraft()
 			m.UITheme = theme
 			v.visual = webTheme(theme)
 			now := time.Date(2026, 10, 7, 14, 0, 0, 0, time.Local)
@@ -84,6 +85,7 @@ func TestScheduleDraftValidationPreservationAndClear(t *testing.T) {
 }
 func TestDeadlinePickerApplyClearAndNestedEscape(t *testing.T) {
 	m, v, u := webEditorTester(t)
+	v.resetScheduleDraft()
 	m.clock = func() time.Time { return time.Date(2026, 10, 7, 16, 0, 0, 0, time.Local) }
 	u.SetSize(1120, 1100)
 	_ = u.Click("截止时间与更多选项")
@@ -166,6 +168,7 @@ func TestDueStatesAndCardSaveKeepTaskSchedule(t *testing.T) {
 func TestDeadlineCalendarFitsLaptopWindowAndProtectsEditor(t *testing.T) {
 	for _, size := range [][2]int{{1120, 800}, {820, 600}} {
 		m, v, u := webEditorTester(t)
+		v.resetScheduleDraft()
 		m.clock = func() time.Time { return time.Date(2026, 10, 7, 16, 0, 0, 0, time.Local) }
 		u.SetSize(size[0], size[1])
 		_ = u.Click("编辑：整理今天的工作")

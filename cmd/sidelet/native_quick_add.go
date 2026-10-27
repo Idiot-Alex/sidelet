@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -17,15 +16,17 @@ type quickFocusToken interface {
 }
 
 type nativeQuickAdd struct {
-	service                       *TasksService
-	window                        *mygo.Window
-	text, error                   string
-	focus, pin, recognize, hiding bool
-	session                       quickadd.Session
-	previous                      quickFocusToken
-	ours                          func() bool
-	hide                          func()
-	onState                       func(string)
+	service            *TasksService
+	window             *mygo.Window
+	text, error        string
+	focus, pin, hiding bool
+	session            quickadd.Session
+	previous           quickFocusToken
+	ours               func() bool
+	hide               func()
+	onState            func(string)
+	lastBounds         mygo.Rectangle
+	details            *nativeTasksView
 }
 
 func (h *nativeApp) showQuickAdd() { h.openQuickAdd("window") }
@@ -56,8 +57,8 @@ func (h *nativeApp) openQuickAdd(source string) {
 	q.session.Begin(h.service.m.now())
 	q.focus = true
 	if q.window == nil {
-		w := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet · 快速添加", Width: 540, Height: 260, Hidden: true,
-			DisableResize: true, Frameless: true, Transparent: true, AlwaysOnTop: true, Content: ui.View(q.render)})
+		w := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet · 快速添加", Width: 540, Height: 340, Hidden: true,
+			DisableResize: true, Frameless: true, AlwaysOnTop: true, Content: ui.View(q.render)})
 		q.window = w
 		q.hide = w.Hide
 		w.OnBlur(func() {
@@ -76,6 +77,8 @@ func (h *nativeApp) openQuickAdd(source string) {
 	}
 	display := mygo.Screen.DisplayNearestPoint(mygo.Screen.CursorScreenPoint())
 	if bounds, ok := quickAddBounds(display.WorkArea); ok {
+		bounds.Height = min(q.contentHeight(), display.WorkArea.Height)
+		bounds = restoreQuickAddBounds(bounds, q.lastBounds, display.WorkArea)
 		q.window.SetBounds(bounds)
 	}
 	q.window.Invalidate()
@@ -90,12 +93,69 @@ func quickAddBounds(area mygo.Rectangle) (mygo.Rectangle, bool) {
 		return mygo.Rectangle{}, false
 	}
 	margin := min(12, area.Width/4, area.Height/4)
-	w, h := min(540, area.Width-2*margin), min(260, area.Height-2*margin)
+	w, h := min(540, area.Width-2*margin), min(340, area.Height-2*margin)
 	return mygo.Rectangle{X: area.X + (area.Width-w)/2, Y: area.Y + max(margin, int(float64(area.Height-h)*.28)), Width: w, Height: h}, true
 }
 
+func restoreQuickAddBounds(bounds, previous, area mygo.Rectangle) mygo.Rectangle {
+	if previous.Width > 0 && previous.Height > 0 {
+		bounds.X = max(area.X, min(previous.X, area.X+area.Width-bounds.Width))
+		bounds.Y = max(area.Y, min(previous.Y, area.Y+area.Height-bounds.Height))
+	}
+	return bounds
+}
+
 func (q *nativeQuickAdd) reset() {
-	q.text, q.error, q.focus, q.pin, q.recognize = "", "", true, false, true
+	q.text, q.error, q.focus, q.pin = "", "", true, false
+	q.details = nil
+}
+
+type quickTaskInput struct {
+	Title string
+	DueAt int64
+}
+
+func (q *nativeQuickAdd) input() (quickTaskInput, error) {
+	var result quickTaskInput
+	if q.details == nil {
+		q.details = &nativeTasksView{service: q.service, newPriority: "普通"}
+		q.details.formDue = localDue(defaultTaskDue(q.session.Reference), q.session.Reference.Location())
+	}
+	title, err := quickadd.Title(q.text)
+	result.Title = title
+	if err != nil {
+		return result, err
+	}
+	result.DueAt, err = parseDue(q.details.formDue, 0, "", q.session.Reference.Location())
+	return result, err
+}
+func (q *nativeQuickAdd) contentHeight() int {
+	h := 340
+	if q.details != nil {
+		if q.details.noteOpen {
+			h += 70
+		}
+		if q.details.datePickerOpen {
+			h += 210
+		}
+		if q.details.pickerCalendarOpen {
+			h += 250
+		}
+	}
+	return h
+}
+
+func (q *nativeQuickAdd) resizeForNote() {
+	if q.window == nil {
+		return
+	}
+	r := q.window.Bounds()
+	area := mygo.Screen.DisplayNearestPoint(mygo.Point{X: r.X, Y: r.Y}).WorkArea
+	r.Height = min(q.contentHeight(), area.Height)
+	r = restoreQuickAddBounds(r, r, area)
+	if q.window.Bounds() != r {
+		q.window.SetBounds(r)
+	}
 }
 func (q *nativeQuickAdd) notify(event string) {
 	if q.onState != nil {
@@ -117,6 +177,9 @@ func (q *nativeQuickAdd) releaseFocus() {
 
 func (q *nativeQuickAdd) dismiss(restore bool) {
 	canRestore := restore && q.ours != nil && q.ours()
+	if q.window != nil {
+		q.lastBounds = q.window.Bounds()
+	}
 	q.hiding = true
 	if q.hide != nil {
 		q.hide()
@@ -155,9 +218,9 @@ func (q *nativeQuickAdd) submit(revision uint64) {
 	if !q.session.StartSave(revision) {
 		return
 	}
-	parsed, err := quickadd.Parse(q.text, q.recognize, q.session.Reference)
+	parsed, err := q.input()
 	if err == nil {
-		_, err = q.service.SaveTask(0, parsed.Title, "", 0, q.pin, parsed.DueAt, false, false, 0)
+		_, err = q.service.SaveTask(0, parsed.Title, q.details.formNote, priorityValue(q.details.newPriority), q.pin, parsed.DueAt, false, false, 0)
 	}
 	wasOpen := q.session.FinishSave(err == nil)
 	if err != nil {
@@ -174,76 +237,83 @@ func (q *nativeQuickAdd) submit(revision uint64) {
 func (q *nativeQuickAdd) render(c *ui.Context) {
 	t := webTheme(q.service.m.UITheme)
 	c.SetTheme(t.Theme)
-	c.Root().Background(ui.Transparent)
-	preview, previewErr := quickadd.Parse(q.text, q.recognize, q.session.Reference)
+	c.Root().Background(t.Surface)
+	_, previewErr := q.input()
+	d := q.details
+	d.visual = t
+	pickerWasOpen := d.datePickerOpen || d.pickerCalendarOpen
+	heightBefore := q.contentHeight()
 	if strings.TrimSpace(q.text) == "" {
 		previewErr = nil
 	}
 	revision := q.session.Revision
 	busy := q.session.Saving || !q.session.Open
-	ui.Column(c).Fill().Padding(12).Children(func() {
-		ui.Column(c).Fill().Padding(15, 18, 12).Border(1, t.Border).Radius(t.Radius).Background(t.Surface).Children(func() {
-			ui.Row(c).Gap(7).Margin(0, 0, 12).Children(func() {
-				webIcon(c, "plus", 17)
-				ui.Text(c, "快速添加").FontSize(12).FontWeight(600).TextColor(t.TextMuted).Grow(1)
+	ui.Column(c).Fill().Background(t.Surface).Children(func() {
+		ui.Column(c).Fill().Padding(18, 22, 16).Border(1, t.Border).Background(t.Surface).Children(func() {
+			ui.Row(c).Gap(7).Margin(0, 0, 8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Grow(1).Height(28).Gap(7).AlignItems(ui.Center).DragWindow().Cursor(ui.CursorMove).Tooltip("拖动可移动窗口").Children(func() {
+					webIcon(c, "plus", 17)
+					ui.Text(c, "快速添加").FontSize(13).FontWeight(600).TextColor(t.TextMuted)
+				})
 				if webIconButton(c, "取消快速添加", "close", 16).Disabled(busy).Clicked() {
 					q.cancel()
 				}
 			})
-			field := guardComposition(ui.TextInput(c.Key("quick-add-title"), &q.text)).Label("快速添加任务标题").Placeholder("明天下午3点 联系客户").FontSize(19).Height(42).Padding(8, 0).Radius(0).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Background(ui.Transparent).Disabled(busy)
-			if q.focus {
-				field.Focus()
-				q.focus = false
-			}
-			if field.Changed() {
-				q.error = ""
-				preview, previewErr = quickadd.Parse(q.text, q.recognize, q.session.Reference)
-				if strings.TrimSpace(q.text) == "" {
-					previewErr = nil
+			ui.Scroll(c.Key("quick-form-scroll")).Grow(1).Children(func() {
+				field := guardComposition(ui.TextInput(c.Key("quick-add-title"), &q.text)).Label("快速添加任务标题").Placeholder("接下来想做什么？").FontSize(19).Height(42).Padding(8, 0).Radius(0).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Background(ui.Transparent).Disabled(busy)
+				if q.focus {
+					field.Focus()
+					q.focus = false
 				}
-			}
-			if field.Submitted() {
-				q.submit(revision)
-			}
-			ui.Row(c).Gap(8).AlignItems(ui.Center).MinHeight(37).Padding(7, 0).Children(func() {
-				if q.error != "" {
-					ui.Text(c, q.error).FontSize(11).TextColor(t.Danger)
-					return
+				if field.Changed() {
+					q.error = ""
+					_, previewErr = q.input()
+					if strings.TrimSpace(q.text) == "" {
+						previewErr = nil
+					}
 				}
-				if previewErr != nil {
-					ui.Text(c, previewErr.Error()).FontSize(11).TextColor(t.Danger)
-					return
-				}
-				if preview.DueAt != 0 {
-					ui.Text(c, time.UnixMilli(preview.DueAt).In(q.session.Reference.Location()).Format("1/2 15:04")).FontSize(11).TextColor(t.Accent).Background(t.Soft).Padding(3, 6).Radius(4).Shrink(0).NoWrap()
-					ui.Text(c, preview.Title).FontSize(11).TextColor(t.TextMuted).Grow(1).Shrink(1).MinWidth(0).MaxLines(1).Ellipsis("…")
-					return
-				}
-				text := "整句保存为标题，不设置截止时间。"
-				if q.recognize {
-					text = "支持今天、明天、后天，如“明天15:30 联系客户”。"
-				}
-				ui.Text(c, text).FontSize(11).TextColor(t.TextMuted)
-			})
-			ui.Spacer(c)
-			ui.Row(c).Gap(14).Children(func() {
-				webCheckbox(c, &q.recognize, "识别时间", 11).Disabled(busy)
-				webCheckbox(c, &q.pin, "固定到桌面", 11).Disabled(busy)
-				ui.Spacer(c)
-				label := "添加"
-				if q.session.Saving {
-					label = "保存中…"
-				}
-				b := webButton(c, label, true).Gap(12).Padding(8, 12).Border(0, ui.Transparent).Disabled(busy || strings.TrimSpace(q.text) == "" || previewErr != nil)
-				b.Children(func() { ui.Text(c, label); ui.Text(c, "↵").Opacity(.7) })
-				if b.Clicked() {
+				if field.Submitted() {
 					q.submit(revision)
 				}
+				if q.error != "" {
+					ui.Text(c, q.error).FontSize(12).TextColor(t.Danger).Margin(6, 0)
+				} else if previewErr != nil {
+					ui.Text(c, previewErr.Error()).FontSize(12).TextColor(t.Danger).Margin(6, 0)
+				}
+				ui.Column(c).Disabled(busy).Children(func() {
+					if d.webTaskNote(c, true, func() { q.submit(revision) }) {
+						q.resizeForNote()
+					}
+				})
+
+				ui.Row(c).Gap(12).AlignItems(ui.Center).Margin(4, 0, 14).Disabled(busy).Children(func() {
+					ui.Text(c, "优先级").FontSize(12).TextColor(t.TextMuted)
+					webPriorityRadios(c, &d.newPriority)
+				})
+				ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 7)
+				d.webDeadline(c)
+				ui.Spacer(c)
+				ui.Row(c).Gap(14).Children(func() {
+					webCheckbox(c, &q.pin, "固定到桌面", 12).Disabled(busy)
+					ui.Spacer(c)
+					label := "添加"
+					if q.session.Saving {
+						label = "保存中…"
+					}
+					b := webButton(c, label, true).Gap(12).Padding(8, 12).Border(0, ui.Transparent).Disabled(busy || strings.TrimSpace(q.text) == "" || previewErr != nil)
+					b.Children(func() { ui.Text(c, label); ui.Text(c, "↵").Opacity(.7) })
+					if b.Clicked() {
+						q.submit(revision)
+					}
+				})
+				ui.Text(c, "Enter 添加 · Esc 取消").FontSize(12).TextColor(t.Subtle).Margin(8, 0, 0)
 			})
-			ui.Text(c, "Enter 保存 · Esc 取消 · 截止时间默认不发送通知").FontSize(10).TextColor(t.Subtle).Margin(8, 0, 0)
 		})
 	})
-	if c.Root().Shortcut(0, ui.KeyEscape) {
+	if q.contentHeight() != heightBefore {
+		q.resizeForNote()
+	}
+	if !pickerWasOpen && c.Root().Shortcut(0, ui.KeyEscape) {
 		q.cancel()
 	}
 }
