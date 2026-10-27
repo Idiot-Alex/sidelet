@@ -56,6 +56,9 @@ func TestProfileRoundTripKeepsIDsOrderFieldsAndLayoutOnly(t *testing.T) {
 	_, _ = s.Theme("graphite")
 	_, _ = s.Layout("left", .62, 56)
 	want := m.profileState(p.saved.ID)
+	want.Tasks = slices.Clone(want.Tasks)
+	want.Tasks[3].SnoozedUntil = 0
+	want.Tasks[3].Version++
 	m.WorkWidth, m.WorkHeight = 1728, 1000
 	m.positionStack()
 	m.open(0)

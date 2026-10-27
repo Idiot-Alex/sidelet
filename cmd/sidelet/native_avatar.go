@@ -73,7 +73,7 @@ func (a *nativeAvatar) sync() {
 	r := a.bounds()
 	created := a.window == nil
 	if a.window == nil {
-		a.window = mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet 侧栏助手", X: r.X, Y: r.Y, Width: r.Width, Height: r.Height,
+		a.window = newRoundedDesktopWindow(mygo.WindowOptions{Title: "Sidelet 侧栏助手", X: r.X, Y: r.Y, Width: r.Width, Height: r.Height,
 			MinWidth: 1, MinHeight: 1,
 			Frameless: true, Transparent: true, AlwaysOnTop: true, DisableResize: true, DisableShadow: true, Hidden: true, BackgroundColor: "#00000000", Content: ui.View(a.render)})
 		a.window.OnBlur(a.cancelDrag)
@@ -95,7 +95,7 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	t := webTheme(a.service.m.UITheme)
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
-	b := ui.ButtonBase(c).Label("侧栏助手菜单").Fill().Padding(3).Radius(28).Background(t.Surface).Border(1, t.Border)
+	b := ui.ButtonBase(c).Label("侧栏助手菜单").Fill().Padding(1).Radius(28).Background(t.Surface).Border(1, desktopOutline(t))
 	b.Cursor(ui.CursorMove).HandleInput(func(ev ui.InputEvent) bool {
 		if ev.Kind == ui.InputKeyDown && (ev.Key == ui.KeyEnter || ev.Key == ui.KeySpace) {
 			a.popup()
@@ -115,7 +115,20 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	if b.Hovered() {
 		b.Background(t.Soft).BorderColor(t.Accent)
 	}
-	b.Children(func() { ui.Image(c, sidebarAvatarImage).Fill().Fit(ui.Contain) })
+	b.Children(func() {
+		ui.Box(c).Fill().Radius(26).Clip().Children(func() {
+			ui.Image(c, sidebarAvatarImage).Fill().Fit(ui.Cover)
+		})
+	})
+}
+
+// Desktop surfaces need a firmer outline than dividers inside the app,
+// since the background behind them can be any wallpaper or window.
+func desktopOutline(t *visualTheme) ui.Color {
+	if t.ID == "graphite" {
+		return ui.Hex("#748177")
+	}
+	return ui.Hex("#9baa9f")
 }
 
 // A click opens the menu only on release. A drag crosses a five-DIP threshold

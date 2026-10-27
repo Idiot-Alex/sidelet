@@ -66,7 +66,7 @@ func TestDeadlineSegmentsKeyboardSaveClearAndPrecision(t *testing.T) {
 				t.Fatal("Tab didn't move focus")
 			}
 			v.newTitle = "分段日期验收"
-			_ = u.Click("提醒我")
+			_ = u.Click("到时提醒")
 			_ = u.Click("添加任务")
 			want := time.Date(2028, 2, 29, 23, 59, 0, 0, time.Local).UnixMilli()
 			if len(m.Tasks) != 4 || m.Tasks[3].DueAt != want || !m.Tasks[3].Remind {
@@ -167,12 +167,16 @@ func TestSidebarRevealLeavesNativeRegionsStableAndHonorsReducedMotion(t *testing
 		m.Hover = 0
 		u.Frame()
 		before := stackInputRegions(m)
-		start := visualRect(t, u, m.Tasks[0].Title)
-		u.SetPreferences(ui.Preferences{ReduceMotion: true})
-		end := visualRect(t, u, m.Tasks[0].Title)
-		if start.X-end.X < 7 || start.X-end.X > 8.1 {
-			t.Fatal("title reveal is not 8px", start, end)
+		// The unextended part must remain transparent, not a full-size card
+		// with fading text. Pick a point well inside the final surface.
+		if u.Image().RGBAAt(150, 15).A != 0 {
+			t.Fatal("sidebar appeared at full width before extending")
 		}
+		u.SetPreferences(ui.Preferences{ReduceMotion: true})
+		if u.Image().RGBAAt(150, 15).A != 255 {
+			t.Fatal("reduced motion did not immediately extend full surface")
+		}
+		visualRect(t, u, m.Tasks[0].Title)
 		after := stackInputRegions(m)
 		if len(before) != len(after) {
 			t.Fatal("motion changed input regions")
@@ -191,17 +195,17 @@ func TestSidebarRevealLeavesNativeRegionsStableAndHonorsReducedMotion(t *testing
 	if p, active := reveal.frame(true, now, false); p != 0 || !active {
 		t.Fatal("missing enter motion")
 	}
-	if p, active := reveal.frame(true, now.Add(100*time.Millisecond), false); p <= .5 || p >= 1 || !active {
+	if p, active := reveal.frame(true, now.Add(sidebarExtendDuration/2), false); p <= .5 || p >= 1 || !active {
 		t.Fatal("missing ease-out middle frame")
 	}
-	if p, _ := reveal.frame(true, now.Add(100*time.Millisecond), false); p < .684 || p > .685 {
+	if p, _ := reveal.frame(true, now.Add(sidebarExtendDuration/2), false); p < .684 || p > .685 {
 		t.Fatal("reveal easing differs from CSS ease-out", p)
 	}
-	if p, active := reveal.frame(true, now.Add(200*time.Millisecond), false); p != 1 || active {
+	if p, active := reveal.frame(true, now.Add(sidebarExtendDuration), false); p != 1 || active {
 		t.Fatal("motion didn't stop")
 	}
-	if _, active := reveal.frame(false, now, false); active {
-		t.Fatal("collapse scheduled invisible motion")
+	if p, active := reveal.frame(false, now.Add(sidebarExtendDuration), false); p != 1 || !active {
+		t.Fatal("collapse should start from the fully extended position", p, active)
 	}
 	if p, active := reveal.frame(true, now, true); p != 1 || active {
 		t.Fatal("reduced motion ignored")

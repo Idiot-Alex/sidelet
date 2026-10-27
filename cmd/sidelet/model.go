@@ -52,6 +52,7 @@ type model struct {
 	clock                               func() time.Time
 	EditError                           string `json:"editError"`
 	draftVersion                        uint64
+	cardDetails                         *nativeTasksView
 	Tasks                               []task `json:"tasks"`
 	Order                               []int  `json:"order,omitempty"`
 	Arranging                           bool   `json:"arranging,omitempty"`
@@ -69,6 +70,7 @@ type model struct {
 	WorkX, WorkY, WorkWidth, WorkHeight int
 	dragX, dragY, pointerX, pointerY    int
 	stackTooltip                        mygo.Rectangle
+	sidebarRevealed                     map[int]bool
 }
 
 func newModel() *model {
@@ -92,10 +94,20 @@ func (m *model) edit() {
 		m.Editing, m.Draft = true, m.Tasks[m.Opened].Title
 		m.DraftNote = m.Tasks[m.Opened].Note
 		m.draftVersion, m.EditError = m.Tasks[m.Opened].Version, ""
+		item := m.Tasks[m.Opened]
+		m.cardDetails = &nativeTasksView{
+			service: &TasksService{m: m}, newPriority: priorityName(item.Priority),
+			formDue: localDue(item.DueAt, m.now().Location()), originalDue: item.DueAt,
+			formRemind: item.Remind, formTemporary: item.Temporary,
+		}
+		m.cardDetails.originalDueText = m.cardDetails.formDue
 	}
 }
 
-func (m *model) cancel() { m.Editing, m.Draft, m.DraftNote, m.EditError = false, "", "", "" }
+func (m *model) cancel() {
+	m.Editing, m.Draft, m.DraftNote, m.EditError = false, "", "", ""
+	m.cardDetails = nil
+}
 
 func (m *model) save() bool {
 	if m.Opened < 0 || !m.Editing {
@@ -114,7 +126,29 @@ func (m *model) save() bool {
 		m.EditError = "备注最多 16000 个字。"
 		return false
 	}
+	var schedule *taskSchedule
+	priority := m.Tasks[m.Opened].Priority
+	if m.UITheme != "" && m.cardDetails != nil {
+		d := m.cardDetails
+		if err := d.commitOpenDatePicker(); err != nil {
+			m.EditError = err.Error()
+			return false
+		}
+		due, err := parseDue(d.formDue, d.originalDue, d.originalDueText, m.now().Location())
+		if err != nil {
+			m.EditError = err.Error()
+			return false
+		}
+		priority = priorityValue(d.newPriority)
+		schedule = &taskSchedule{due, d.formRemind, d.formTemporary}
+	}
 	if err := m.commit(func() error {
+		if schedule != nil {
+			if err := schedule.apply(&m.Tasks[m.Opened]); err != nil {
+				return err
+			}
+			m.Tasks[m.Opened].Priority = priority
+		}
 		m.Tasks[m.Opened].Title = title
 		if m.UITheme != "" {
 			m.Tasks[m.Opened].Note = m.DraftNote

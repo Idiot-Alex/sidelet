@@ -81,7 +81,7 @@ func (a *nativeAvatar) renderPanel(c *ui.Context) {
 		{quietLabel, quietIcon, func() { _, _ = a.service.SetQuiet(!a.service.m.Quiet) }},
 		{"设置", "settings", a.openSettings},
 	}
-	ui.Column(c).Fill().Padding(8).Border(1, t.Border).Gap(2).Role(ui.RoleMenu).Label("助手操作").Children(func() {
+	enterSurface(c, ui.Column(c).Fill().Padding(8).Border(1, t.Border).Gap(2).Role(ui.RoleMenu).Label("助手操作"), 0).Children(func() {
 		for i, action := range actions {
 			if i == 2 {
 				ui.Box(c).Height(1).Margin(5, 4).Background(t.Border)

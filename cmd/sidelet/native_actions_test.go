@@ -106,65 +106,6 @@ func TestFormalUndoFromMainAndSidebarExpires(t *testing.T) {
 	}
 }
 
-func TestFormalSnoozeMenuRestorationAndExpiry(t *testing.T) {
-	for _, theme := range []string{"mac", "paper", "graphite"} {
-		for _, duration := range []struct {
-			label, value string
-			delta        time.Duration
-		}{{"30 分钟", "30m", 30 * time.Minute}, {"1 小时", "1h", time.Hour}, {"明天 09:00", "tomorrow", 17 * time.Hour}} {
-			t.Run(theme+"/"+duration.value, func(t *testing.T) {
-				m := newModel()
-				m.UITheme = theme
-				now := time.Date(2026, 10, 7, 16, 0, 0, 0, time.Local)
-				m.clock = func() time.Time { return now }
-				s := testService(m)
-				m.open(0)
-				v := &views{m: m, service: s}
-				u := ui.NewTester(v.card, 320, 390)
-				if err := u.Click("稍后"); err != nil {
-					t.Fatal(err)
-				}
-				if !v.snoozing || !u.HasText("明天 09:00") {
-					t.Fatal("snooze options missing")
-				}
-				if err := u.Click("返回操作"); err != nil {
-					t.Fatal(err)
-				}
-				if v.snoozing || m.Tasks[0].SnoozedUntil != 0 {
-					t.Fatal("return snoozed task")
-				}
-				_ = u.Click("稍后")
-				if err := u.Click(duration.label); err != nil {
-					t.Fatal(err)
-				}
-				if m.Opened != -1 || m.sidebarVisible(0) || m.Tasks[0].SnoozedUntil != now.Add(duration.delta).UnixMilli() || m.activeCount() != 3 || len(s.List().Tasks) != 3 {
-					t.Fatal("snooze removed task or used wrong deadline")
-				}
-				list := newNativeTasksView(s)
-				main := ui.NewTester(list.render, 1120, 778)
-				if !main.HasText("暂时隐藏至 " + now.Add(duration.delta).Format("1/2 15:04")) {
-					t.Fatal("hidden-until status missing")
-				}
-				if err := main.Click("现在恢复"); err != nil {
-					t.Fatal(err)
-				}
-				if !m.sidebarVisible(0) || m.Tasks[0].SnoozedUntil != 0 {
-					t.Fatal("restore failed")
-				}
-				_, _ = s.Snooze(1, duration.value, m.Tasks[0].Version)
-				now = now.Add(duration.delta - time.Millisecond)
-				if m.sidebarVisible(0) {
-					t.Fatal("restored too soon")
-				}
-				now = now.Add(time.Millisecond)
-				if !m.sidebarVisible(0) {
-					t.Fatal("not restored at expiry")
-				}
-			})
-		}
-	}
-}
-
 func TestFormalExpiryInvalidatesQueuedCallbacks(t *testing.T) {
 	m := newModel()
 	m.UITheme = "mac"
@@ -339,20 +280,19 @@ func TestFormalCardAnchorsBothSidesAndUnclampedOrigin(t *testing.T) {
 	}
 }
 
-func TestFormalCardSnoozeNoteRemainsVisible(t *testing.T) {
+func TestFormalCardNoteRemainsVisible(t *testing.T) {
 	m := newModel()
 	m.UITheme = "mac"
 	m.open(0)
 	v := &views{m: m}
 	u := ui.NewTester(v.card, 320, 390)
-	_ = u.Click("稍后")
 	u.SetSize(320, m.CardReadHeight)
 	u.Frame()
 	note, _ := u.Find(m.Tasks[0].Note)
-	option, _ := u.Find("30 分钟")
+	option, _ := u.Find("完成")
 	title, _ := u.Find(m.Tasks[0].Title)
 	t.Logf("height=%d note=%+v title=%+v option=%+v", m.CardReadHeight, note, title, option)
 	if note.Y+note.H > option.Y-12 {
-		t.Fatal("snooze footer clips note")
+		t.Fatal("footer clips note")
 	}
 }

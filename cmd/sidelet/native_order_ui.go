@@ -109,7 +109,7 @@ func (v *nativeTasksView) webOrder(c *ui.Context, pad float32) {
 	t := v.visual
 	ui.Column(c).MinHeight(400).Padding(16, pad, 12).Radius(t.Radius).Border(1, t.Border).Background(t.Surface).Children(func() {
 		ui.Text(c, "桌面任务顺序").Font(t.HeadingFont).FontSize(16).FontWeight(600)
-		ui.Text(c, "拖动手柄调整顺序，松手即生效。Option + ↑ / ↓ 也可调整。已完成和暂时隐藏的任务保留原位。").FontSize(12).LineHeight(1.7).TextColor(t.TextMuted).Margin(8, 0, 14)
+		ui.Text(c, "拖动手柄调整顺序，松手即生效。Option + ↑ / ↓ 也可调整。已完成的任务保留原位。").FontSize(12).LineHeight(1.7).TextColor(t.TextMuted).Margin(8, 0, 14)
 		ids := v.service.m.eligibleIDs()
 		side := "右侧"
 		if v.service.m.Side == "left" {

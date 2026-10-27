@@ -290,7 +290,7 @@ func (b *overlayWindow) setRegion(shapes []overlayShape) error {
 		x, y := winPX(s.rect.X, dpi)+ox, winPX(s.rect.Y, dpi)+oy
 		right, bottom := winPX(s.rect.X+s.rect.Width, dpi)+ox, winPX(s.rect.Y+s.rect.Height, dpi)+oy
 		radius := winPX(s.radius, dpi)
-		part, _, err := inputCreateRound.Call(uintptr(x), uintptr(y), uintptr(right+1), uintptr(bottom+1), uintptr(2*radius), uintptr(2*radius))
+		part, err := smoothWindowRegion(x, y, right, bottom, radius)
 		if part == 0 {
 			return err
 		}

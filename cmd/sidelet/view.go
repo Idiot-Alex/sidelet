@@ -15,8 +15,6 @@ type views struct {
 	closeTimer               *time.Timer
 	scheduleClose            func(time.Duration, func())
 	renderPresence           bool
-	snoozing                 bool
-	snoozeTask               int
 	m                        *model
 	open                     func(int)
 	close                    func()
@@ -43,6 +41,11 @@ func (v *views) webHover(hit int, now time.Time) (int, time.Duration) {
 		return m.Opened, 0
 	}
 	if hit == m.Hover {
+		v.hoverDeadline = time.Time{}
+		return hit, 0
+	}
+	if hit >= 0 && m.sidebarRevealed[hit] {
+		// Reverse retraction without another hover delay.
 		v.hoverDeadline = time.Time{}
 		return hit, 0
 	}

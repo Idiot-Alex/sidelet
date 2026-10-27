@@ -7,8 +7,8 @@ import (
 	"unsafe"
 )
 
-// Clip both native paint and mouse input to the circular avatar. The native
-// window region uses physical pixels, so query the actual rect after sizing.
+// Keep native input near the circle without cutting off its antialiased edge.
+// The region uses physical pixels, so query the actual rect after sizing.
 func placeAvatarWindow(w *mygo.Window, bounds mygo.Rectangle, created bool) {
 	var rect [4]int32
 	hwnd := w.NativeHandle()
@@ -16,7 +16,7 @@ func placeAvatarWindow(w *mygo.Window, bounds mygo.Rectangle, created bool) {
 	if dpi == 0 {
 		dpi = 96
 	}
-	px := func(n int) uintptr { return uintptr(int64(n) * int64(dpi) / 96) }
+	px := func(n int) uintptr { return uintptr(winPX(n, int(dpi))) }
 	if ok, _, _ := inputGetRect.Call(hwnd, uintptr(unsafe.Pointer(&rect))); ok == 0 {
 		return
 	}
@@ -36,8 +36,8 @@ func placeAvatarWindow(w *mygo.Window, bounds mygo.Rectangle, created bool) {
 	if ok, _, _ := inputGetRect.Call(hwnd, uintptr(unsafe.Pointer(&rect))); ok == 0 {
 		return
 	}
-	wpx, hpx := uintptr(rect[2]-rect[0]), uintptr(rect[3]-rect[1])
-	rgn, _, _ := inputCreateRound.Call(0, 0, wpx+1, hpx+1, wpx, hpx)
+	wpx, hpx := int(rect[2]-rect[0]), int(rect[3]-rect[1])
+	rgn, _ := smoothWindowRegion(0, 0, wpx, hpx, min(wpx, hpx)/2)
 	if rgn == 0 {
 		return
 	}

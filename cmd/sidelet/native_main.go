@@ -72,6 +72,8 @@ type nativeTasksView struct {
 	onThemeChanged                func(string)
 	onExport                      func(string)
 	formPin                       bool
+	datePopup                     *nativeDatePopup
+	onDatePopupDismiss            func()
 	order                         orderUI
 }
 

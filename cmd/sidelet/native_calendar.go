@@ -26,18 +26,30 @@ func chineseDay(t time.Time) string { return t.Format("2006年1月2日") }
 
 func (v *nativeTasksView) webDateInput(c *ui.Context) {
 	t := v.visual
-	b := webButton(c.Key("calendar-field"), "选择截止日期", false).Height(36).Background(t.Field).TextColor(t.Text).Role(ui.RolePopUpButton).Value(chineseDay(v.pickerDate)).Justify(ui.SpaceBetween)
+	standalone := v.datePopup != nil
+	var b ui.Element
+	if standalone {
+		b = ui.Row(c.Key("calendar-field")).Height(24).AlignItems(ui.Center).TextColor(t.TextMuted).Label("已选日期").Justify(ui.SpaceBetween)
+	} else {
+		b = webButton(c.Key("calendar-field"), "选择截止日期", false).Height(36).Background(t.Field).TextColor(t.Text).Role(ui.RolePopUpButton).Value(chineseDay(v.pickerDate)).Justify(ui.SpaceBetween)
+	}
 	open := &v.pickerCalendarOpen
 	cursor := ui.Local(b, "cursor", func() time.Time { return calendarDay(v.pickerDate) })
+	selected := ui.Local(b, "selected", func() time.Time { return calendarDay(v.pickerDate) })
+	if standalone && !selected.Equal(calendarDay(v.pickerDate)) {
+		*cursor, *selected = calendarDay(v.pickerDate), calendarDay(v.pickerDate)
+	}
 	if b.Clicked() {
 		*open = !*open
 		*cursor = calendarDay(v.pickerDate)
 	}
 	b.Expanded(*open).Children(func() {
 		ui.Text(c, chineseDay(v.pickerDate)).FontSize(12).FontFeatures("tnum").NoWrap()
-		webIcon(c, "calendar", 14)
+		if !standalone {
+			webIcon(c, "calendar", 14)
+		}
 	})
-	if *open {
+	if *open || standalone {
 		ui.Column(c.Key("inline-calendar")).Children(func() {
 			ui.Box(c).Height(1).Background(t.Border)
 			cur := *cursor
@@ -51,9 +63,13 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 				// The clock draft is separate; choosing a day doesn't normalize a
 				// nonexistent hour before the user has a chance to correct it.
 				v.pickerDate = day
-				*open = false
+				*open = standalone
 				v.pickerError = ""
-				b.Focus()
+				if standalone {
+					grid.Focus()
+				} else {
+					b.Focus()
+				}
 				c.Invalidate()
 			}
 			switch {
@@ -94,7 +110,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 				})
 				ui.Row(c).Children(func() {
 					for _, name := range []string{"一", "二", "三", "四", "五", "六", "日"} {
-						ui.Text(c, name).Width(32).FixedLineHeight(24).TextAlign(ui.Center).FontSize(11).TextColor(t.TextMuted).Role(ui.RoleColumnHeader)
+						ui.Text(c, name).Width(0).Grow(1).FixedLineHeight(24).TextAlign(ui.Center).FontSize(11).TextColor(t.TextMuted).Role(ui.RoleColumnHeader)
 					}
 				})
 				start := first.AddDate(0, 0, -((int(first.Weekday()) + 6) % 7))
@@ -103,7 +119,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 						for column := range 7 {
 							day := start.AddDate(0, 0, week*7+column)
 							chosen := day.Equal(calendarDay(v.pickerDate))
-							cell := ui.Box(c).Size(32, 28).Center().Radius(5).Role(ui.RoleButton).Label(chineseDay(day)).Checked(chosen)
+							cell := ui.Box(c).Width(0).Grow(1).Height(30).Center().Radius(5).Role(ui.RoleButton).Label(chineseDay(day)).Checked(chosen)
 							fg := t.Text
 							if day.Month() != first.Month() {
 								fg = t.Subtle
@@ -129,7 +145,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 				}
 			})
 		})
-		if c.Root().Shortcut(0, ui.KeyEscape) {
+		if !standalone && c.Root().Shortcut(0, ui.KeyEscape) {
 			*open = false
 			b.Focus()
 		}
@@ -139,6 +155,7 @@ func (v *nativeTasksView) webDateInput(c *ui.Context) {
 func (v *nativeTasksView) webTimeInput(c *ui.Context) {
 	t := v.visual
 	ui.Row(c.Key("time-field")).Label("选择截止时间").Height(36).Padding(0, 9).Gap(3).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).Children(func() {
+		webIcon(c, "clock", 14)
 		for i, value := range []*string{&v.pickerHour, &v.pickerMinute} {
 			if i == 1 {
 				ui.Text(c, ":").FontSize(13).TextColor(t.TextMuted)
@@ -162,6 +179,14 @@ func (v *nativeTasksView) webTimeInput(c *ui.Context) {
 					*value = fmt.Sprintf("%02d", (n+delta+limit)%limit)
 					v.pickerError = ""
 				}
+			}
+		}
+		ui.Spacer(c)
+		for _, hour := range []string{"09", "18"} {
+			b := webButton(c, "设为"+hour+":00", false).Padding(4, 5).Border(0, ui.Transparent).FontSize(11)
+			b.Children(func() { ui.Text(c, hour+":00").FontSize(11) })
+			if b.Clicked() {
+				v.pickerHour, v.pickerMinute, v.pickerError = hour, "00", ""
 			}
 		}
 	})
@@ -199,4 +224,15 @@ func (v *nativeTasksView) applyPicker() {
 		return
 	}
 	v.formDue, v.datePickerOpen, v.pickerError = text, false, ""
+	v.pickerCalendarOpen = false
+}
+
+func (v *nativeTasksView) commitOpenDatePicker() error {
+	if v != nil && v.datePickerOpen {
+		v.applyPicker()
+		if v.pickerError != "" {
+			return errors.New(v.pickerError)
+		}
+	}
+	return nil
 }

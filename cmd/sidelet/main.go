@@ -168,7 +168,7 @@ func main() {
 		bounds := card.Bounds()
 		height := cardHeight
 		if m.Editing {
-			height = 390
+			height = m.cardEditorHeight()
 		} else if m.CardReadHeight > 0 {
 			height = m.CardReadHeight
 		}
@@ -368,7 +368,7 @@ func main() {
 				return
 			}
 		}
-		stack = mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet MyGo 侧栏", X: m.X, Y: m.Y, Width: stackWidth, Height: m.stackHeight(),
+		stack = newRoundedDesktopWindow(mygo.WindowOptions{Title: "Sidelet MyGo 侧栏", X: m.X, Y: m.Y, Width: stackWidth, Height: m.stackHeight(),
 			Frameless: true, Transparent: true, AlwaysOnTop: true, DisableResize: true, DisableShadow: true, Hidden: true, Content: ui.View(v.stack)})
 		input.bindStack(stack)
 		input.moveDrag = func(p mygo.Point) {

@@ -16,6 +16,11 @@ func eventScreenPoint(m *model, index int, ev ui.InputEvent) mygo.Point {
 func (m *model) expanded(index int) bool {
 	return !m.Dragging && (m.Hover == index || m.Opened == index)
 }
+
+// Retain the native surface until retraction finishes, except during drag.
+func (m *model) sidebarPresented(index int) bool {
+	return m.expanded(index) || (!m.Dragging && !m.desktopArrange() && m.sidebarRevealed[index])
+}
 func (m *model) markerRect(index int) mygo.Rectangle {
 	if index == overflowIndex {
 		if m.desktopArrange() {
@@ -29,7 +34,7 @@ func (m *model) markerRect(index int) mygo.Rectangle {
 		return r
 	}
 	width := 14
-	if m.UITheme != "" && m.expanded(index) {
+	if m.UITheme != "" && m.sidebarPresented(index) {
 		width = 20
 	}
 	x := 0
@@ -131,7 +136,7 @@ func stackInputRegions(m *model) []inputRegion {
 		}
 		regions = append(regions, inputRegion{fmt.Sprintf("marker-%d", i), true, i,
 			m.markerRect(i)})
-		if m.expanded(i) {
+		if m.sidebarPresented(i) {
 			regions = append(regions, inputRegion{fmt.Sprintf("preview-%d", i), false, i,
 				m.previewRect(i)})
 		}

@@ -239,7 +239,21 @@ func openProfile(dir string, m *model) (*profile, error) {
 		}
 	}
 	m.profile = p
-	if err = m.commit(func() error { return nil }); err != nil {
+	if err = m.commit(func() error {
+		// Snoozing is no longer exposed. Restore old desktop tasks and use
+		// their due time for pending reminders, without replaying sent ones.
+		for i := range m.Tasks {
+			t := &m.Tasks[i]
+			if t.SnoozedUntil != 0 {
+				t.SnoozedUntil = 0
+				t.Version++
+				if t.ReminderSentAt > 0 {
+					t.ReminderAt = t.DueAt
+				}
+			}
+		}
+		return nil
+	}); err != nil {
 		m.profile = nil
 		return nil, err
 	}

@@ -24,7 +24,7 @@ func stackInputShapes(m *model) []overlayShape {
 				s.squareEdge = m.Side
 			case r.key == "undo":
 				s.radius = int(webTheme(m.UITheme).Theme.Radius)
-			case !m.desktopArrange() && r.marker && m.expanded(r.task):
+			case !m.desktopArrange() && r.marker && m.sidebarPresented(r.task):
 				s.rect.Width = 296
 				if m.Side == "right" {
 					s.rect.X = stackWidth - s.rect.Width

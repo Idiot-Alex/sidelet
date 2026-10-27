@@ -82,7 +82,7 @@ func (v *views) webOverflowCard(c *ui.Context) {
 				v.closeCard()
 			}
 		})
-		ui.Scroll(c).Grow(1).Padding(10, 16, 16).Children(func() {
+		enterSurface(c, ui.Scroll(c).Grow(1).Padding(10, 16, 16), v.session.RequestRevision).Children(func() {
 			for k, index := range tail {
 				b := ui.ButtonBase(c.Key(fmt.Sprintf("overflow-task-%d", index+1))).Label("查看任务："+m.Tasks[index].Title).Gap(12).Padding(12, 0).TextColor(t.Text).Justify(ui.Start)
 				if k < len(tail)-1 {

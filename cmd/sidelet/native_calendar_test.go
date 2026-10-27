@@ -66,7 +66,7 @@ func TestLocalizedCalendarNavigatesMonthEndsAndSaves(t *testing.T) {
 			if v.datePickerOpen || v.formDue != "2028/02/29 23:59" {
 				t.Fatal("cancel changed form")
 			}
-			click("提醒我")
+			click("到时提醒")
 			click("添加任务")
 			want := time.Date(2028, 2, 29, 23, 59, 0, 0, time.Local).UnixMilli()
 			if len(m.Tasks) != 4 || m.Tasks[3].DueAt != want || !m.Tasks[3].Remind {
@@ -154,7 +154,7 @@ func TestReadingCardUsesRenderedHeightAndSettlesAfterContentChanges(t *testing.T
 			fit := func() {
 				t.Helper()
 				u.SetSize(320, m.CardReadHeight)
-				for _, label := range []string{"完成", "稍后", "编辑"} {
+				for _, label := range []string{"完成", "编辑"} {
 					r := visualRect(t, u, label)
 					if r.Y < 0 || r.Y+r.H > float32(m.CardReadHeight)-1 {
 						t.Fatal("footer clipped", label, r, m.CardReadHeight)
@@ -189,16 +189,6 @@ func TestReadingCardUsesRenderedHeightAndSettlesAfterContentChanges(t *testing.T
 				t.Fatal("stale layout kept long height", m.CardReadHeight)
 			}
 			fit()
-			_ = u.Click("稍后")
-			if m.CardReadHeight <= 160 {
-				t.Fatal("snooze footer not measured")
-			}
-			u.SetSize(320, m.CardReadHeight)
-			r := visualRect(t, u, "返回操作")
-			if r.Y+r.H > float32(m.CardReadHeight)-1 {
-				t.Fatal("snooze return clipped")
-			}
-			_ = u.Click("返回操作")
 			fit()
 			before := resizes
 			for range 5 {

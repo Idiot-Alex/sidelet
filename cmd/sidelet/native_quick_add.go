@@ -135,10 +135,10 @@ func (q *nativeQuickAdd) contentHeight() int {
 		if q.details.noteOpen {
 			h += 70
 		}
-		if q.details.datePickerOpen {
-			h += 210
+		if q.details.datePickerOpen && q.details.datePopup == nil {
+			h += 250
 		}
-		if q.details.pickerCalendarOpen {
+		if q.details.pickerCalendarOpen && q.details.datePopup == nil {
 			h += 250
 		}
 	}
@@ -208,6 +208,9 @@ func (q *nativeQuickAdd) handleClose(e *mygo.CloseEvent, quitting bool) {
 	q.cancel()
 }
 func (q *nativeQuickAdd) blur() {
+	if q.details != nil && q.details.datePopup != nil {
+		return
+	}
 	if !q.session.Open {
 		return
 	}
@@ -219,8 +222,14 @@ func (q *nativeQuickAdd) submit(revision uint64) {
 		return
 	}
 	parsed, err := q.input()
+	if q.details.datePickerOpen {
+		err = q.details.commitOpenDatePicker()
+		if err == nil {
+			parsed, err = q.input()
+		}
+	}
 	if err == nil {
-		_, err = q.service.SaveTask(0, parsed.Title, q.details.formNote, priorityValue(q.details.newPriority), q.pin, parsed.DueAt, false, false, 0)
+		_, err = q.service.SaveTask(0, parsed.Title, q.details.formNote, priorityValue(q.details.newPriority), q.pin, parsed.DueAt, q.details.formRemind, false, 0)
 	}
 	wasOpen := q.session.FinishSave(err == nil)
 	if err != nil {
@@ -240,6 +249,13 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 	c.Root().Background(t.Surface)
 	_, previewErr := q.input()
 	d := q.details
+	d.onDatePopupDismiss = func() {
+		go mygo.RunOnMain(func() {
+			if q.window != nil && !q.window.IsFocused() && q.session.Open {
+				q.blur()
+			}
+		})
+	}
 	d.visual = t
 	pickerWasOpen := d.datePickerOpen || d.pickerCalendarOpen
 	heightBefore := q.contentHeight()
@@ -248,7 +264,7 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 	}
 	revision := q.session.Revision
 	busy := q.session.Saving || !q.session.Open
-	ui.Column(c).Fill().Background(t.Surface).Children(func() {
+	enterSurface(c, ui.Column(c).Fill().Background(t.Surface), q.session.Revision).Children(func() {
 		ui.Column(c).Fill().Padding(18, 22, 16).Border(1, t.Border).Background(t.Surface).Children(func() {
 			ui.Row(c).Gap(7).Margin(0, 0, 8).AlignItems(ui.Center).Children(func() {
 				ui.Row(c).Grow(1).Height(28).Gap(7).AlignItems(ui.Center).DragWindow().Cursor(ui.CursorMove).Tooltip("拖动可移动窗口").Children(func() {
@@ -295,6 +311,7 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 				ui.Spacer(c)
 				ui.Row(c).Gap(14).Children(func() {
 					webCheckbox(c, &q.pin, "固定到桌面", 12).Disabled(busy)
+					webCheckbox(c, &d.formRemind, "到时提醒", 12).Disabled(busy || d.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
 					ui.Spacer(c)
 					label := "添加"
 					if q.session.Saving {

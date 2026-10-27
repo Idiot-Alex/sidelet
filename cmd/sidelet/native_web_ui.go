@@ -77,7 +77,7 @@ func (v *nativeTasksView) render(c *ui.Context) {
 					} else {
 						pane.WidthPercent(100)
 					}
-					pane.Children(func() { v.webForm(c, 18) })
+					enterSurface(c, pane, uint64(v.editID)).Children(func() { v.webForm(c, 18) })
 				}
 			})
 		})
@@ -363,19 +363,6 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 		ui.Text(c, strings.ReplaceAll(item.Note, "\n", " ")).FontSize(13).LineHeight(1.5).TextColor(t.TextMuted).MaxLines(1).Ellipsis("…").Margin(2, 0, 0, 30)
 	}
 	v.webTaskStatus(c, item)
-	if item.SnoozedUntil > v.service.m.now().UnixMilli() {
-		ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(4, 0, 0, 30).TextColor(t.Subtle).Children(func() {
-			if item.SnoozedUntil > v.service.m.now().UnixMilli() {
-				ui.Text(c, "暂时隐藏至 "+time.UnixMilli(item.SnoozedUntil).In(time.Local).Format("1/2 15:04")).FontSize(11)
-				b := webButton(c, "现在恢复", false).Border(0, ui.Transparent).Padding(1, 4)
-				b.Children(func() { ui.Text(c, "现在恢复") })
-				if b.Clicked() {
-					_, err := v.service.Unsnooze(item.ID, item.Version)
-					v.result(err, "")
-				}
-			}
-		})
-	}
 	if v.moreID == item.ID {
 		v.webMore(c, item)
 	}
@@ -454,7 +441,10 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 			}
 			webPriorityRadios(c, value)
 		})
-		ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 7)
+		ui.Row(c).AlignItems(ui.Center).Margin(0, 0, 7).Children(func() {
+			ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Grow(1)
+			webCheckbox(c, &v.formRemind, "到时提醒", 12).Height(16).Disabled(v.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
+		})
 		v.webDeadline(c)
 		b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
 		b.Children(func() {
@@ -463,7 +453,7 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 				marker = "▾"
 			}
 			ui.Text(c, marker).FontSize(12).FixedLineHeight(16)
-			ui.Text(c, "提醒与更多设置")
+			ui.Text(c, "更多设置")
 		})
 		if b.Clicked() {
 			v.optionsOpen = !v.optionsOpen
@@ -473,12 +463,6 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 		}
 		if v.optionsOpen {
 			ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
-				if v.formDue != "" {
-					webCheckbox(c, &v.formRemind, "提醒我", 12).Height(16).Margin(9, 0, 3)
-					if v.formRemind {
-						ui.Text(c, "到期时发送通知，需保持 Sidelet 运行。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.5)
-					}
-				}
 				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(12, 0, 0).Tooltip("完成后自动移除，不保留完成记录")
 				if v.formTemporary {
 					ui.Text(c, "完成后保留 5 秒撤销时间，随后自动移除。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.7)
@@ -518,6 +502,10 @@ func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 }
 
 func (v *nativeTasksView) webSubmit() {
+	if err := v.commitOpenDatePicker(); err != nil {
+		v.result(err, "")
+		return
+	}
 	due, err := parseDue(v.formDue, v.originalDue, v.originalDueText, v.service.m.now().Location())
 	if err != nil {
 		v.result(err, "")

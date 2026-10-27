@@ -111,7 +111,7 @@ func TestCardFooterKeepsGeometryAndThemeFeedback(t *testing.T) {
 			u := ui.NewTester(v.webCard, 320, 220)
 			u.SetFocused(true)
 			finish := visualRect(t, u, "完成")
-			later := visualRect(t, u, "稍后")
+			later := visualRect(t, u, "编辑")
 			edit := visualRect(t, u, "编辑")
 			if math.Abs(float64(finish.W-later.W)) > 1 || math.Abs(float64(later.W-edit.W)) > 1 || later.Y != finish.Y || later.H != 36 {
 				t.Fatal("footer alignment", finish, later, edit)
@@ -121,17 +121,6 @@ func TestCardFooterKeepsGeometryAndThemeFeedback(t *testing.T) {
 			want := webTheme(theme).Soft
 			if pixel.R != want.R || pixel.G != want.G || pixel.B != want.B {
 				t.Fatal("secondary hover not formal accent-soft", pixel, want)
-			}
-			if err := u.Click("稍后"); err != nil {
-				t.Fatal(err)
-			}
-			tomorrow := visualRect(t, u, "明天 09:00")
-			back := visualRect(t, u, "返回操作")
-			if tomorrow.W < 60 || back.Y < tomorrow.Y+tomorrow.H {
-				t.Fatal("snooze controls clipped", tomorrow, back)
-			}
-			if err := u.Click("返回操作"); err != nil {
-				t.Fatal(err)
 			}
 			if err := u.Click("编辑"); err != nil {
 				t.Fatal(err)

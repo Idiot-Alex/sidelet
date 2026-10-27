@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 	"time"
@@ -23,6 +24,14 @@ func (v *views) webStack(c *ui.Context) {
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
 	m, nextHover := v.m, -1
+	previousRevealed := maps.Clone(m.sidebarRevealed)
+	revealed := make(map[int]bool)
+	defer func() {
+		m.sidebarRevealed = revealed
+		if !maps.Equal(previousRevealed, revealed) {
+			v.notify("sidebar-reveal-region")
+		}
+	}()
 	previousTooltip := m.stackTooltip
 	m.stackTooltip = mygo.Rectangle{}
 	defer func() {
@@ -56,28 +65,33 @@ func (v *views) webStack(c *ui.Context) {
 		} else if task.Priority == 3 {
 			markerColor = t.Danger
 		}
+		reveal := ui.Local(c.Root(), fmt.Sprintf("sidebar-reveal-%d", i), func() edgeTitleReveal { return edgeTitleReveal{} })
+		progress, animating := reveal.frame(m.expanded(i), c.Now(), c.Preferences().ReduceMotion || m.Dragging)
+		presented := m.expanded(i) || progress > 0
+		if presented {
+			revealed[i] = true
+		}
+		if m.sidebarRevealed == nil {
+			m.sidebarRevealed = make(map[int]bool)
+		}
+		m.sidebarRevealed[i] = presented
 		r := m.markerRect(i)
 		preview := m.previewRect(i)
-		if m.expanded(i) {
-			x := float32(0)
-			if m.Side == "right" {
-				x = stackWidth - 296
-			}
-			ui.Box(c).Absolute().Left(x).Top(float32(r.Y)).Size(296, float32(m.itemHeight())).Radius(5).Border(1, t.Border).Background(t.Surface)
-		}
-		handle := ui.Box(c.Key(fmt.Sprintf("handle-%d", i))).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(0, 5, 5, 0).Border(1, t.Border).Background(t.Alt).TextColor(dueColor).Cursor(ui.CursorMove).Label(fmt.Sprintf("拖动任务标记 %d", i+1))
-		if m.Side == "right" {
-			handle.Radius(5, 0, 0, 5)
-		}
-		if m.expanded(i) {
-			handle.Background(ui.Transparent).Border(0, ui.Transparent)
-		}
-		handle.PointerPosition()
-		reveal := ui.Local(handle, "title-reveal", func() edgeTitleReveal { return edgeTitleReveal{} })
-		progress, animating := reveal.frame(m.expanded(i), c.Now(), c.Preferences().ReduceMotion)
 		if animating {
 			c.AnimationFrame()
 		}
+		x, width, bodyX, bodyWidth, contentX := sidebarRevealGeometry(m.Side, float32(r.Width), progress)
+		if presented {
+			ui.Box(c).Absolute().Left(x).Top(float32(r.Y)).Size(width, float32(m.itemHeight())).Radius(5).Border(1, desktopOutline(t)).Background(t.Surface)
+		}
+		handle := ui.Box(c.Key(fmt.Sprintf("handle-%d", i))).Absolute().Left(float32(r.X)).Top(float32(r.Y)).Size(float32(r.Width), float32(r.Height)).Radius(0, 5, 5, 0).Border(1, desktopOutline(t)).Background(t.Alt).TextColor(dueColor).Cursor(ui.CursorMove).Label(fmt.Sprintf("拖动任务标记 %d", i+1))
+		if m.Side == "right" {
+			handle.Radius(5, 0, 0, 5)
+		}
+		if presented {
+			handle.Background(ui.Transparent).Border(0, ui.Transparent)
+		}
+		handle.PointerPosition()
 		if v.pointer != nil {
 			handle.HandleInput(func(ev ui.InputEvent) bool { return v.pointer(index, ev) })
 		}
@@ -95,7 +109,7 @@ func (v *views) webStack(c *ui.Context) {
 					}
 				}
 			} else {
-				p.Fill(ui.Rect{X: r.X + r.W/2 - 1.5, Y: r.Y + (r.H-23)/2, W: 3, H: 23}, markerColor, 1.5)
+				p.Fill(ui.Rect{X: float32(math.Round(float64(r.X + r.W/2 - 1.5))), Y: float32(math.Round(float64(r.Y + (r.H-23)/2))), W: 3, H: 23}, markerColor, 1)
 			}
 			if dueLabel(task, m.now()) != "" {
 				p.Fill(ui.Rect{X: r.X + r.W/2 - 2, Y: r.Y + r.H - 7, W: 4, H: 4}, dueColor, 2)
@@ -104,46 +118,48 @@ func (v *views) webStack(c *ui.Context) {
 		if handle.Hovered() {
 			nextHover = i
 		}
-		if !m.Dragging && (m.Hover == i || m.Opened == i) {
-			body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(float32(preview.X)).Top(float32(preview.Y)).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
-			body.Children(func() {
-				check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
-				stackTooltip(c, m, check, "标记为完成")
-				if check.Clicked() {
-					m.open(index)
-					if m.complete() {
-						v.notify("complete")
-						v.closeCard()
+		if !m.Dragging && presented {
+			ui.Box(c.Key(fmt.Sprintf("preview-viewport-%d", i))).Absolute().Left(bodyX).Top(float32(preview.Y)).Size(bodyWidth, float32(preview.Height)).Clip().Children(func() {
+				body := ui.ButtonBase(c.Key(fmt.Sprintf("preview-%d", i))).Label(fmt.Sprintf("打开任务 %d", i+1)).Absolute().Left(contentX).Top(0).Size(float32(preview.Width), float32(preview.Height)).Padding(0, 12).Gap(10).TextColor(t.Text).FocusRing(false)
+				body.Children(func() {
+					check := ui.ButtonBase(c).Size(16, 16).Radius(4).Border(1, t.Border).Label("完成侧栏任务：" + task.Title)
+					stackTooltip(c, m, check, "标记为完成")
+					if check.Clicked() {
+						m.open(index)
+						if m.complete() {
+							v.notify("complete")
+							v.closeCard()
+						}
 					}
-				}
-				ui.Box(c).Grow(1).MinWidth(0).Height(18).ClipX().Children(func() {
-					ui.Text(c, task.Title).Absolute().Left(8 * (1 - progress)).WidthPercent(100).FontSize(13).Height(18).FixedLineHeight(18).MaxLines(1).Ellipsis("…").Opacity(progress)
+					ui.Box(c).Grow(1).MinWidth(0).Height(18).ClipX().Children(func() {
+						ui.Text(c, task.Title).WidthPercent(100).FontSize(13).Height(18).FixedLineHeight(18).MaxLines(1).Ellipsis("…")
+					})
+					if task.Priority == 2 || task.Priority == 3 {
+						bg := t.WarningSoft
+						if task.Priority == 3 {
+							bg = t.DangerSoft
+						}
+						ui.Text(c, priorityName(task.Priority)).FontSize(10).NoWrap().Shrink(0).Padding(2, 4).Radius(3).TextColor(markerColor).Background(bg)
+					}
+					if task.DueAt > 0 {
+						label := dueLabel(task, m.now())
+						if label != "" {
+							label += " "
+						}
+						label += time.UnixMilli(task.DueAt).In(m.now().Location()).Format("15:04")
+						ui.Text(c, label).FontSize(10).TextColor(dueColor)
+					}
 				})
-				if task.Priority == 2 || task.Priority == 3 {
-					bg := t.WarningSoft
-					if task.Priority == 3 {
-						bg = t.DangerSoft
-					}
-					ui.Text(c, priorityName(task.Priority)).FontSize(10).NoWrap().Shrink(0).Padding(2, 4).Radius(3).TextColor(markerColor).Background(bg)
+				if body.Hovered() {
+					nextHover = i
 				}
-				if task.DueAt > 0 {
-					label := dueLabel(task, m.now())
-					if label != "" {
-						label += " "
+				if body.Clicked() {
+					m.open(i)
+					if v.open != nil {
+						v.open(i)
 					}
-					label += time.UnixMilli(task.DueAt).In(m.now().Location()).Format("15:04")
-					ui.Text(c, label).FontSize(10).TextColor(dueColor)
 				}
 			})
-			if body.Hovered() {
-				nextHover = i
-			}
-			if body.Clicked() {
-				m.open(i)
-				if v.open != nil {
-					v.open(i)
-				}
-			}
 		}
 	}
 	overflowInside := v.webOverflowTab(c)
@@ -191,21 +207,16 @@ func (v *views) webCard(c *ui.Context) {
 	if m.Opened < 0 {
 		return
 	}
-	if v.snoozeTask != m.Opened || m.Editing {
-		v.snoozing = false
-		v.snoozeTask = m.Opened
-	}
 	if v.renderPresence || m.Editing {
 		v.presence(v.sourceInside, c.Root().Hovered())
 	}
 	item := m.Tasks[m.Opened]
-	_, cardViewportHeight := c.Size()
+	details := m.cardDetails
+	pickerWasOpen := details != nil && (details.datePickerOpen || details.pickerCalendarOpen)
+	editHeightBefore := m.cardEditorHeight()
 	var reading ui.Element
 	var errorHeight float32
 	footerHeight := float32(61) // 36px controls + 24px padding + top border.
-	if v.snoozing && !m.Editing {
-		footerHeight = 95
-	}
 	cardSurface := t.Surface
 	if t.Background.A > cardSurface.A {
 		// A floating card has no main-window base coat behind its surface.
@@ -240,6 +251,14 @@ func (v *views) webCard(c *ui.Context) {
 				bodyContext = c.Key(v.cardLayoutVersion)
 			}
 			body := ui.Column(bodyContext).WidthPercent(100).MinWidth(0).Padding(10, 16, 16)
+			// Track the entrance on the stable panel, not the keyed reading body:
+			// edits and text reflow must not restart the presentation animation.
+			motion := ui.Local(panel, "card-enter", func() enterMotion { return enterMotion{} })
+			progress, active := motion.frame(v.session.RequestRevision, c.Now(), c.Preferences().ReduceMotion)
+			if active {
+				c.AnimationFrame()
+			}
+			body.Opacity(.35 + .65*progress)
 			if !m.Editing {
 				reading = body.Label("卡片阅读内容")
 			}
@@ -258,13 +277,23 @@ func (v *views) webCard(c *ui.Context) {
 					})
 					ui.Column(c.Key("card-note")).Gap(6).Children(func() {
 						ui.Text(c, "备注").FontSize(11).Height(15).FixedLineHeight(15).TextColor(t.TextMuted)
-						// Use the available editor space without resizing the
-						// native card or changing its desktop anchor.
-						note := webTextArea(c, &m.DraftNote).Label("卡片备注").Height(max(96, cardViewportHeight-222)).Padding(9).LineHeight(1.6).Background(t.Field)
+						note := webTextArea(c, &m.DraftNote).Label("卡片备注").Height(64).Padding(9).LineHeight(1.6).Background(t.Field)
 						if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) && m.save() {
 							v.notify("save")
 						}
 					})
+					if details != nil && m.Editing {
+						details.visual = t
+						ui.Row(c).Gap(12).AlignItems(ui.Center).Margin(14, 0).Children(func() {
+							ui.Text(c, "优先级").FontSize(12).TextColor(t.TextMuted)
+							webPriorityRadios(c, &details.newPriority)
+						})
+						ui.Row(c).AlignItems(ui.Center).Margin(0, 0, 7).Children(func() {
+							ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Grow(1)
+							webCheckbox(c, &details.formRemind, "到时提醒", 12).Height(16).Disabled(details.formDue == "")
+						})
+						details.webDeadline(c)
+					}
 				} else {
 					ui.Text(c, item.Title).Font(t.HeadingFont).FontSize(18).FontWeight(t.HeadingWeight).LineHeight(1.4)
 					if item.Priority != 0 || item.DueAt > 0 {
@@ -297,7 +326,9 @@ func (v *views) webCard(c *ui.Context) {
 		if m.EditError != "" {
 			errorHeight = ui.Text(c.Key(m.EditError), m.EditError).Shrink(0).Role(ui.RoleStatus).FontSize(12).TextColor(t.Danger).Padding(8, 16).Bounds().H
 		}
-		ui.Column(c).Height(footerHeight).Shrink(0).Gap(6).Padding(12, 16).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
+		// Editing and reading actions must not share focus/click state: the
+		// Save button occupies the same slot as Complete after a save.
+		ui.Column(c.Key(fmt.Sprintf("card-actions-%d-%t", m.Opened, m.Editing))).Height(footerHeight).Shrink(0).Gap(6).Padding(12, 16).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
 			ui.Row(c).Gap(6).Children(func() {
 				if m.Editing {
 					b := webCardButton(c, "保存", true).Disabled(strings.TrimSpace(m.Draft) == "")
@@ -311,19 +342,11 @@ func (v *views) webCard(c *ui.Context) {
 						m.cancel()
 						v.notify("cancel")
 					}
-				} else if v.snoozing {
-					for _, option := range []struct{ label, duration string }{{"30 分钟", "30m"}, {"1 小时", "1h"}, {"明天 09:00", "tomorrow"}} {
-						b := webCardButton(c, option.label, false)
-						b.Children(func() { ui.Text(c, option.label) })
-						if b.Clicked() {
-							v.snooze(option.duration)
-						}
-					}
 				} else {
 					for _, action := range []struct {
 						label, icon string
 						primary     bool
-					}{{"完成", "check", true}, {"稍后", "clock", false}, {"编辑", "edit", false}} {
+					}{{"完成", "check", true}, {"编辑", "edit", false}} {
 						b := webCardButton(c, action.label, action.primary)
 						b.Children(func() { webIcon(c, action.icon, 14); webActionText(c, action.label) })
 						if b.Clicked() {
@@ -333,8 +356,6 @@ func (v *views) webCard(c *ui.Context) {
 									v.notify("complete")
 									v.closeCard()
 								}
-							case "稍后":
-								v.snoozing = true
 							case "编辑":
 								m.edit()
 								v.editorFocusPending = true
@@ -347,13 +368,6 @@ func (v *views) webCard(c *ui.Context) {
 					}
 				}
 			})
-			if v.snoozing && !m.Editing && m.Opened >= 0 {
-				b := webButton(c, "返回操作", false).Height(28).Border(0, ui.Transparent).Background(ui.Transparent).Gap(4).Padding(0)
-				b.Children(func() { webIcon(c, "back", 13); ui.Text(c, "返回") })
-				if b.Clicked() {
-					v.snoozing = false
-				}
-			}
 		})
 	})
 	if reading.Valid() && !m.Editing && m.Opened >= 0 {
@@ -368,7 +382,10 @@ func (v *views) webCard(c *ui.Context) {
 			c.Invalidate()
 		}
 	}
-	if c.Root().Shortcut(0, ui.KeyEscape) {
+	if m.Editing && m.cardEditorHeight() != editHeightBefore {
+		v.notify("card-size")
+	}
+	if !pickerWasOpen && c.Root().Shortcut(0, ui.KeyEscape) {
 		if m.Editing {
 			m.cancel()
 			v.notify("cancel")

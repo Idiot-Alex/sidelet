@@ -7,6 +7,38 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+func TestCardSaveKeepsTaskOnDesktop(t *testing.T) {
+	for _, theme := range []string{"mac", "paper", "graphite"} {
+		t.Run(theme, func(t *testing.T) {
+			m := newModel()
+			m.UITheme = theme
+			m.open(0)
+			m.edit()
+			v := &views{m: m}
+			u := ui.NewTester(v.webCard, 320, 390)
+			u.SetFocused(true)
+			m.Draft = "修改后仍固定在桌面"
+			u.Frame()
+			if err := u.Click("保存"); err != nil {
+				t.Fatal(err)
+			}
+			u.Key(0, ui.KeyEnter)
+			for i := 0; i < 3; i++ {
+				u.Frame()
+			}
+			if m.Tasks[0].Title != "修改后仍固定在桌面" || m.Tasks[0].Done || m.Tasks[0].Unpinned || !m.eligible(0) {
+				t.Fatalf("saved task disappeared: %+v", m.Tasks[0])
+			}
+			if err := u.Click("完成"); err != nil {
+				t.Fatal(err)
+			}
+			if !m.Tasks[0].Done || m.eligible(0) {
+				t.Fatal("explicit completion no longer works")
+			}
+		})
+	}
+}
+
 func TestCardNoteSaveShortcutPreservesCompositionAndConflict(t *testing.T) {
 	for _, mods := range []ui.Modifiers{ui.Super, ui.Ctrl} {
 		m := newModel()

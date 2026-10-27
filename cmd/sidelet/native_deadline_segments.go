@@ -72,11 +72,11 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 				ui.Text(c, separator).Role(ui.RoleNone).FontSize(12).Height(16).FixedLineHeight(16)
 			}
 		}
-		width := float32(16)
+		width := float32(24)
 		if i == 0 {
-			width = 30
+			width = 38
 		}
-		seg := ui.Box(c.Key(label)).Bind(&s.handles[i]).Label(label).Role(ui.RoleStepper).Focusable().FocusRing(false).Height(18).Width(width).Shrink(0).Radius(2).AlignItems(ui.Center).Justify(ui.Center).TextCaret(ui.Rect{W: width, H: 18})
+		seg := ui.Box(c.Key(label)).Bind(&s.handles[i]).Label(label).Role(ui.RoleStepper).Focusable().FocusRing(false).Height(30).Width(width).Shrink(0).Radius(4).AlignItems(ui.Center).Justify(ui.Center).TextCaret(ui.Rect{W: width, H: 18})
 		n, _ := strconv.Atoi(s.parts[i])
 		seg.Range(float64(deadlineSegmentMin[i]), float64(deadlineSegmentMax[i]), float64(n)).Step(1).Value(s.parts[i])
 		segments[i] = seg
@@ -93,7 +93,7 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 		seg.Children(func() {
 			text := s.parts[i]
 			if text == "" {
-				text = fmt.Sprintf("%02d", ghost[i])
+				text = [5]string{"年", "月", "日", "时", "分"}[i]
 			}
 			ui.Text(c, text).FontSize(12).FontFeatures("tnum").Height(16).FixedLineHeight(16).NoWrap()
 		})

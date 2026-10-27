@@ -6,11 +6,25 @@ import (
 	"github.com/egoist/mygo"
 )
 
+func (m *model) cardEditorHeight() int {
+	height := 430
+	if d := m.cardDetails; d != nil && d.datePopup == nil {
+		if d.datePickerOpen {
+			height += 250
+		}
+		if d.pickerCalendarOpen {
+			height += 250
+		}
+	}
+	if m.WorkHeight > 20 {
+		height = min(height, m.WorkHeight-20)
+	}
+	return height
+}
+
 func (v *views) beginSession(index int) {
 	v.session.Begin("source", "card", int64(index+1))
 	v.sourceInside, v.cardInside = true, false
-	v.snoozing = false
-	v.snoozeTask = index
 	if v.closeTimer != nil {
 		v.closeTimer.Stop()
 	}
@@ -59,21 +73,6 @@ func (v *views) enableCloseTimer() {
 			v.closeTimer.Stop()
 		}
 	})
-}
-func (v *views) snooze(duration string) {
-	if v.m.Opened < 0 {
-		return
-	}
-	s := v.service
-	if s == nil {
-		s = &TasksService{m: v.m, run: func(f func()) { f() }, changed: v.notify}
-	}
-	index := v.m.Opened
-	if _, err := s.Snooze(index+1, duration, v.m.Tasks[index].Version); err != nil {
-		v.m.EditError = err.Error()
-		return
-	}
-	v.closeCard()
 }
 
 // Same quickRect anchor, 12px separation and 10px work-area margin as the

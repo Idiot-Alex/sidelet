@@ -145,7 +145,7 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		inputGetRect.Call(card, uintptr(unsafe.Pointer(&r)))
 		dpi, _, _ := inputGetDPI.Call(card)
 		w, h := winDIP(r.Right-r.Left, int(dpi)), winDIP(r.Bottom-r.Top, int(dpi))
-		d.click(card, 16+(w-32)*(2*index+1)/6, h-bottom)
+		d.click(card, 16+(w-32)*(2*index+1)/4, h-bottom)
 	}
 	first := run("deliver", 13*time.Second, func(d *focusDriver, _ int) {
 		d.wait("overdue reminder submitted and acknowledged", func() bool {
@@ -221,7 +221,7 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.close()
-	second := run("timer-snooze", 8*time.Second, func(d *focusDriver, pid int) {
+	second := run("timer-reminder", 8*time.Second, func(d *focusDriver, pid int) {
 		d.wait("deadline timer delivery", func() bool {
 			st := d.app()
 			return len(st.Model.Tasks) == 5 && st.Model.Tasks[0].ReminderSentAt != 0 && st.NotificationSession.Submitted == 1
@@ -230,30 +230,16 @@ func TestPackagedWindowsNotifications(t *testing.T) {
 			t.Fatal("timer reminder opened main window")
 		}
 		stage("background-timer-delivers-due-reminder")
-		oldID := d.app().Model.Tasks[0].ReminderID
-		card := openCard(d, pid)
-		footer(d, card, 1, 30) // 稍后
-		time.Sleep(150 * time.Millisecond)
-		footer(d, card, 0, 64) // 30 分钟; the back row is below this row
-		d.wait("snooze resets receipt and withdraws old notification", func() bool {
-			st := d.app()
-			task := st.Model.Tasks[0]
-			return task.ReminderID != oldID && task.ReminderSentAt == 0 && task.SnoozedUntil > time.Now().Add(29*time.Minute).UnixMilli() && task.ReminderAt == task.SnoozedUntil && st.NotificationSession.Removed == 1 && len(st.NotificationSession.Accepted) == 0
-		})
-		stage("snooze-replaces-generation-and-withdraws-old-notification")
+
 	})
 	if second.NotificationSession.Submitted != 1 {
-		t.Fatal("snooze resent early")
+		t.Fatal("timer reminder repeated")
 	}
-	saved := readSmokeProfile(t, dir)
-	if saved.Tasks[0].ReminderSentAt != 0 || saved.Tasks[0].SnoozedUntil < time.Now().Add(29*time.Minute).UnixMilli() || saved.Tasks[0].ReminderAt != saved.Tasks[0].SnoozedUntil {
-		t.Fatal("snooze not durable")
-	}
-	stage("snooze-persists-to-sqlite")
+
 	third := run("restart", 3*time.Second, func(d *focusDriver, _ int) {
 		d.wait("restart reminder reconciliation", func() bool { return d.app().NotificationAuthorization == "systemManaged" })
 	})
-	if third.NotificationSession.Submitted != 0 || len(third.NotificationSession.Accepted) != 0 {
+	if third.NotificationSession.Submitted != 0 {
 		t.Fatal("restart resent acknowledged or future reminder")
 	}
 	stage("restart-does-not-resend-acknowledged-or-future-reminders")

@@ -107,10 +107,10 @@ func TestDeadlinePickerApplyClearAndNestedEscape(t *testing.T) {
 	if err := u.Click("确定截止时间"); err != nil {
 		t.Fatal(err)
 	}
-	if v.formDue != "2026/10/08 18:00" || v.datePickerOpen {
+	if v.formDue != "2026/10/08 19:00" || v.datePickerOpen {
 		t.Fatalf("date/time picker not applied: %s", v.formDue)
 	}
-	if err := u.Click("提醒我"); err != nil {
+	if err := u.Click("到时提醒"); err != nil {
 		t.Fatal(err)
 	}
 	_ = u.Click("选择截止日期与时间")

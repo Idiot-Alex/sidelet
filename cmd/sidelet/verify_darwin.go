@@ -218,41 +218,19 @@ func runNativeChecks(a *overlayInput, v *views, probe *mygo.Window, output strin
 			v.notify("diagnostic-formal-card")
 			probe.Focus()
 		}, checkCardOrder},
-		{"formal-card-snooze-click", func() {
-			clickCard(160, float64(a.card.Bounds().Height-31))
-		}, func() error {
-			if !v.snoozing {
-				return fmt.Errorf("AppKit click did not open snooze options")
-			}
-			return checkCardOrder()
-		}},
-		{"formal-card-return-click", func() {
-			clickCard(160, float64(a.card.Bounds().Height-26))
-		}, func() error {
-			if v.snoozing || !m.cardOpen() {
-				return fmt.Errorf("AppKit click did not return to card actions")
-			}
-			return checkCardOrder()
-		}},
 		{"formal-card-raised-backing-recovery", func() {
 			// Reproduce the bad composition explicitly: an opaque hit panel
 			// ordered above its painted window must recover on interaction.
 			p := a.panels["card"]
 			send(p.panel, "orderWindow:relativeTo:", int(1), send(objc.ID(a.card.NativeHandle()), "windowNumber"))
-			clickCard(160, float64(a.card.Bounds().Height-31))
+			clickCard(80, 65)
 		}, func() error {
-			if !v.snoozing {
-				return fmt.Errorf("raised input panel did not forward the action")
-			}
 			return checkCardOrder()
 		}},
 		{"formal-card-content-click-recovery", func() {
 			p := a.panels["card"]
 			send(p.panel, "orderWindow:relativeTo:", int(1), send(objc.ID(a.card.NativeHandle()), "windowNumber"))
 			clickCard(80, 65) // No action or resize: layering must recover alone.
-		}, checkCardOrder},
-		{"formal-card-return-after-recovery", func() {
-			clickCard(160, float64(a.card.Bounds().Height-26))
 		}, checkCardOrder},
 		{"formal-card-edit-click", func() {
 			clickCard(257, float64(a.card.Bounds().Height-31))
