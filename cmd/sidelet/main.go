@@ -440,6 +440,7 @@ func main() {
 				h.show()
 				if h.view != nil {
 					h.view.settingsOpen = false
+					h.view.workLogOpen = false
 					h.window.Invalidate()
 				}
 			}

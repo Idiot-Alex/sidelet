@@ -40,12 +40,19 @@ func (v *nativeTasksView) render(c *ui.Context) {
 			v.webSettingsNavigation(c)
 		}
 		pageKey := "page"
+		if v.workLogOpen {
+			pageKey = "work-log"
+		}
 		if v.settingsOpen {
 			pageKey = "settings-" + v.settingsTab
 		}
 		ui.Scroll(c.Key(pageKey)).Grow(1).Padding(16, 0, 0).Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
+			}
+			if v.workLogOpen {
+				v.webWorkLog(c)
+				return
 			}
 			if v.settingsOpen {
 				v.webSettings(c)
@@ -83,6 +90,10 @@ func (v *nativeTasksView) render(c *ui.Context) {
 		})
 	})
 	if !v.datePickerOpen && c.Root().Shortcut(0, ui.KeyEscape) {
+		if v.workLogOpen {
+			v.workLogOpen = false
+			return
+		}
 		if v.service.m.Arranging {
 			_, err := v.service.Arrange(false)
 			v.result(err, "")
@@ -109,17 +120,21 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 	ui.Row(c).Height(68).Gap(20).TextColor(t.Text).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Gap(12).Grow(1).AlignItems(ui.Center).Children(func() {
 			title := "我的任务"
+			if v.workLogOpen {
+				title = "工作日志"
+			}
 			if v.settingsOpen {
 				title = "设置"
 			}
 			ui.Text(c, title).Font(t.HeadingFont).FontSize(23).FontWeight(600).LineHeight(1.3)
 		})
 		ui.Row(c).Gap(6).Children(func() {
-			if v.settingsOpen {
+			if v.settingsOpen || v.workLogOpen {
 				b := webButton(c, "返回我的任务", false).TextColor(v.visual.Text).Border(0, ui.Transparent).Gap(7).Disabled(v.exportBusy())
 				b.Children(func() { webIcon(c, "back", 16); webActionText(c, "返回我的任务") })
 				if b.Clicked() {
 					v.settingsOpen = false
+					v.workLogOpen = false
 				}
 				return
 			}
@@ -135,6 +150,11 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 				if b.Clicked() {
 					v.setLabelsHidden(false)
 				}
+			}
+			b = webIconTextButton(c.Key("work-log"), "工作日志", "工作日志", "list", 17).TextColor(t.Text).Height(34).Disabled(v.service.m.Arranging)
+			if b.Clicked() {
+				v.workLogOpen, v.workLogCopied = true, ""
+				v.moreID, v.deleteID = 0, 0
 			}
 			b = webIconTextButton(c.Key("settings"), "设置", "设置", "settings", 17).TextColor(v.visual.Text).Height(34).Disabled(v.service.m.Arranging)
 			if b.Clicked() {
@@ -191,7 +211,9 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 			v.webNewTaskEntry(c)
 		}
 		count := 0
+		v.deleteOutsideID, v.deleteTriggerPressed = 0, false
 		items := v.service.snapshot().Tasks
+		deleteAnchors := make(map[int]ui.Element)
 		visibleCount := 0
 		for _, item := range items {
 			if v.filterAll || item.Done == v.showDone {
@@ -215,8 +237,20 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 			}
 			showActions := row.Hovered() || row.FocusWithin() || v.editID == item.ID || v.moreID == item.ID
 			row.Children(func() {
-				v.webTaskRow(c, item, showActions)
+				deleteAnchors[item.ID] = v.webTaskRow(c, item, showActions)
 			})
+		}
+		for _, item := range items {
+			if item.ID == v.moreID {
+				if anchor, ok := deleteAnchors[item.ID]; ok {
+					v.webDeleteConfirmation(c, item, anchor)
+				}
+			}
+		}
+		// Resolve outside dismissal after all delete triggers, so switching
+		// tasks cannot dismiss the newly opened confirmation.
+		if v.deleteOutsideID != 0 && v.moreID == v.deleteOutsideID && !v.deleteTriggerPressed {
+			v.moreID, v.deleteID = 0, 0
 		}
 		if count == 0 {
 			ui.Column(c).Padding(50, 10).AlignItems(ui.Center).Children(func() {
@@ -280,8 +314,9 @@ func (v *nativeTasksView) webEmptyArt(c *ui.Context) {
 	})
 }
 
-func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions bool) {
+func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions bool) ui.Element {
 	t := v.visual
+	var deleteAnchor ui.Element
 	ui.Row(c).Gap(10).MinHeight(28).AlignItems(ui.Start).Children(func() {
 		label := "完成：" + item.Title
 		tip := "标记为完成"
@@ -340,9 +375,13 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 				_, err := v.service.SetPinned(item.ID, item.Unpinned, item.Version)
 				v.result(err, "")
 			}
-			more := webIconButton(c, "更多操作："+item.Title, "more", 17)
-			if !showActions {
-				more.Opacity(0)
+			more := webIconButton(c, "删除任务："+item.Title, "trash", 15).Tooltip("删除任务").TextColor(t.Subtle)
+			deleteAnchor = more
+			if more.Pressed() {
+				v.deleteTriggerPressed = true
+			}
+			if more.Hovered() {
+				more.TextColor(t.Danger)
 			}
 			if v.returnMoreFocus == item.ID {
 				more.Focus()
@@ -350,12 +389,11 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 			}
 			if more.Clicked() {
 				if v.moreID == item.ID {
-					v.moreID = 0
+					v.moreID, v.deleteID = 0, 0
 				} else {
-					v.moreID = item.ID
+					v.moreID, v.deleteID = item.ID, item.ID
 					v.menuFocus = true
 				}
-				v.deleteID = 0
 			}
 		})
 	})
@@ -363,9 +401,7 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 		ui.Text(c, strings.ReplaceAll(item.Note, "\n", " ")).FontSize(13).LineHeight(1.5).TextColor(t.TextMuted).MaxLines(1).Ellipsis("…").Margin(2, 0, 0, 30)
 	}
 	v.webTaskStatus(c, item)
-	if v.moreID == item.ID {
-		v.webMore(c, item)
-	}
+	return deleteAnchor
 }
 
 func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {

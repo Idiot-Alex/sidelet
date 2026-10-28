@@ -78,7 +78,7 @@ func TestLongTaskStatusDoesNotOverlapEditorOrActions(t *testing.T) {
 			for _, width := range []int{1120, 900, 850, 820} {
 				u.SetSize(width, 800)
 				button := visualRect(t, u, "编辑："+title)
-				more := visualRect(t, u, "更多操作："+title)
+				more := visualRect(t, u, "删除任务："+title)
 				date := visualRect(t, u, dueText(m.Tasks[0], m.now()))
 				editor := visualRect(t, u, "新任务标题")
 				if button.W <= 0 || button.X+button.W > more.X+.5 || more.X+more.W >= editor.X || date.X+date.W >= editor.X {

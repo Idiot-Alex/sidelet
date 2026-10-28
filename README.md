@@ -40,6 +40,10 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 ## 当前边界
 
+快速添加默认连续录入：Enter / Return 添加后保留窗口和优先级、预计完成时间、提醒、固定选项，清空标题与备注。Windows / Linux 使用 Ctrl+Enter、macOS 使用 ⌘+Return 添加并关闭，也可点击“添加并关闭”；Esc 关闭窗口。备注中的普通回车保留换行。
+
+主界面的“工作日志”按本地日期汇总今日完成与明日计划，可预览并一键复制。今日完成依据实际完成时间；明日计划仅包含预计明天完成的未完成任务。日志基于当前未删除任务生成，不包含备注；没有完成时间的旧任务不会推算为今天完成。
+
 已具备任务管理、三主题、侧栏与卡片、快速添加、macOS 提醒和导出；Windows 通知适配已接入，能力边界与待验收项见 [Windows 通知记录](docs/mygo/WINDOWS_NOTIFICATIONS.md)。切换主线不代表已完成全部发布验收：Windows 实机、真实鼠标跨窗、多屏 / Spaces、中文输入法候选、部分键盘操作和多任务组仍需后续处理；旧版迁移目前支持 schema 2、单任务组、空目标。
 
 SQLite 实现与导入规则见 [存储记录](docs/mygo/SQLITE.md)。

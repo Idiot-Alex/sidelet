@@ -75,8 +75,24 @@ func (a *nativeAvatar) sync() {
 	if a.window == nil {
 		a.window = newRoundedDesktopWindow(mygo.WindowOptions{Title: "Sidelet 侧栏助手", X: r.X, Y: r.Y, Width: r.Width, Height: r.Height,
 			MinWidth: 1, MinHeight: 1,
+			DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true, SkipTaskbar: true,
 			Frameless: true, Transparent: true, AlwaysOnTop: true, DisableResize: true, DisableShadow: true, Hidden: true, BackgroundColor: "#00000000", Content: ui.View(a.render)})
 		a.window.OnBlur(a.cancelDrag)
+		w := a.window
+		w.OnMinimize(func() {
+			// Shell actions can minimize a window even without a minimize
+			// button. Restore after WM_SIZE dispatch, without taking focus.
+			go mygo.RunOnMain(func() {
+				if a.window == w {
+					a.sync()
+				}
+			})
+		})
+		w.OnClosed(func() {
+			if a.window == w {
+				a.window = nil
+			}
+		})
 	}
 	placeAvatarWindow(a.window, r, created)
 	if a.paintedTheme != m.UITheme {
@@ -225,6 +241,7 @@ func (h *nativeApp) createAvatar() *nativeAvatar {
 		h.show()
 		if h.view != nil {
 			h.view.settingsOpen = false
+			h.view.workLogOpen = false
 			h.window.Invalidate()
 		}
 	}
@@ -233,6 +250,7 @@ func (h *nativeApp) createAvatar() *nativeAvatar {
 		h.show()
 		if h.view != nil {
 			h.view.settingsOpen = true
+			h.view.workLogOpen = false
 			h.view.settingsTab = "desktop"
 			h.window.Invalidate()
 		}

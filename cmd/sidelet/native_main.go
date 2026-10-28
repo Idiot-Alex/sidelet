@@ -46,6 +46,8 @@ type nativeTasksView struct {
 	theme                         *ui.Theme
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
+	workLogOpen                   bool
+	workLogCopied                 string
 	settingsTab                   string
 	newFormOpen, focusNewEntry    bool
 	formNote                      string
@@ -66,6 +68,8 @@ type nativeTasksView struct {
 	pickerError                   string
 	formRemind, formTemporary     bool
 	moreID, deleteID              int
+	deleteOutsideID               int
+	deleteTriggerPressed          bool
 	returnMoreFocus               int
 	menuFocus                     bool
 	onHide, onQuickAdd            func()

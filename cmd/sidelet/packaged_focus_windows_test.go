@@ -401,7 +401,7 @@ func TestPackagedWindowsCrossProcessFocus(t *testing.T) {
 	continueTyping("quick-cancel-restores-foreign-caret", "Q")
 	quick = openQuick()
 	d.text(quick, "CI saved quick task")
-	d.keys(quick, 0x0d)
+	d.keys(quick, 0x11, 0x0d) // Ctrl+Enter adds and closes; Enter continues.
 	d.wait("quick task saved", func() bool {
 		st := d.app()
 		return !st.QuickVisible && len(st.Model.Tasks) == 2 && st.Model.Tasks[1].Title == "CI saved quick task"

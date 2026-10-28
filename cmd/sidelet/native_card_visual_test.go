@@ -34,10 +34,15 @@ func TestNativeUIVisualArtifacts(t *testing.T) {
 		v.filterAll = true
 		v.service.notificationAuthorization = "systemManaged"
 		v.service.notificationStatus = notificationMessage("systemManaged", nil)
-		for _, state := range []string{"tasks", "compact", "settings", "notification-denied", "notification-error"} {
+		for _, state := range []string{"tasks", "compact", "delete-confirmation", "settings", "notification-denied", "notification-error"} {
+			v.moreID, v.deleteID = 0, 0
+			if state == "delete-confirmation" {
+				v.moreID, v.deleteID = 2, 2
+				v.menuFocus = true
+			}
 			v.settingsOpen = state == "settings" || state == "notification-denied"
 			w, h := 1120, 800
-			if state == "compact" {
+			if state == "compact" || state == "delete-confirmation" {
 				w, h = 820, 600
 			}
 			if v.settingsOpen {

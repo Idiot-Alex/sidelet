@@ -70,47 +70,44 @@ func (v *nativeTasksView) webUndo(c *ui.Context) {
 		}
 	})
 }
-func (v *nativeTasksView) webMore(c *ui.Context, item taskEntry) {
+func (v *nativeTasksView) webDeleteConfirmation(c *ui.Context, item taskEntry, anchor ui.Element) {
 	t := v.visual
 	opening := v.menuFocus
-	panel := ui.Column(c.Key("more-panel")).AlignSelf(ui.End).Width(220).Padding(6).Margin(7, 0, 0).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Surface)
-	panel.Children(func() {
-		if v.deleteID == item.ID {
-			ui.Text(c, "删除此任务？").FontSize(12).Padding(5, 8, 9)
-			ui.Row(c).Gap(6).Justify(ui.End).Children(func() {
-				b := webButton(c, "取消删除", false).Padding(6, 9)
-				b.Children(func() { ui.Text(c, "取消") })
-				if v.menuFocus {
-					b.Focus()
-					v.menuFocus = false
-				}
-				if b.Clicked() {
-					v.deleteID = 0
-					v.menuFocus = true
-				}
-				b = webButton(c, "确认删除", false).Padding(6, 9).TextColor(t.Danger)
-				b.Children(func() { ui.Text(c, "确认删除") })
-				if b.Clicked() {
-					_, err := v.service.Delete(item.ID, item.Version)
-					if v.result(err, "") {
-						v.moreID, v.deleteID = 0, 0
+	ui.Overlay(c, func() {
+		panel := ui.Column(c.Key("delete-confirmation")).Role(ui.RolePopup).Label("删除任务确认").AttachTo(anchor, ui.AnchorLeft, ui.AnchorRight).Width(260).Gap(16).Padding(16).Margin(0, 8, 0, 0).Radius(t.Theme.Radius).Border(1, t.Border).Background(t.Surface).Shadow(0, 5, 18, 0, ui.Hex("#00000018"))
+		panel.Children(func() {
+			if v.deleteID == item.ID {
+				ui.Column(c).Gap(4).Grow(1).MinWidth(0).Children(func() {
+					ui.Text(c, "确定删除这条任务？").FontSize(14).FontWeight(550).TextColor(t.Text)
+					ui.Text(c, "删除后无法恢复").FontSize(12).TextColor(t.TextMuted)
+				})
+				ui.Row(c).Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+					b := webButton(c, "取消删除", false).Height(34).Padding(7, 14).Background(t.Surface).TextColor(t.Text)
+					b.Children(func() { ui.Text(c, "取消") })
+					if v.menuFocus {
+						b.Focus()
+						v.menuFocus = false
 					}
-				}
-			})
-		} else {
-			b := webButton(c, "删除任务", false).Border(0, ui.Transparent).Padding(7, 8).Gap(6).Justify(ui.Start).TextColor(t.Danger)
-			b.Children(func() { webIcon(c, "trash", 14); ui.Text(c, "删除任务") })
-			if v.menuFocus {
-				b.Focus()
-				v.menuFocus = false
+					if b.Clicked() {
+						v.moreID, v.deleteID = 0, 0
+						v.returnMoreFocus = item.ID
+					}
+					b = webButton(c, "确认删除", false).Height(34).Padding(7, 14).Gap(6).Border(1, ui.Transparent).Background(t.DangerSoft).TextColor(t.Danger).FontWeight(550)
+					if b.Hovered() || b.Pressed() {
+						b.BorderColor(t.Danger)
+					}
+					b.Children(func() { webIcon(c, "trash", 14); ui.Text(c, "删除") })
+					if b.Clicked() {
+						_, err := v.service.Delete(item.ID, item.Version)
+						if v.result(err, "") {
+							v.moreID, v.deleteID = 0, 0
+						}
+					}
+				})
 			}
-			if b.Clicked() {
-				v.deleteID = item.ID
-				v.menuFocus = true
-			}
+		})
+		if !opening && panel.PressedOutside() {
+			v.deleteOutsideID = item.ID
 		}
 	})
-	if !opening && panel.PressedOutside() {
-		v.moreID, v.deleteID = 0, 0
-	}
 }

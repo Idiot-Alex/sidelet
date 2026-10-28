@@ -22,8 +22,7 @@ func TestFormalDeleteConfirmCancelAndStableIdentity(t *testing.T) {
 			}
 			click("编辑：整理今天的工作")
 			v.draft = "未保存的草稿"
-			click("更多操作：确认设计稿")
-			click("删除任务")
+			click("删除任务：确认设计稿")
 			if !u.Focused("取消删除") || m.Tasks[1].Deleted {
 				t.Fatal("confirmation deleted task or did not focus cancel")
 			}
@@ -31,13 +30,12 @@ func TestFormalDeleteConfirmCancelAndStableIdentity(t *testing.T) {
 			if v.deleteID != 0 || m.totalCount() != 3 {
 				t.Fatal("cancel changed tasks")
 			}
-			click("删除任务")
+			click("删除任务：确认设计稿")
 			u.Key(0, ui.KeyEscape)
-			if v.moreID != 0 || v.editID != 1 || v.draft != "未保存的草稿" || !u.Focused("更多操作：确认设计稿") {
+			if v.moreID != 0 || v.editID != 1 || v.draft != "未保存的草稿" || !u.Focused("删除任务：确认设计稿") {
 				t.Fatal("Escape cancelled unrelated draft")
 			}
-			click("更多操作：确认设计稿")
-			click("删除任务")
+			click("删除任务：确认设计稿")
 			click("确认删除")
 			snapshot := v.service.List()
 			if m.totalCount() != 2 || len(snapshot.Tasks) != 2 || snapshot.Tasks[1].ID != 3 || v.editID != 1 || v.draft != "未保存的草稿" {
@@ -56,12 +54,55 @@ func TestFormalDeleteConfirmCancelAndStableIdentity(t *testing.T) {
 			if m.Tasks[1].Title != "" || m.Tasks[1].Note != "" {
 				t.Fatal("deleted payload retained")
 			}
-			click("更多操作：整理今天的工作")
+			click("删除任务：整理今天的工作")
 			click("编辑任务标题")
 			if v.moreID != 0 {
 				t.Fatal("outside click left menu open")
 			}
 		})
+	}
+}
+
+func TestFormalDeleteSwitchesConfirmationWithOneClick(t *testing.T) {
+	m, v, u := webUITester(t)
+	u.SetSize(820, 600)
+	u.Frame()
+	positions := make(map[int]ui.Rect)
+	for _, id := range []int{1, 2} {
+		positions[id] = visualRect(t, u, "删除任务："+m.Tasks[id-1].Title)
+	}
+	for _, id := range []int{1, 2, 1, 2} {
+		if err := u.Click("删除任务：" + m.Tasks[id-1].Title); err != nil {
+			t.Fatal(err)
+		}
+		if v.moreID != id || v.deleteID != id || !u.Focused("取消删除") {
+			t.Fatalf("click on task %d did not switch confirmation: more=%d delete=%d", id, v.moreID, v.deleteID)
+		}
+		if m.totalCount() != 3 {
+			t.Fatal("switching confirmation deleted a task")
+		}
+		for taskID, before := range positions {
+			if after := visualRect(t, u, "删除任务："+m.Tasks[taskID-1].Title); after != before {
+				t.Fatalf("confirmation moved task %d: %v -> %v", taskID, before, after)
+			}
+		}
+	}
+}
+
+func TestDeleteConfirmationStaysInsideWindow(t *testing.T) {
+	for _, y := range []float32{4, 270} {
+		m, v, _ := webUITester(t)
+		item := v.service.snapshot().Tasks[0]
+		v.moreID, v.deleteID = item.ID, item.ID
+		u := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(v.visual.Theme)
+			anchor := ui.ButtonBase(c).Label("删除任务："+m.Tasks[0].Title).Absolute().Left(370).Top(y).Size(28, 28)
+			v.webDeleteConfirmation(c, item, anchor)
+		}, 420, 310)
+		r := visualRect(t, u, "删除任务确认")
+		if r.X < 0 || r.Y < 0 || r.X+r.W > 420 || r.Y+r.H > 310 {
+			t.Fatalf("confirmation escaped window at anchor y=%v: %v", y, r)
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
+	"runtime"
 	"strings"
 )
 
@@ -48,7 +49,16 @@ func (v *nativeTasksView) webTaskNote(c *ui.Context, quick bool, submit func()) 
 				note.Focus()
 				v.focusNote = false
 			}
-			if !note.Composing() && (note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)) {
+			mods, _, _ := quickAddKeys(runtime.GOOS)
+			submitted := false
+			if !note.Composing() {
+				if quick {
+					submitted = note.Shortcut(mods, ui.KeyEnter)
+				} else {
+					submitted = note.Shortcut(ui.Super, ui.KeyEnter) || note.Shortcut(ui.Ctrl, ui.KeyEnter)
+				}
+			}
+			if submitted {
 				submit()
 			}
 		}

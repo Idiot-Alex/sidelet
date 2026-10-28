@@ -27,13 +27,15 @@ func (v *nativeTasksView) resetScheduleDraft() {
 	v.deadline = deadlineSegments{}
 }
 func (v *nativeTasksView) webDeadline(c *ui.Context) {
+	v.webDeadlineLayout(c, false)
+}
+
+func (v *nativeTasksView) webDeadlineLayout(c *ui.Context, split bool) {
 	calendarWasOpen := v.pickerCalendarOpen
 	t := v.visual
 	var pickerTrigger ui.Element
 	field := ui.Row(c.Key("deadline-input")).Label("任务截止时间").Role(ui.RoleGroup).Height(36).Padding(0, 5).Border(1, t.Border).Radius(t.Theme.Radius).Background(t.Field).AlignItems(ui.Center)
-	field.Children(func() {
-		v.webDeadlineSegments(c, field)
-		ui.Spacer(c)
+	renderCalendar := func() {
 		b := ui.ButtonBase(c).Label("选择截止日期与时间").Width(32).Height(30).Radius(5).FocusRing(true).Tooltip("打开日历 · Alt+↓")
 		if b.Hovered() || v.datePickerOpen {
 			b.Background(t.Soft)
@@ -55,6 +57,20 @@ func (v *nativeTasksView) webDeadline(c *ui.Context) {
 			if v.datePickerOpen {
 				v.openDatePopup(field)
 			}
+		}
+	}
+	if split {
+		field.Height(38).Padding(0).Gap(8).Border(0, ui.Transparent).Background(ui.Transparent)
+	}
+	field.Children(func() {
+		if split {
+			date := ui.Row(c.Key("deadline-date")).Label("预计完成日期").Height(38).Padding(0, 6).Gap(2).Radius(t.Theme.Radius).Border(1, t.Border).Background(t.Field).AlignItems(ui.Center).Shrink(0)
+			clock := ui.Row(c.Key("deadline-time")).Label("预计完成时刻").Height(38).Padding(0, 8).Radius(t.Theme.Radius).Border(1, t.Border).Background(t.Field).AlignItems(ui.Center).Shrink(0)
+			v.webDeadlineSegmentsIn(c, field, []ui.Element{date, clock}, renderCalendar)
+		} else {
+			v.webDeadlineSegments(c, field)
+			ui.Spacer(c)
+			renderCalendar()
 		}
 	})
 	if v.datePopup != nil {

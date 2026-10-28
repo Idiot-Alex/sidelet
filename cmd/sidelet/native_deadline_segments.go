@@ -52,6 +52,10 @@ func (v *nativeTasksView) commitDeadlineSegments() {
 }
 
 func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
+	v.webDeadlineSegmentsIn(c, field, nil, nil)
+}
+
+func (v *nativeTasksView) webDeadlineSegmentsIn(c *ui.Context, field ui.Element, groups []ui.Element, dateTail func()) {
 	v.syncDeadlineSegments()
 	s, t := &v.deadline, v.visual
 	services := c.Services()
@@ -59,10 +63,11 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 	ghost := [5]int{now.Year(), int(now.Month()), now.Day(), now.Hour(), now.Minute()}
 	var segments [5]ui.Element
 	anyFocused := false
-	for i, label := range deadlineSegmentLabels {
+	renderSegment := func(i int) {
+		label := deadlineSegmentLabels[i]
 		if i > 0 {
 			separator := "/"
-			if i == 3 {
+			if i == 3 && len(groups) == 0 {
 				ui.Box(c).Width(5).Shrink(0).Role(ui.RoleNone)
 			}
 			if i == 4 {
@@ -82,7 +87,15 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 		segments[i] = seg
 		if seg.Focused() {
 			anyFocused = true
-			field.BorderColor(t.Accent)
+			if len(groups) == 2 {
+				group := 0
+				if i >= 3 {
+					group = 1
+				}
+				groups[group].BorderColor(t.Accent)
+			} else {
+				field.BorderColor(t.Accent)
+			}
 			seg.Background(t.Accent).TextColor(t.AccentText)
 			if s.focused != i {
 				s.focused, s.typed, s.selectAll = i, "", false
@@ -97,6 +110,25 @@ func (v *nativeTasksView) webDeadlineSegments(c *ui.Context, field ui.Element) {
 			}
 			ui.Text(c, text).FontSize(12).FontFeatures("tnum").Height(16).FixedLineHeight(16).NoWrap()
 		})
+	}
+	if len(groups) == 2 {
+		groups[0].Children(func() {
+			for i := 0; i < 3; i++ {
+				renderSegment(i)
+			}
+			if dateTail != nil {
+				dateTail()
+			}
+		})
+		groups[1].Children(func() {
+			for i := 3; i < 5; i++ {
+				renderSegment(i)
+			}
+		})
+	} else {
+		for i := range deadlineSegmentLabels {
+			renderSegment(i)
+		}
 	}
 	if !anyFocused {
 		s.focused, s.typed, s.selectAll = -1, "", false

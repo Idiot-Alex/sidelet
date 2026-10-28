@@ -43,6 +43,7 @@ func (h *nativeApp) installNativeTray() error {
 			_ = h.service.CheckLogin()
 			h.show()
 			h.view.settingsOpen = true
+			h.view.workLogOpen = false
 			h.window.Invalidate()
 		}},
 		mygo.Separator(),

@@ -7,11 +7,30 @@ import (
 	"unsafe"
 )
 
+var (
+	avatarIsIconic   = inputUser32.NewProc("IsIconic")
+	avatarShowWindow = inputUser32.NewProc("ShowWindow")
+)
+
+func restoreAvatarWithoutFocus(hwnd uintptr) bool {
+	if iconic, _, _ := avatarIsIconic.Call(hwnd); iconic != 0 {
+		avatarShowWindow.Call(hwnd, 4 /* SW_SHOWNOACTIVATE */)
+		return true
+	}
+	return false
+}
+
 // Keep native input near the circle without cutting off its antialiased edge.
 // The region uses physical pixels, so query the actual rect after sizing.
 func placeAvatarWindow(w *mygo.Window, bounds mygo.Rectangle, created bool) {
 	var rect [4]int32
 	hwnd := w.NativeHandle()
+	if restoreAvatarWithoutFocus(hwnd) {
+		// A minimized window has a sentinel rect near (-32000,-32000).
+		// Restore before sizing or constructing the circular native region.
+		created = true
+		w.Invalidate()
+	}
 	dpi, _, _ := inputGetDPI.Call(hwnd)
 	if dpi == 0 {
 		dpi = 96

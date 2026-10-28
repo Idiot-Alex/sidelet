@@ -42,7 +42,7 @@ func TestNativeQuickAddLiteralTitleAndDefaultDateAcrossMidnight(t *testing.T) {
 	if len(m.Tasks) != 1 || m.Tasks[0].Title != "明天下午三点半 联系客户" || m.Tasks[0].DueAt != want || !m.Tasks[0].Unpinned || m.Tasks[0].Remind || m.Tasks[0].ReminderID != 0 || p.saved.Tasks[0].DueAt != want {
 		t.Fatal("preview/save date changed or default reminder enabled", m.Tasks)
 	}
-	if q.session.Open || q.session.Saving || q.text != "" || q.pin {
+	if !q.session.Open || q.session.Saving || q.text != "" || q.pin {
 		t.Fatal("success did not reset")
 	}
 	q.submit(revision)
@@ -88,6 +88,9 @@ func TestNativeQuickAddStorageFailureKeepsInputOptionsAndRetryDate(t *testing.T)
 	p.write = func(string, []byte) error { return errors.New("模拟资料写入失败") }
 	q.submit(q.session.Revision)
 	after, _ := readPersistedProfile(t, p)
+	if q.saved || q.savedTitle != "" {
+		t.Fatal("failed save showed a success receipt")
+	}
 	if !bytes.Equal(before, after) || len(m.Tasks) != 0 || q.text != "明天09:30 失败重试" || !q.pin || !q.session.Open || q.session.Saving || q.error == "" || !q.focus {
 		t.Fatal("write failure lost state")
 	}
@@ -278,7 +281,7 @@ func TestNativeQuickAddBoundsStayInsideSmallAndNegativeDisplays(t *testing.T) {
 			}
 			continue
 		}
-		if !ok || bounds.X < area.X || bounds.Y < area.Y || bounds.X+bounds.Width > area.X+area.Width || bounds.Y+bounds.Height > area.Y+area.Height || bounds.Width > 540 || bounds.Height > 340 {
+		if !ok || bounds.X < area.X || bounds.Y < area.Y || bounds.X+bounds.Width > area.X+area.Width || bounds.Y+bounds.Height > area.Y+area.Height || bounds.Width > 540 || bounds.Height > 360 {
 			t.Fatal("quick add left work area", area, bounds)
 		}
 	}
@@ -287,7 +290,7 @@ func TestNativeQuickAddBoundsStayInsideSmallAndNegativeDisplays(t *testing.T) {
 func TestQuickAddRestoresPositionAndClampsToCurrentDisplay(t *testing.T) {
 	area := mygo.Rectangle{Width: 1920, Height: 1040}
 	initial, _ := quickAddBounds(area)
-	previous := mygo.Rectangle{X: 100, Y: 150, Width: 540, Height: 340}
+	previous := mygo.Rectangle{X: 100, Y: 150, Width: 540, Height: 360}
 	if got := restoreQuickAddBounds(initial, previous, area); got != previous {
 		t.Fatalf("position was not remembered: %+v", got)
 	}

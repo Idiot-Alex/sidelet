@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -27,6 +28,9 @@ type nativeQuickAdd struct {
 	onState            func(string)
 	lastBounds         mygo.Rectangle
 	details            *nativeTasksView
+	saved              bool
+	savedTitle         string
+	presentation       uint64
 }
 
 func (h *nativeApp) showQuickAdd() { h.openQuickAdd("window") }
@@ -55,9 +59,12 @@ func (h *nativeApp) openQuickAdd(source string) {
 		h.prepareQuickAdd()
 	}
 	q.session.Begin(h.service.m.now())
+	q.presentation++
+	q.saved = false
+	q.savedTitle = ""
 	q.focus = true
 	if q.window == nil {
-		w := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet · 快速添加", Width: 540, Height: 340, Hidden: true,
+		w := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet · 快速添加", Width: 540, Height: 360, Hidden: true,
 			DisableResize: true, Frameless: true, AlwaysOnTop: true, Content: ui.View(q.render)})
 		q.window = w
 		q.hide = w.Hide
@@ -93,7 +100,7 @@ func quickAddBounds(area mygo.Rectangle) (mygo.Rectangle, bool) {
 		return mygo.Rectangle{}, false
 	}
 	margin := min(12, area.Width/4, area.Height/4)
-	w, h := min(540, area.Width-2*margin), min(340, area.Height-2*margin)
+	w, h := min(540, area.Width-2*margin), min(360, area.Height-2*margin)
 	return mygo.Rectangle{X: area.X + (area.Width-w)/2, Y: area.Y + max(margin, int(float64(area.Height-h)*.28)), Width: w, Height: h}, true
 }
 
@@ -106,6 +113,8 @@ func restoreQuickAddBounds(bounds, previous, area mygo.Rectangle) mygo.Rectangle
 }
 
 func (q *nativeQuickAdd) reset() {
+	q.saved = false
+	q.savedTitle = ""
 	q.text, q.error, q.focus, q.pin = "", "", true, false
 	q.details = nil
 }
@@ -130,7 +139,7 @@ func (q *nativeQuickAdd) input() (quickTaskInput, error) {
 	return result, err
 }
 func (q *nativeQuickAdd) contentHeight() int {
-	h := 340
+	h := 360
 	if q.details != nil {
 		if q.details.noteOpen {
 			h += 70
@@ -218,6 +227,17 @@ func (q *nativeQuickAdd) blur() {
 	q.dismiss(false) // Preserve input/options; never take focus from a clicked app.
 }
 func (q *nativeQuickAdd) submit(revision uint64) {
+	q.submitMode(revision, false)
+}
+
+func quickAddKeys(system string) (ui.Modifiers, string, string) {
+	if system == "darwin" {
+		return ui.Super, "Return ↩", "⌘ + Return"
+	}
+	return ui.Ctrl, "Enter", "Ctrl + Enter"
+}
+
+func (q *nativeQuickAdd) submitMode(revision uint64, closeAfter bool) {
 	if !q.session.StartSave(revision) {
 		return
 	}
@@ -233,13 +253,24 @@ func (q *nativeQuickAdd) submit(revision uint64) {
 	}
 	wasOpen := q.session.FinishSave(err == nil)
 	if err != nil {
+		q.saved = false
+		q.savedTitle = ""
 		q.error = err.Error()
 		q.focus = q.session.Open
 		q.notify("native-quick-add-save-failed")
 		return
 	}
-	q.reset()
-	q.dismiss(wasOpen)
+	if !closeAfter && wasOpen {
+		// A new revision rejects delayed clicks/Enter from the saved task.
+		// Keep options, window geometry and the original foreground token.
+		q.session.Begin(q.service.m.now())
+		q.text, q.error, q.details.formNote = "", "", ""
+		q.focus, q.saved, q.details.focusNote = true, true, false
+		q.savedTitle = parsed.Title
+	} else {
+		q.reset()
+		q.dismiss(wasOpen)
+	}
 	q.notify("native-quick-add-saved")
 }
 
@@ -263,20 +294,47 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 		previewErr = nil
 	}
 	revision := q.session.Revision
+	closeMods, enterLabel, closeLabel := quickAddKeys(runtime.GOOS)
 	busy := q.session.Saving || !q.session.Open
-	enterSurface(c, ui.Column(c).Fill().Background(t.Surface), q.session.Revision).Children(func() {
+	enterSurface(c, ui.Column(c).Fill().Background(t.Surface), q.presentation).Children(func() {
 		ui.Column(c).Fill().Padding(18, 22, 16).Border(1, t.Border).Background(t.Surface).Children(func() {
 			ui.Row(c).Gap(7).Margin(0, 0, 8).AlignItems(ui.Center).Children(func() {
-				ui.Row(c).Grow(1).Height(28).Gap(7).AlignItems(ui.Center).DragWindow().Cursor(ui.CursorMove).Tooltip("拖动可移动窗口").Children(func() {
-					webIcon(c, "plus", 17)
-					ui.Text(c, "快速添加").FontSize(13).FontWeight(600).TextColor(t.TextMuted)
+				header := ui.Row(c.Key("quick-result")).Grow(1).MinWidth(0).Height(44).Padding(5, 10).Gap(9).Radius(7).AlignItems(ui.Center).DragWindow().Cursor(ui.CursorMove)
+				if q.saved {
+					header.Background(t.Soft).Border(1, t.Accent).TextColor(t.Accent).Role(ui.RoleStatus).Label("任务添加成功").Tooltip("已添加：" + q.savedTitle)
+				} else {
+					header.TextColor(t.TextMuted).Tooltip("拖动可移动窗口")
+				}
+				header.Children(func() {
+					icon := "plus"
+					if q.saved {
+						icon = "check"
+					}
+					webIcon(c, icon, 18)
+					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+						if q.saved {
+							ui.Text(c, "已添加成功，可继续输入").FontSize(13).FontWeight(600)
+							ui.Text(c, q.savedTitle).FontSize(12).TextColor(t.Text).MaxLines(1).Ellipsis("…")
+						} else {
+							ui.Text(c, "快速添加").FontSize(13).FontWeight(600)
+							ui.Text(c, "保存后可连续添加下一条").FontSize(11).TextColor(t.Subtle)
+						}
+					})
 				})
 				if webIconButton(c, "取消快速添加", "close", 16).Disabled(busy).Clicked() {
 					q.cancel()
 				}
 			})
-			ui.Scroll(c.Key("quick-form-scroll")).Grow(1).Children(func() {
+			ui.Scroll(c.Key("quick-form-scroll")).Grow(1).MinHeight(0).Children(func() {
 				field := guardComposition(ui.TextInput(c.Key("quick-add-title"), &q.text)).Label("快速添加任务标题").Placeholder("接下来想做什么？").FontSize(19).Height(42).Padding(8, 0).Radius(0).BorderColor(t.Border).BorderWidth(0, 0, 1, 0).Background(ui.Transparent).Disabled(busy)
+				field.OnTextKey(func(k ui.TextKey) bool {
+					if k.Key == ui.KeyEnter && k.Mods == closeMods {
+						q.submitMode(revision, true)
+						k.SetText(q.text)
+						return true
+					}
+					return false
+				})
 				if q.focus {
 					field.Focus()
 					q.focus = false
@@ -297,7 +355,7 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 					ui.Text(c, previewErr.Error()).FontSize(12).TextColor(t.Danger).Margin(6, 0)
 				}
 				ui.Column(c).Disabled(busy).Children(func() {
-					if d.webTaskNote(c, true, func() { q.submit(revision) }) {
+					if d.webTaskNote(c, true, func() { q.submitMode(revision, true) }) {
 						q.resizeForNote()
 					}
 				})
@@ -307,23 +365,31 @@ func (q *nativeQuickAdd) render(c *ui.Context) {
 					webPriorityRadios(c, &d.newPriority)
 				})
 				ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 7)
-				d.webDeadline(c)
-				ui.Spacer(c)
-				ui.Row(c).Gap(14).Children(func() {
-					webCheckbox(c, &q.pin, "固定到桌面", 12).Disabled(busy)
-					webCheckbox(c, &d.formRemind, "到时提醒", 12).Disabled(busy || d.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
+				ui.Row(c).Gap(16).AlignItems(ui.Center).Children(func() {
+					ui.Column(c).Shrink(0).Children(func() { d.webDeadlineLayout(c, true) })
+					webCheckbox(c.Key("quick-remind"), &d.formRemind, "到时提醒", 12).Shrink(0).Disabled(busy || d.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
+				})
+			})
+			ui.Column(c.Key("quick-submit-area")).Shrink(0).Padding(12, 0, 0).Margin(12, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Children(func() {
+				ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+					webCheckbox(c.Key("quick-pin"), &q.pin, "固定到桌面", 12).Shrink(0).Disabled(busy)
 					ui.Spacer(c)
+					closeButton := webButton(c, "添加并关闭", false).Height(36).Padding(8, 10).Border(0, ui.Transparent).Background(ui.Transparent).TextColor(t.TextMuted).Disabled(busy || strings.TrimSpace(q.text) == "" || previewErr != nil)
+					closeButton.Children(func() { ui.Text(c, "添加并关闭") })
+					if closeButton.Clicked() {
+						q.submitMode(revision, true)
+					}
 					label := "添加"
 					if q.session.Saving {
 						label = "保存中…"
 					}
-					b := webButton(c, label, true).Gap(12).Padding(8, 12).Border(0, ui.Transparent).Disabled(busy || strings.TrimSpace(q.text) == "" || previewErr != nil)
-					b.Children(func() { ui.Text(c, label); ui.Text(c, "↵").Opacity(.7) })
+					b := webButton(c, label, true).Height(36).MinWidth(84).Gap(12).Padding(8, 14).Border(0, ui.Transparent).Disabled(busy || strings.TrimSpace(q.text) == "" || previewErr != nil)
+					b.Children(func() { ui.Text(c, label); ui.Text(c, "↩").Opacity(.7) })
 					if b.Clicked() {
 						q.submit(revision)
 					}
 				})
-				ui.Text(c, "Enter 添加 · Esc 取消").FontSize(12).TextColor(t.Subtle).Margin(8, 0, 0)
+				ui.Text(c, enterLabel+" 添加并继续 · "+closeLabel+" 添加并关闭 · Esc 关闭").FontSize(11).TextColor(t.Subtle).Margin(8, 0, 0)
 			})
 		})
 	})
