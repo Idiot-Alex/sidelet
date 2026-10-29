@@ -20,11 +20,25 @@ func restoreAvatarWithoutFocus(hwnd uintptr) bool {
 	return false
 }
 
+// Change only shell visibility, preserving the avatar's transparent surface
+// and circular region rather than opting into the framework's panel lifecycle.
+func hideAvatarFromTaskbar(hwnd uintptr) {
+	style, _, _ := inputGetStyle.Call(hwnd, ^uintptr(19)) // GWL_EXSTYLE
+	want := (style | winToolWindow) &^ uintptr(0x00040000) // WS_EX_APPWINDOW
+	if want != style {
+		inputSetStyle.Call(hwnd, ^uintptr(19), want)
+		inputSetPos.Call(hwnd, 0, 0, 0, 0, 0, 0x37)
+	}
+}
+
 // Keep native input near the circle without cutting off its antialiased edge.
 // The region uses physical pixels, so query the actual rect after sizing.
 func placeAvatarWindow(w *mygo.Window, bounds mygo.Rectangle, created bool) {
 	var rect [4]int32
 	hwnd := w.NativeHandle()
+	if created {
+		hideAvatarFromTaskbar(hwnd)
+	}
 	if restoreAvatarWithoutFocus(hwnd) {
 		// A minimized window has a sentinel rect near (-32000,-32000).
 		// Restore before sizing or constructing the circular native region.
