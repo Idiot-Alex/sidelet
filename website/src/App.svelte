@@ -15,7 +15,7 @@
   let hash = $state('');
   let minimumOS = $state('13.0');
   const base = import.meta.env.BASE_URL;
-  const themeTodo: Todo = { id: 1, title: '让桌面也有自己的风格', description: '同一件小事，换一种喜欢的样子。', priority: 2, dueAt: 0, completed: false, completedAt: 0, snoozedUntil: 0 };
+  const themeTodo: Todo = { id: 1, title: '让桌面也有自己的风格', description: '同一件小事，换一种喜欢的样子。', priority: 2, dueAt: 0, completed: false, completedAt: 0 };
   const faqs = [
     ['现在可以用在哪些设备上？', '目前提供 macOS Apple Silicon（M 系列芯片）的本地预览版。Intel Mac 和 Windows 还未完成实机验收，暂不提供正式下载。'],
     ['我的任务会上传到服务器吗？', '桌面应用的任务保存在本机 SQLite 数据库中，目前没有账号系统或云同步。官网互动演示使用示例数据，刷新页面会重置，不会读取桌面应用里的任务。'],
@@ -81,14 +81,14 @@
       <div class="experience-steps">
         <article><span class="step-mark" aria-hidden="true">│</span><h3>留在边缘</h3><p>几枚细窄标记，让重要任务有个位置。其余空间，留给你的桌面。</p></article>
         <article><span class="step-mark expanded-mark" aria-hidden="true">▱</span><h3>悬停，才展开</h3><p>鼠标经过时看清任务。移开后收起，不用来回切换窗口。</p></article>
-        <article><span class="step-mark" aria-hidden="true">✓</span><h3>点击，就能处理</h3><p>完成、稍后、编辑，在浮动卡片里做完。保持手头的节奏。</p></article>
+        <article><span class="step-mark" aria-hidden="true">✓</span><h3>点击，就能处理</h3><p>完成或编辑，在浮动卡片里做完。保持手头的节奏。</p></article>
       </div>
     </section>
 
     <section class="details wrap" id="details" aria-labelledby="details-title">
       <img class="workspace-photo" src="./images/quiet-workspace.webp" width="1000" height="750" loading="lazy" alt="窗边的木质桌面上放着笔记本和一杯热饮，工作空间安静而简洁" />
       <div class="details-copy"><h2 id="details-title">少一点打扰，<br /><span>多一点从容。</span></h2><p class="section-intro">从快速记下，到暂时放下，每个小动作都尽量顺手。</p>
-        <dl class="detail-list"><div><dt>灵感来了，先记下</dt><dd>全局快捷键呼出快速添加，支持简单时间识别。</dd></div><div><dt>忙的时候，先收起</dt><dd>稍后处理单条任务，或者用安静模式暂时隐藏侧栏。</dd></div><div><dt>按自己的习惯摆放</dt><dd>拖动把手调整整组位置，任务也可以重新排序。</dd></div><div><dt>资料留在自己手里</dt><dd>任务保存在本机，支持导出 JSON 和 CSV。</dd></div></dl>
+        <dl class="detail-list"><div><dt>灵感来了，先记下</dt><dd>快捷键或桌面头像呼出快速添加，按回车连续记录；预计完成时间和提醒由你设置。</dd></div><div><dt>桌面入口，随手可达</dt><dd>点击头像添加任务、打开主界面，或暂时隐藏整组桌面任务。</dd></div><div><dt>回顾今天，安排明天</dt><dd>工作日志汇总今天完成和明天计划的任务，一键复制。</dd></div><div><dt>资料留在自己手里</dt><dd>任务保存在本机，支持导出 JSON 和 CSV。</dd></div></dl>
       </div>
     </section>
 
@@ -100,7 +100,7 @@
           <button aria-pressed={theme === 'graphite'} class:selected={theme === 'graphite'} onclick={() => theme = 'graphite'}><span class="swatch graphite"></span>深色石墨</button>
         </div>
       </div>
-      <div class="theme-preview" data-theme={theme}><div class="theme-card" inert aria-hidden="true"><QuickCard todo={themeTodo} editing={false} onCancel={() => {}} onClose={() => {}} onEdit={() => {}} onSave={() => {}} onComplete={() => {}} onSnooze={() => {}} onChoose={() => {}} /></div><p class="theme-caption" aria-live="polite">{theme === 'mac' ? '精致 Mac' : theme === 'paper' ? '温暖纸色' : '深色石墨'} · 卡片外观预览</p></div>
+      <div class="theme-preview" data-theme={theme}><div class="theme-card" inert aria-hidden="true"><QuickCard todo={themeTodo} editing={false} onCancel={() => {}} onClose={() => {}} onEdit={() => {}} onSave={() => {}} onComplete={() => {}} onChoose={() => {}} /></div><p class="theme-caption" aria-live="polite">{theme === 'mac' ? '精致 Mac' : theme === 'paper' ? '温暖纸色' : '深色石墨'} · 卡片外观预览</p></div>
     </section>
 
     <section class="download-section" id="download" aria-labelledby="download-title">

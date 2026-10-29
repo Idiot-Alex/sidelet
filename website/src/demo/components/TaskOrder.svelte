@@ -18,7 +18,7 @@
   let scrollFrame = 0;
   let signature = '';
   let measuredHeight = 0;
-  const currentSignature = $derived(todos.map(todo => `${todo.id}:${todo.sortOrder}:${todo.completed}:${todo.snoozedUntil}`).join('|'));
+  const currentSignature = $derived(todos.map(todo => `${todo.id}:${todo.sortOrder}:${todo.completed}`).join('|'));
 
   function cancel() {
     cancelAnimationFrame(scrollFrame); scrollFrame = 0;

@@ -7,6 +7,30 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+func TestAvatarBitmapLoadsOnlyWhenRenderedAndReusesSmallAsset(t *testing.T) {
+	m := newModel()
+	m.Preferences.Appearance.HideSidebarAvatar = true
+	a := &nativeAvatar{service: testService(m)}
+	a.sync()
+	if a.image != nil || a.window != nil {
+		t.Fatal("hidden avatar allocated its bitmap or window")
+	}
+	m.Preferences.Appearance.HideSidebarAvatar = false
+	ui.NewTester(a.render, sidebarAvatarSize, sidebarAvatarSize)
+	if a.image == nil {
+		t.Fatal("visible avatar did not load its image")
+	}
+	w, h := a.image.Size()
+	if w != sidebarAvatarSize*3 || h != sidebarAvatarSize*3 {
+		t.Fatalf("unexpected runtime image size: %dx%d", w, h)
+	}
+	first := a.image
+	ui.NewTester(a.render, sidebarAvatarSize, sidebarAvatarSize)
+	if a.image != first {
+		t.Fatal("avatar decoded again on a later render")
+	}
+}
+
 func TestAvatarDragIndependentCancelAndPersistence(t *testing.T) {
 	dir := t.TempDir()
 	m, s, p := profileFixture(t, dir)

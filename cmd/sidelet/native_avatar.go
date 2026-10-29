@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -10,19 +11,12 @@ import (
 //go:embed design/sidebar-avatar.png
 var sidebarAvatarPNG []byte
 
-var sidebarAvatarImage = func() *ui.Bitmap {
-	b, err := ui.DecodeBitmap(sidebarAvatarPNG)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}()
-
 const sidebarAvatarSize = 56
 
 // A separate window keeps the avatar out of task drag and hit regions.
 type nativeAvatar struct {
 	window                           *mygo.Window
+	image                            *ui.Bitmap
 	service                          *TasksService
 	openMain, quickAdd, openSettings func()
 	pressed, dragging                bool
@@ -107,6 +101,23 @@ func (a *nativeAvatar) sync() {
 	}
 }
 
+// Share one lazy bitmap between the desktop avatar and its settings preview.
+// Hidden at startup allocates neither decoded pixels nor mipmaps.
+var sidebarAvatarBitmap = sync.OnceValue(func() *ui.Bitmap {
+	b, err := ui.DecodeBitmap(sidebarAvatarPNG)
+	if err != nil {
+		panic(err) // Invalid embedded build asset.
+	}
+	return b
+})
+
+func (a *nativeAvatar) bitmap() *ui.Bitmap {
+	if a.image == nil {
+		a.image = sidebarAvatarBitmap()
+	}
+	return a.image
+}
+
 func (a *nativeAvatar) render(c *ui.Context) {
 	t := webTheme(a.service.m.UITheme)
 	c.SetTheme(t.Theme)
@@ -133,7 +144,7 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	}
 	b.Children(func() {
 		ui.Box(c).Fill().Radius(26).Clip().Children(func() {
-			ui.Image(c, sidebarAvatarImage).Fill().Fit(ui.Cover)
+			ui.Image(c, a.bitmap()).Fill().Fit(ui.Cover)
 		})
 	})
 }

@@ -11,7 +11,7 @@ npm --prefix website ci
 npm run dev:website
 ```
 
-访问 `http://127.0.0.1:5174`。不需要 Go、Wails 宿主或任务数据库。
+访问 `http://127.0.0.1:5174`。不需要 Go、桌面宿主或任务数据库。
 
 ## 构建与预览
 
@@ -27,7 +27,7 @@ npm --prefix website run preview
 构建与开发启动会运行 `scripts/prepare-download.mjs`：
 
 - 从 `packaging/macos/app.json` 读取版本和系统要求。
-- 如 `build/releases/Sidelet-<版本>-local-arm64.dmg` 存在，将其复制到 `public/downloads/`，生成 SHA-256 校验文件和 `release.json`；生产构建将它们一起复制到 `dist/downloads/`。
+- 如已验证的 `build/releases/Sidelet-<版本>-build<构建号>-local-arm64.dmg` 及对应 `.dmg.json` 校验记录存在且版本、构建号、架构、包标识与 SHA-256 匹配，将安装包复制到 `public/downloads/`，生成 SHA-256 校验文件和 `release.json`；生产构建将它们一起复制到 `dist/downloads/`。
 - 如没有安装包，生成 `available: false` 的清单，网页显示“查看发布进度”。页面还检查文件存在性、类型和长度，避免显示指向缺失安装包的下载按钮。
 - 更新桌面版本时先运行 `npm run package:macos`，再构建官网，以确保安装包与配置版本一致。
 
@@ -35,13 +35,17 @@ npm --prefix website run preview
 
 ## 互动演示
 
-`src/Demo.svelte` 使用 `src/demo/` 中独立的 `EdgeStack` 和 `QuickCard` 官网演示组件（保留旧界面外观，不包含桌面宿主），提供折叠、悬停、打开、编辑 / 取消 / 保存、完成、稍后、重置及 Esc 关闭。所有数据只在页面内存中，不读写 SQLite，不访问本机任务，也不连接原生桥接操作。网页演示不代表原生鼠标穿透或焦点测试。
+`src/Demo.svelte` 使用 `src/demo/` 中独立的 `EdgeStack` 和 `QuickCard` 官网演示组件（仅演示侧栏与卡片的部分交互，不包含桌面宿主），提供折叠、悬停、打开、编辑 / 取消 / 保存、完成、重置及 Esc 关闭。所有数据只在页面内存中，不读写 SQLite，不访问本机任务，也不连接原生桥接操作。网页演示不代表原生鼠标穿透或焦点测试。
+
+当前演示仅编辑标题与备注；完整应用还支持预计完成时间、提醒、连续添加、桌面头像菜单与工作日志。网站不再提供单任务“稍后”，也不宣称标题中的时间会被自动识别。
 
 三套应用主题会同时更新侧栏和卡片。主题说明区的卡片是 `inert` 外观标本，不提供可点击的假操作。网站深浅外观独立于应用主题，初次遵从系统设置，按钮可手动切换。
 
 `tests/responsive.html` 是开发服务器专用的真实 iframe 窄视口夹具（320 / 375 / 768 px），不作为生产入口打包。
 
-## 验证
+## 初版验证记录
+
+以下为 website-v1 的历史验收，包含当时尚未移除的“稍后”操作。build 47 的更新与验证见 [本轮记录](../docs/mygo/BUILD47_20261030.md)。
 
 - Svelte 检查 0 错误 / 0 警告，生产构建通过。
 - 浏览器真实鼠标悬停、键盘打开 / Esc 关闭与焦点返回、卡片编辑保存 / 取消 / 完成 / 稍后 / 重置通过。

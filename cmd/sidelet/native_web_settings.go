@@ -80,7 +80,7 @@ func (v *nativeTasksView) webSettings(c *ui.Context) {
 		section("桌面任务位置", func() { v.webPosition(c) })
 		section("侧栏助手", func() {
 			ui.Row(c).Gap(20).AlignItems(ui.Center).Children(func() {
-				ui.Image(c, sidebarAvatarImage).Size(48, 48).Fit(ui.Contain)
+				ui.Image(c, sidebarAvatarBitmap()).Size(48, 48).Fit(ui.Contain)
 				ui.Column(c).Grow(1).Children(func() {
 					ui.Text(c, "显示动漫头像").FontSize(13).FontWeight(500)
 					hint("轻点打开菜单；拖动可独立摆放头像，位置自动保存。")

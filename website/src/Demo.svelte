@@ -3,13 +3,12 @@
   import EdgeStack from './demo/components/EdgeStack.svelte';
   import QuickCard from './demo/components/QuickCard.svelte';
   import type { Todo } from './demo/lib/model';
-  import { tomorrowMorning } from './demo/lib/model';
 
   let { theme = 'mac' }: { theme?: 'mac' | 'paper' | 'graphite' } = $props();
   const makeTodos = (): Todo[] => [
-    { id: 1, title: '把今天的灵感记下来', description: '一闪而过的好想法，也值得留一点位置。\n把它记下来，等有空时慢慢展开。', priority: 2, dueAt: 0, completed: false, completedAt: 0, snoozedUntil: 0 },
-    { id: 2, title: '读完手边的那本书', description: '留出二十分钟，翻开上次停下的那一页。', priority: 0, dueAt: 0, completed: false, completedAt: 0, snoozedUntil: 0 },
-    { id: 3, title: '周末去走走', description: '选一条没走过的路，暂时离开屏幕。', priority: 0, dueAt: 0, completed: false, completedAt: 0, snoozedUntil: 0 },
+    { id: 1, title: '把今天的灵感记下来', description: '一闪而过的好想法，也值得留一点位置。\n把它记下来，等有空时慢慢展开。', priority: 2, dueAt: 0, completed: false, completedAt: 0 },
+    { id: 2, title: '读完手边的那本书', description: '留出二十分钟，翻开上次停下的那一页。', priority: 0, dueAt: 0, completed: false, completedAt: 0 },
+    { id: 3, title: '周末去走走', description: '选一条没走过的路，暂时离开屏幕。', priority: 0, dueAt: 0, completed: false, completedAt: 0 },
   ];
   let todos = $state(makeTodos());
   let phase = $state<'glance' | 'hover' | 'act'>('hover');
@@ -20,7 +19,7 @@
   let actButton = $state<HTMLButtonElement>();
   let opener: HTMLElement | null = null;
   let message = $state('试试右侧的任务标记，也可以使用下方按钮。');
-  const activeTodos = $derived(todos.filter(todo => !todo.completed && !todo.snoozedUntil));
+  const activeTodos = $derived(todos.filter(todo => !todo.completed));
   const todo = $derived(todos.find(todo => todo.id === current));
   async function openCard(item: Todo, edit = false) {
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -34,7 +33,7 @@
     if (next === 'act' && activeTodos[0]) void openCard(activeTodos[0]);
     else current = 0;
     selected = activeTodos[0]?.id ?? 0;
-    message = next === 'glance' ? '平时只留一枚细窄标记，空白处没有背景层。' : next === 'hover' ? '悬停看清任务，再点击打开快速卡片。' : activeTodos.length ? '可以在卡片里完成、稍后或编辑。' : '演示任务已处理完，可以重新开始。';
+    message = next === 'glance' ? '平时只留一枚细窄标记，空白处没有背景层。' : next === 'hover' ? '悬停看清任务，再点击打开快速卡片。' : activeTodos.length ? '可以在卡片里完成或编辑标题与备注。' : '演示任务已处理完，可以重新开始。';
   }
   function close() {
     current = 0; editing = false; phase = 'hover'; selected = activeTodos[0]?.id ?? 0;
@@ -49,11 +48,7 @@
     todos = todos.map(todo => todo.id === current ? { ...todo, title: title.trim(), description } : todo);
     editing = false; message = '已更新演示任务，桌面应用数据没有改变。';
   }
-  function snooze(duration: string) {
-    const until = duration === 'tomorrow' ? tomorrowMorning(Date.now()) : Date.now() + (duration === '1h' ? 3600000 : 1800000);
-    todos = todos.map(todo => todo.id === current ? { ...todo, snoozedUntil: until } : todo);
-    close(); message = '这条演示任务暂时收起了，可以重置后再试。';
-  }
+
 </script>
 
 <svelte:window onkeydown={event => { if (event.key === 'Escape' && current && !event.isComposing) { event.preventDefault(); if (editing) editing = false; else close(); } }} />
@@ -68,7 +63,7 @@
     </div>
     {#if current && todo}
       <div class="card-position">
-        <QuickCard {todo} {editing} onClose={close} onEdit={() => editing = true} onCancel={() => editing = false} onSave={save} onComplete={() => complete(current)} onSnooze={snooze} onChoose={item => current = item.id} />
+        <QuickCard {todo} {editing} onClose={close} onEdit={() => editing = true} onCancel={() => editing = false} onSave={save} onComplete={() => complete(current)} onChoose={item => current = item.id} />
       </div>
     {/if}
     {#if activeTodos.length === 0}<div class="empty-demo"><p>给今天留一点空白。</p><button onclick={reset}>重新开始演示</button></div>{/if}

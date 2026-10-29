@@ -3,6 +3,6 @@
   "bundleIdentifier": "io.sidelet.mygo-lab",
   "executable": "sidelet",
   "version": "0.2.0",
-  "build": "46",
+  "build": "47",
   "minimumSystemVersion": "13.0"
 }

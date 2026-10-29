@@ -7,11 +7,10 @@
   import { dueLabel, type Todo } from '../lib/model';
   import { normalizePriority, priorityLabel } from '../lib/priority';
   import { measureQuickCard } from '../lib/quickCardSize';
-  let { todo, overflow = [], editing, busy = false, error = '', now = Date.now(), onClose, onEdit, onSave, onComplete, onSnooze, onChoose, onCancel, onPresence, onSize }:
-    { todo?: Todo; overflow?: Todo[]; editing: boolean; busy?: boolean; error?: string; now?: number; onClose: () => void; onEdit: () => void; onSave: (title: string, description: string) => void; onComplete: () => void; onSnooze: (duration: string) => void; onChoose: (todo: Todo) => void; onCancel: () => void; onPresence?: (inside: boolean) => void; onSize?: (height: number) => void } = $props();
+  let { todo, overflow = [], editing, busy = false, error = '', now = Date.now(), onClose, onEdit, onSave, onComplete, onChoose, onCancel, onPresence, onSize }:
+    { todo?: Todo; overflow?: Todo[]; editing: boolean; busy?: boolean; error?: string; now?: number; onClose: () => void; onEdit: () => void; onSave: (title: string, description: string) => void; onComplete: () => void; onChoose: (todo: Todo) => void; onCancel: () => void; onPresence?: (inside: boolean) => void; onSize?: (height: number) => void } = $props();
   let title = $state('');
   let description = $state('');
-  let snooze = $state(false);
   let input = $state<HTMLInputElement>();
   let card = $state<HTMLDivElement>();
   let disposed = false;
@@ -29,10 +28,9 @@
     return () => { disposed = true; observer.disconnect(); release(); };
   });
   $effect(() => {
-    todo?.title; todo?.description; todo?.dueAt; todo?.priority; overflow; editing; snooze; error;
+    todo?.title; todo?.description; todo?.dueAt; todo?.priority; overflow; editing; error;
     void tick().then(reportSize);
   });
-  $effect(() => { todo?.id; editing; overflow.length; snooze = false; });
   const priority = $derived(normalizePriority(todo?.priority));
   let loadedID = 0;
   let wasEditing = false;
@@ -79,13 +77,11 @@
       {/if}
     </div>
     {#if error}<p class="save-error" role="alert">{error}</p>{/if}
-    <footer class:editing class:snoozing={snooze && !editing}>
+    <footer>
       {#if editing}
         <button class="primary" onclick={() => onSave(title, description)} disabled={busy || !title.trim()}><IconText name="check" size={14} gap={5}>{busy ? '保存中…' : '保存'}</IconText></button><button onclick={onCancel} disabled={busy}>取消</button>
-      {:else if snooze}
-        <button disabled={busy} onclick={() => onSnooze('30m')}>30 分钟</button><button disabled={busy} onclick={() => onSnooze('1h')}>1 小时</button><button disabled={busy} onclick={() => onSnooze('tomorrow')}>明天 09:00</button><button class="return" disabled={busy} aria-label="返回操作" onclick={() => snooze = false}><IconText name="back" size={13} gap={4}>返回</IconText></button>
       {:else}
-        <button class="primary" onclick={onComplete} disabled={busy}><IconText name="check" size={14} gap={5}>完成</IconText></button><button onclick={() => snooze = true} disabled={busy}><IconText name="clock" size={14} gap={5}>稍后</IconText></button><button onclick={onEdit} disabled={busy}><IconText name="edit" size={14} gap={5}>编辑</IconText></button>
+        <button class="primary" onclick={onComplete} disabled={busy}><IconText name="check" size={14} gap={5}>完成</IconText></button><button onclick={onEdit} disabled={busy}><IconText name="edit" size={14} gap={5}>编辑</IconText></button>
       {/if}
     </footer>
   {:else}
@@ -108,11 +104,9 @@
   .due { font-size: 11px; line-height: 18px; color: var(--muted); }
   .due.overdue { color: var(--danger); }
   .description { margin: 12px 0 0; white-space: pre-wrap; font-size: 13px; line-height: 1.65; color: var(--muted); overflow-wrap: anywhere; }
-  footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 12px 16px; border-top: 1px solid var(--line); flex-shrink: 0; }
-  footer.editing { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px 16px; border-top: 1px solid var(--line); flex-shrink: 0; }
   footer button { display: flex; align-items: center; justify-content: center; height: 36px; padding: 0 5px; font-size: 12px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--control-radius); }
   footer .primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  .snoozing .return { grid-column: 1 / -1; height: 28px; border: 0; background: transparent; color: var(--muted); }
   .field { display: block; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
   .save-error { margin: 0; padding: 8px 16px; font-size: 12px; color: var(--danger); }
