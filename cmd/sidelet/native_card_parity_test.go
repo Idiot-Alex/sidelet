@@ -39,6 +39,40 @@ func TestCardSaveKeepsTaskOnDesktop(t *testing.T) {
 	}
 }
 
+func TestCardCopiesTitleAndNoteWithoutChangingTask(t *testing.T) {
+	for _, theme := range []string{"mac", "paper", "graphite"} {
+		m := newModel()
+		m.UITheme = theme
+		m.Tasks[0].Title, m.Tasks[0].Note = "准备评审材料", "核对设计稿\n补充说明"
+		m.open(0)
+		v := &views{m: m}
+		u := ui.NewTester(v.webCard, 320, 250)
+		before := m.Tasks[0]
+		buttonBefore := visualRect(t, u, "关闭快速卡片")
+		if err := u.Click("复制任务内容"); err != nil {
+			t.Fatal(err)
+		}
+		if u.Clipboard() != "准备评审材料\n\n核对设计稿\n补充说明" || !u.HasText("已复制") {
+			t.Fatal("missing copied content or feedback", theme)
+		}
+		if m.Tasks[0] != before || m.Opened != 0 || m.Editing || visualRect(t, u, "关闭快速卡片") != buttonBefore {
+			t.Fatal("copy changed task or layout", theme)
+		}
+		m.open(1)
+		m.Tasks[1].Title, m.Tasks[1].Note = "只有标题", ""
+		u.Frame()
+		if u.HasText("已复制") {
+			t.Fatal("copy feedback leaked into another task")
+		}
+		if err := u.Click("复制任务内容"); err != nil {
+			t.Fatal(err)
+		}
+		if u.Clipboard() != "只有标题" {
+			t.Fatal("empty note added unwanted content")
+		}
+	}
+}
+
 func TestCardNoteSaveShortcutPreservesCompositionAndConflict(t *testing.T) {
 	for _, mods := range []ui.Modifiers{ui.Super, ui.Ctrl} {
 		m := newModel()

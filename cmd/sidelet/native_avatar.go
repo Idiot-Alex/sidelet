@@ -8,15 +8,15 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-//go:embed design/sidebar-avatar.png
-var sidebarAvatarPNG []byte
+//go:embed design/sidebar-avatar.svg
+var sidebarAvatarSVG []byte
 
 const sidebarAvatarSize = 56
 
 // A separate window keeps the avatar out of task drag and hit regions.
 type nativeAvatar struct {
 	window                           *mygo.Window
-	image                            *ui.Bitmap
+	image                            *ui.SVG
 	service                          *TasksService
 	openMain, quickAdd, openSettings func()
 	pressed, dragging                bool
@@ -101,19 +101,15 @@ func (a *nativeAvatar) sync() {
 	}
 }
 
-// Share one lazy bitmap between the desktop avatar and its settings preview.
-// Hidden at startup allocates neither decoded pixels nor mipmaps.
-var sidebarAvatarBitmap = sync.OnceValue(func() *ui.Bitmap {
-	b, err := ui.DecodeBitmap(sidebarAvatarPNG)
-	if err != nil {
-		panic(err) // Invalid embedded build asset.
-	}
-	return b
+// Share one lazily parsed vector between the avatar and settings preview.
+// A hidden avatar does not allocate image resources at startup.
+var sidebarAvatarVector = sync.OnceValue(func() *ui.SVG {
+	return ui.MustParseSVG(sidebarAvatarSVG)
 })
 
-func (a *nativeAvatar) bitmap() *ui.Bitmap {
+func (a *nativeAvatar) vector() *ui.SVG {
 	if a.image == nil {
-		a.image = sidebarAvatarBitmap()
+		a.image = sidebarAvatarVector()
 	}
 	return a.image
 }
@@ -144,7 +140,7 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	}
 	b.Children(func() {
 		ui.Box(c).Fill().Radius(26).Clip().Children(func() {
-			ui.Image(c, a.bitmap()).Fill().Fit(ui.Cover)
+			ui.Image(c, a.vector()).Fill().Fit(ui.Cover)
 		})
 	})
 }

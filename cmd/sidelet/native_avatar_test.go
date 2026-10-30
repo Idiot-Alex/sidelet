@@ -7,13 +7,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestAvatarBitmapLoadsOnlyWhenRenderedAndReusesSmallAsset(t *testing.T) {
+func TestAvatarVectorLoadsOnlyWhenRenderedAndReusesAsset(t *testing.T) {
 	m := newModel()
 	m.Preferences.Appearance.HideSidebarAvatar = true
 	a := &nativeAvatar{service: testService(m)}
 	a.sync()
 	if a.image != nil || a.window != nil {
-		t.Fatal("hidden avatar allocated its bitmap or window")
+		t.Fatal("hidden avatar allocated its vector or window")
 	}
 	m.Preferences.Appearance.HideSidebarAvatar = false
 	ui.NewTester(a.render, sidebarAvatarSize, sidebarAvatarSize)
@@ -21,13 +21,13 @@ func TestAvatarBitmapLoadsOnlyWhenRenderedAndReusesSmallAsset(t *testing.T) {
 		t.Fatal("visible avatar did not load its image")
 	}
 	w, h := a.image.Size()
-	if w != sidebarAvatarSize*3 || h != sidebarAvatarSize*3 {
-		t.Fatalf("unexpected runtime image size: %dx%d", w, h)
+	if w != 128 || h != 128 {
+		t.Fatalf("unexpected runtime image size: %gx%g", w, h)
 	}
 	first := a.image
 	ui.NewTester(a.render, sidebarAvatarSize, sidebarAvatarSize)
 	if a.image != first {
-		t.Fatal("avatar decoded again on a later render")
+		t.Fatal("avatar parsed again on a later render")
 	}
 }
 

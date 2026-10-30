@@ -23,6 +23,7 @@ func (m *model) cardEditorHeight() int {
 }
 
 func (v *views) beginSession(index int) {
+	v.cardCopiedUntil = time.Time{}
 	v.session.Begin("source", "card", int64(index+1))
 	v.sourceInside, v.cardInside = true, false
 	if v.closeTimer != nil {

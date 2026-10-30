@@ -28,6 +28,9 @@ type views struct {
 	showAll                  func()
 	cardLayout               webCardLayout
 	cardLayoutVersion        uint64
+	cardCopiedTask           int
+	cardCopiedText           string
+	cardCopiedUntil          time.Time
 }
 
 func (v *views) webHover(hit int, now time.Time) (int, time.Duration) {

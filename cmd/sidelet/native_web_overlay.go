@@ -230,6 +230,29 @@ func (v *views) webCard(c *ui.Context) {
 				label = "快速编辑"
 			}
 			ui.Text(c, label).FontSize(11).TextColor(t.Subtle).Grow(1)
+			if !m.Editing {
+				content := item.Title
+				if strings.TrimSpace(item.Note) != "" {
+					content += "\n\n" + item.Note
+				}
+				caption := "复制内容"
+				copied := v.cardCopiedTask == m.Opened && v.cardCopiedText == content && c.Now().Before(v.cardCopiedUntil)
+				if copied {
+					caption = "已复制"
+					c.After(v.cardCopiedUntil.Sub(c.Now()))
+				}
+				b := webButton(c.Key("copy-task-content"), "复制任务内容", false).Width(76).Height(28).Padding(0).Border(0, ui.Transparent).Tooltip("复制任务名称和备注")
+				if copied {
+					b.TextColor(t.Accent)
+				}
+				b.Children(func() { ui.Text(c, caption).FontSize(12) })
+				if b.Clicked() {
+					c.WriteClipboard(content)
+					v.cardCopiedTask, v.cardCopiedText = m.Opened, content
+					v.cardCopiedUntil = c.Now().Add(2 * time.Second)
+					c.Announce("任务内容已复制")
+				}
+			}
 			if webIconButton(c, "关闭快速卡片", "close", 16).Radius(6).Clicked() {
 				v.closeCard()
 			}
