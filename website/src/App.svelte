@@ -60,7 +60,7 @@
 <div class="site" id="top" data-color={dark ? 'dark' : 'light'}>
   <a class="skip-link" href="#main">跳到主要内容</a>
   <header class="site-header wrap">
-    <a class="brand" href="#top" aria-label="Sidelet 首页"><img src="./favicon.svg" width="34" height="34" alt="" /><span>Sidelet</span></a>
+    <a class="brand" href="#top" aria-label="Sidelet 首页"><img src="./sidelet-icon.svg" width="34" height="34" alt="" /><span>Sidelet</span></a>
     <nav aria-label="主导航"><a href="#experience">体验</a><a href="#details">细节</a><a href="#download">下载</a></nav>
     <button class="appearance-toggle" aria-label={dark ? '切换为浅色外观' : '切换为深色外观'} onclick={() => dark = !dark}>{dark ? '浅色' : '深色'}<span aria-hidden="true">◐</span></button>
   </header>
@@ -105,7 +105,7 @@
 
     <section class="download-section" id="download" aria-labelledby="download-title">
       <div class="download-inner wrap">
-        <img class="download-logo" src="./favicon.svg" width="72" height="72" alt="Sidelet 应用图标" />
+        <img class="download-logo" src="./sidelet-icon.svg" width="72" height="72" alt="Sidelet 应用图标" />
         <h2 id="download-title">给重要的事，<br /><span>留一点位置。</span></h2>
         <p class="download-intro">从一件想做的小事开始。</p>
         <div class="download-action" aria-live="polite">
@@ -127,5 +127,5 @@
     <section class="faq wrap" aria-labelledby="faq-title"><h2 id="faq-title">还有一些，<br /><span>你可能想知道的。</span></h2><div class="faq-list">{#each faqs as [question, answer]}<details><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>{/each}</div></section>
   </main>
 
-  <footer class="site-footer wrap"><a class="brand" href="#top"><img src="./favicon.svg" width="28" height="28" alt="" /><span>Sidelet</span></a><p>让任务在视线里，让注意力留在当下。</p><div><a href={repo} target="_blank" rel="noreferrer">GitHub</a><a href={`${repo}/issues`} target="_blank" rel="noreferrer">反馈问题<span aria-hidden="true">↗</span></a></div></footer>
+  <footer class="site-footer wrap"><a class="brand" href="#top"><img src="./sidelet-icon.svg" width="28" height="28" alt="" /><span>Sidelet</span></a><p>让任务在视线里，让注意力留在当下。</p><div><a href={repo} target="_blank" rel="noreferrer">GitHub</a><a href={`${repo}/issues`} target="_blank" rel="noreferrer">反馈问题<span aria-hidden="true">↗</span></a></div></footer>
 </div>

@@ -31,6 +31,7 @@ type profileState struct {
 	Schema             int                    `json:"schema"`
 	ID                 string                 `json:"profileId"`
 	Tasks              []task                 `json:"tasks"`
+	WorkHistory        []workCompletion       `json:"workHistory,omitempty"`
 	Order              []int                  `json:"order"`
 	Theme              string                 `json:"theme"`
 	Side               string                 `json:"side"`
@@ -54,6 +55,7 @@ type profile struct {
 func (m *model) profileState(id string) profileState {
 	v := profileState{Preferences: m.Preferences, Schema: 2, ID: id, Tasks: slices.Clone(m.Tasks), Order: slices.Clone(m.Order), Theme: m.UITheme, Side: m.Side, Offset: m.Offset, ItemHeight: m.itemHeight(), UndoID: m.UndoID, UndoUntil: m.UndoUntil, ReminderGeneration: m.ReminderGeneration}
 	v.NewTaskDraft = m.newTaskDraft // Immutable snapshots; replaced, never edited.
+	v.WorkHistory = slices.Clone(m.WorkHistory)
 	if m.profile != nil {
 		v.LegacyImport = m.profile.saved.LegacyImport
 	}
@@ -61,6 +63,14 @@ func (m *model) profileState(id string) profileState {
 }
 
 func validateProfile(v profileState) error {
+	for _, entry := range v.WorkHistory {
+		if entry.TaskID < 1 || entry.TaskID > len(v.Tasks) || entry.CompletedAt <= 0 {
+			return errors.New("工作日志记录无效。")
+		}
+		if _, err := validTitleLimit(entry.Title, 500); err != nil {
+			return err
+		}
+	}
 	if err := validateNewTaskDraft(v.NewTaskDraft); err != nil {
 		return err
 	}
@@ -227,6 +237,7 @@ func openProfile(dir string, m *model) (*profile, error) {
 			m.Preferences.Startup.ShowMainWindow = true // Keep the previous prototype startup behavior.
 		}
 		m.Tasks, m.Order = slices.Clone(state.Tasks), slices.Clone(state.Order)
+		m.WorkHistory = slices.Clone(state.WorkHistory)
 		m.UITheme, m.Side, m.Offset, m.ItemHeight = state.Theme, state.Side, state.Offset, state.ItemHeight
 		m.UndoID, m.UndoUntil, m.ReminderGeneration = state.UndoID, state.UndoUntil, state.ReminderGeneration
 	}
@@ -364,11 +375,13 @@ func profileDirectory(explicit, output string) (string, error) {
 func (m *model) clone() model {
 	copy := *m
 	copy.Tasks, copy.Order = slices.Clone(m.Tasks), slices.Clone(m.Order)
+	copy.WorkHistory = slices.Clone(m.WorkHistory)
 	return copy
 }
 
 func (m *model) commit(fn func() error) error {
 	before := m.clone()
+	m.WorkHistory = m.workCompletions()
 	if err := fn(); err != nil {
 		*m = before
 		return err

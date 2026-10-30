@@ -28,9 +28,7 @@ sidelet_staged="$sidelet_work/Sidelet.app"
 mkdir -p "$sidelet_staged/Contents/MacOS" "$sidelet_staged/Contents/Resources" "$sidelet_root/.cache/clang"
 GOOS=darwin GOARCH="$sidelet_arch" CGO_ENABLED=0 bash scripts/go.sh build -trimpath \
   -ldflags='-s -w' -o "$sidelet_staged/Contents/MacOS/sidelet" ./cmd/sidelet
-swiftc -module-cache-path "$sidelet_root/.cache/clang" scripts/render-macos-icon.swift -o "$sidelet_work/render-icon"
-"$sidelet_work/render-icon" assets/sidelet-icon.svg "$sidelet_work/Sidelet.iconset"
-iconutil -c icns "$sidelet_work/Sidelet.iconset" -o "$sidelet_staged/Contents/Resources/Sidelet.icns"
+cp assets/sidelet.icns "$sidelet_staged/Contents/Resources/Sidelet.icns"
 python3 scripts/macos-bundle-info.py --plist "$sidelet_staged/Contents/Info.plist"
 plutil -lint "$sidelet_staged/Contents/Info.plist"
 python3 scripts/macos-package.py record-build "$sidelet_staged" "$sidelet_arch"

@@ -78,6 +78,7 @@ func (s *TasksService) Undo() (taskSnapshot, error) {
 		if m.UITheme == "" && !t.Unpinned && t.SnoozedUntil <= m.now().UnixMilli() && m.sidebarCount() >= m.sidebarCapacity() {
 			return errors.New("侧栏已满，请先完成一项任务。")
 		}
+		m.removeWorkCompletion(m.UndoID, t.CompletedAt)
 		t.Done = false
 		t.CompletedAt = 0
 		t.Version++

@@ -48,6 +48,7 @@ type nativeTasksView struct {
 	settingsOpen, optionsOpen     bool
 	workLogOpen                   bool
 	workLogCopied                 string
+	workLogFrom, workLogTo        string
 	settingsTab                   string
 	newFormOpen, focusNewEntry    bool
 	formNote                      string

@@ -1,42 +1,23 @@
 package main
 
 import (
-	"bytes"
-	"image"
-	"image/color"
-	"image/png"
-
+	_ "embed"
 	"github.com/egoist/mygo"
+	"runtime"
 )
 
-// The same 32px mark used by the formal application's trayIcon.
-func nativeTrayIcon() []byte {
-	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
-	for y := 3; y < 29; y++ {
-		for x := 3; x < 29; x++ {
-			img.Set(x, y, color.NRGBA{R: 48, G: 57, B: 52, A: 255})
-		}
-	}
-	for x := 8; x < 24; x++ {
-		y := 22 - (x - 12)
-		if x < 13 {
-			y = 16 + (x - 8)
-		}
-		for d := 0; d < 3; d++ {
-			img.Set(x, y+d, color.NRGBA{R: 247, G: 246, B: 243, A: 255})
-		}
-	}
-	var buffer bytes.Buffer
-	_ = png.Encode(&buffer, img)
-	return buffer.Bytes()
-}
+// Generated from the small-size mascot SVG by scripts/prepare-icons.go.
+//
+//go:embed design/tray-icon.png
+var trayIconPNG []byte
 
+func nativeTrayIcon() []byte { return trayIconPNG }
 func (h *nativeApp) installNativeTray() error {
-	h.quietItem = &mygo.MenuItem{Label: "隐藏标签", Click: func(*mygo.MenuItem, *mygo.Window) {
+	h.quietItem = &mygo.MenuItem{Label: "隐藏桌面任务", Click: func(*mygo.MenuItem, *mygo.Window) {
 		_, _ = h.service.SetQuiet(!h.service.m.Quiet)
 	}}
 	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "打开任务窗口", Click: func(*mygo.MenuItem, *mygo.Window) { h.show() }},
+		{Label: "打开主界面", Click: func(*mygo.MenuItem, *mygo.Window) { h.show() }},
 		{Label: "快速添加", Click: func(*mygo.MenuItem, *mygo.Window) { h.showQuickAdd() }},
 		h.quietItem,
 		{Label: "设置", Click: func(*mygo.MenuItem, *mygo.Window) {
@@ -49,11 +30,32 @@ func (h *nativeApp) installNativeTray() error {
 		mygo.Separator(),
 		{Label: "退出 Sidelet", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
 	})
-	tray, err := mygo.NewTray(mygo.TrayOptions{Icon: nativeTrayIcon(), ToolTip: "Sidelet", Menu: menu})
+	options := mygo.TrayOptions{Icon: nativeTrayIcon(), ToolTip: "Sidelet"}
+	// Linux AppIndicator requires a system menu; Windows and macOS can
+	// anchor our themed assistant menu directly to the status icon.
+	if runtime.GOOS == "linux" {
+		options.Menu = menu
+	}
+	tray, err := mygo.NewTray(options)
 	if err != nil {
 		return err
 	}
 	h.tray = tray
+	if runtime.GOOS != "linux" {
+		h.trayMenu = h.newAssistantMenu()
+		h.trayMenu.panelQuit = func() { mygo.App.Quit() }
+		showMenu := func() {
+			r := tray.Bounds()
+			if r.Width <= 0 || r.Height <= 0 {
+				point := mygo.Screen.CursorScreenPoint()
+				r = mygo.Rectangle{X: point.X, Y: point.Y, Width: 1, Height: 1}
+			}
+			h.trayMenu.popupAt(r, h.window)
+		}
+		tray.OnClick(showMenu)
+		tray.OnRightClick(showMenu)
+		onQuitCleanup(h.trayMenu.closePanel)
+	}
 	onQuitCleanup(func() { tray.Destroy() })
 	if dockPreferenceAvailable() {
 		h.service.applyDock = applyDockPreference

@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -281,6 +283,7 @@ type nativeApp struct {
 	view              *nativeTasksView
 	quick             *nativeQuickAdd
 	tray              *mygo.Tray
+	trayMenu          *nativeAvatar
 	quietItem         *mygo.MenuItem
 	captureQuickFocus func() quickFocusToken
 	prepareQuickAdd   func()
@@ -350,6 +353,13 @@ func (h *nativeApp) show() {
 	}
 	w := mygo.NewWindow(opts)
 	h.window = w
+	profileDir := ""
+	if h.service.m.profile != nil {
+		profileDir = filepath.Dir(h.service.m.profile.path)
+	}
+	if err := configureTaskbarIcon(w, profileDir); err != nil {
+		log.Printf("configure taskbar icon: %v", err)
+	}
 	if h.native {
 		cancelOrder := func() {
 			if h.view != nil {
@@ -400,10 +410,13 @@ func (h *nativeApp) publish() {
 }
 
 func (h *nativeApp) nativeChanged(event string) {
+	if h.trayMenu != nil && h.trayMenu.panel != nil {
+		h.trayMenu.panel.Invalidate()
+	}
 	if h.quietItem != nil {
-		label := "隐藏标签"
+		label := "隐藏桌面任务"
 		if h.service.m.Quiet {
-			label = "显示标签"
+			label = "显示桌面任务"
 		}
 		h.quietItem.SetLabel(label)
 	}

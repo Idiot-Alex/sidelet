@@ -3,8 +3,8 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"github.com/tc-hib/winres"
 	"image"
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,10 +22,14 @@ func releaseFixture(t *testing.T) string {
 		t.Fatal(err)
 	}
 	var b bytes.Buffer
-	if err := png.Encode(&b, image.NewNRGBA(image.Rect(0, 0, 32, 32))); err != nil {
+	icon, err := winres.NewIconFromImages([]image.Image{image.NewNRGBA(image.Rect(0, 0, 32, 32))})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "assets/sidelet-icon.png"), b.Bytes(), 0600); err != nil {
+	if err := icon.SaveICO(&b); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "assets/sidelet.ico"), b.Bytes(), 0600); err != nil {
 		t.Fatal(err)
 	}
 	return root

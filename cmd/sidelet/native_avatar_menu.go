@@ -8,7 +8,11 @@ import (
 const avatarMenuWidth, avatarMenuHeight = 224, 198
 
 func avatarPanelBounds(anchor, area mygo.Rectangle) mygo.Rectangle {
-	w, h := min(avatarMenuWidth, area.Width), min(avatarMenuHeight, area.Height)
+	return assistantPanelBounds(anchor, area, avatarMenuHeight)
+}
+
+func assistantPanelBounds(anchor, area mygo.Rectangle, height int) mygo.Rectangle {
+	w, h := min(avatarMenuWidth, area.Width), min(height, area.Height)
 	x, y := anchor.X+anchor.Width-w, anchor.Y+anchor.Height+8
 	if y+h > area.Y+area.Height {
 		y = anchor.Y - h - 8
@@ -24,19 +28,26 @@ func (a *nativeAvatar) closePanel() {
 }
 
 func (a *nativeAvatar) popup() {
+	if a.window == nil {
+		return
+	}
+	a.popupAt(a.window.Bounds(), a.window)
+}
+
+func (a *nativeAvatar) popupAt(r mygo.Rectangle, parent *mygo.Window) {
 	if a.panel != nil {
 		a.closePanel()
 		return
 	}
-	if a.window == nil {
-		return
-	}
 	a.panelFocus, a.panelIndex = true, 0
-	r := a.window.Bounds()
 	area := mygo.Screen.DisplayNearestPoint(mygo.Point{X: r.X + r.Width/2, Y: r.Y + r.Height/2}).WorkArea
-	bounds := avatarPanelBounds(r, area)
+	height := avatarMenuHeight
+	if a.panelQuit != nil {
+		height += 53
+	}
+	bounds := assistantPanelBounds(r, area, height)
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title: "Sidelet 助手菜单", Parent: a.window,
+		Title: "Sidelet 助手菜单", Parent: parent,
 		X: bounds.X, Y: bounds.Y, Width: bounds.Width, Height: bounds.Height,
 		Frameless: true, DisableResize: true, AlwaysOnTop: true, SkipTaskbar: true,
 		Hidden: true, Content: ui.View(a.renderPanel),
@@ -81,9 +92,15 @@ func (a *nativeAvatar) renderPanel(c *ui.Context) {
 		{quietLabel, quietIcon, func() { _, _ = a.service.SetQuiet(!a.service.m.Quiet) }},
 		{"设置", "settings", a.openSettings},
 	}
+	if a.panelQuit != nil {
+		actions = append(actions, struct {
+			label, icon string
+			run         func()
+		}{"退出 Sidelet", "close", a.panelQuit})
+	}
 	enterSurface(c, ui.Column(c).Fill().Padding(8).Border(1, t.Border).Gap(2).Role(ui.RoleMenu).Label("助手操作"), 0).Children(func() {
 		for i, action := range actions {
-			if i == 2 {
+			if i == 2 || i == 4 {
 				ui.Box(c).Height(1).Margin(5, 4).Background(t.Border)
 			}
 			b := ui.ButtonBase(c.Key(action.label)).Bind(&a.panelItems[i]).Label(action.label).Role(ui.RoleMenuItem).Height(40).Shrink(0).WidthPercent(100).Padding(0, 10).Gap(10).Radius(6).Justify(ui.Start).TextColor(t.Text)

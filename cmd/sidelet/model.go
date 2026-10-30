@@ -53,19 +53,20 @@ type model struct {
 	EditError                           string `json:"editError"`
 	draftVersion                        uint64
 	cardDetails                         *nativeTasksView
-	Tasks                               []task `json:"tasks"`
-	Order                               []int  `json:"order,omitempty"`
-	Arranging                           bool   `json:"arranging,omitempty"`
-	OverflowOpen                        bool   `json:"overflowOpen,omitempty"`
-	Hover                               int    `json:"hover"`
-	Opened                              int    `json:"opened"`
-	Editing                             bool   `json:"editing"`
-	Draft                               string `json:"draft"`
-	DraftNote                           string `json:"draftNote"`
-	UITheme                             string `json:"uiTheme,omitempty"`
-	CardReadHeight                      int    `json:"cardReadHeight,omitempty"`
-	Dragging                            bool   `json:"dragging"`
-	Side                                string `json:"side"`
+	Tasks                               []task           `json:"tasks"`
+	WorkHistory                         []workCompletion `json:"workHistory,omitempty"`
+	Order                               []int            `json:"order,omitempty"`
+	Arranging                           bool             `json:"arranging,omitempty"`
+	OverflowOpen                        bool             `json:"overflowOpen,omitempty"`
+	Hover                               int              `json:"hover"`
+	Opened                              int              `json:"opened"`
+	Editing                             bool             `json:"editing"`
+	Draft                               string           `json:"draft"`
+	DraftNote                           string           `json:"draftNote"`
+	UITheme                             string           `json:"uiTheme,omitempty"`
+	CardReadHeight                      int              `json:"cardReadHeight,omitempty"`
+	Dragging                            bool             `json:"dragging"`
+	Side                                string           `json:"side"`
 	X, Y                                int
 	WorkX, WorkY, WorkWidth, WorkHeight int
 	dragX, dragY, pointerX, pointerY    int
@@ -274,6 +275,9 @@ func (m *model) now() time.Time {
 func (m *model) recordCompletion(index int) {
 	if m.UITheme != "" && !m.Tasks[index].Done {
 		m.Tasks[index].CompletedAt = m.now().UnixMilli()
+		if !m.Tasks[index].Temporary {
+			m.WorkHistory = append(m.WorkHistory, workCompletion{TaskID: index + 1, Title: m.Tasks[index].Title, CompletedAt: m.Tasks[index].CompletedAt})
+		}
 		m.UndoID = index + 1
 		m.UndoUntil = m.now().Add(5 * time.Second).UnixMilli()
 	}

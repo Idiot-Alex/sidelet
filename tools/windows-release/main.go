@@ -13,7 +13,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"image/png"
 	"io"
 	"os"
 	"os/exec"
@@ -70,16 +69,12 @@ func loadInfo(root string) (appInfo, [4]uint16, error) {
 }
 
 func resources(root string, info appInfo, fixed [4]uint16) (*winres.ResourceSet, error) {
-	f, err := os.Open(filepath.Join(root, "assets/sidelet-icon.png"))
+	f, err := os.Open(filepath.Join(root, "assets/sidelet.ico"))
 	if err != nil {
 		return nil, err
 	}
-	img, err := png.Decode(f)
+	icon, err := winres.LoadICO(f)
 	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	icon, err := winres.NewIconFromResizedImage(img, []int{16, 20, 24, 32, 40, 48, 64, 128, 256})
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +190,7 @@ func run(root, arch string, pack bool) error {
 	if err = os.WriteFile(filepath.Join(binDir, "Sidelet-"+arch+".ico"), ico.Bytes(), 0644); err != nil {
 		return err
 	}
+	refreshShellIcon(exe)
 	fmt.Printf("Verified %s (version %s, build %s)\n", exe, info.Version, info.Build)
 	if pack {
 		return packageZIP(root, arch, exe, info)

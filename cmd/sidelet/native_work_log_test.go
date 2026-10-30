@@ -44,6 +44,10 @@ func TestWorkLogPreviewCopyAndReturn(t *testing.T) {
 	now := time.Date(2026, 10, 27, 12, 0, 0, 0, time.Local)
 	m.clock = func() time.Time { return now }
 	m.Tasks = []task{{Title: "写完说明", Done: true, CompletedAt: now.UnixMilli()}, {Title: "发布版本", DueAt: now.AddDate(0, 0, 1).UnixMilli()}}
+	m.WorkHistory = []workCompletion{
+		{TaskID: 2, Title: "整理评审反馈", CompletedAt: now.AddDate(0, 0, -1).UnixMilli()},
+		{TaskID: 2, Title: "确认本周交付计划", CompletedAt: now.AddDate(0, 0, -3).UnixMilli()},
+	}
 	if err := u.Click("工作日志"); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +71,8 @@ func TestWorkLogPreviewCopyAndReturn(t *testing.T) {
 	if err := u.Click("复制日志"); err != nil {
 		t.Fatal(err)
 	}
-	if u.Clipboard() != generateWorkLog(m.Tasks, now).text() {
+	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	if u.Clipboard() != workLogRangeText(workLogTimeline(m.workCompletions(), day.AddDate(0, 0, -6), day), day.AddDate(0, 0, -6), day) {
 		t.Fatal("clipboard differs from preview", u.Clipboard())
 	}
 	if !u.HasText("已复制，可直接粘贴分享") {
@@ -79,7 +84,7 @@ func TestWorkLogPreviewCopyAndReturn(t *testing.T) {
 	if err := u.Click("复制日志"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(u.Clipboard(), "完成于") {
+	if strings.Contains(u.Clipboard(), "写完说明") {
 		t.Fatal("undo left a stale completion in the log")
 	}
 	u.Key(0, ui.KeyEscape)

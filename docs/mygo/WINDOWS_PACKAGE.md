@@ -37,14 +37,13 @@ ZIP 中只有一个同名目录及以下四个文件，不包含任务资料：
 
 版本号和构建号继续读取现有的 `packaging/macos/app.json`；这个历史路径现在同时供两平台打包使用。产品版本为 `0.2.0`，四段文件版本为 `0.2.0.43`。构建号超出 Windows 单段 16 位范围时拒绝构建，避免静默截断。
 
-`assets/sidelet-icon.svg` 为图标源文件，`assets/sidelet-icon.png` 是其确定性渲染的 1024px 副本，供跨平台构建直接读取。修改 SVG 后可在 Mac 上重新生成 PNG：
+品牌图标源文件为 `cmd/sidelet/design/sidebar-avatar.svg`（完整便签精灵）和 `assets/sidelet-icon-small.svg`（16–32px 简化版）。修改后在仓库根目录运行以下命令，同步生成应用 PNG、Windows ICO、macOS ICNS、托盘 PNG 和官网 SVG：
 
 ```sh
-swift -module-cache-path .cache/swift-module-cache scripts/render-macos-icon.swift assets/sidelet-icon.svg .cache/windows-icon.iconset
-cp .cache/windows-icon.iconset/icon_512x512@2x.png assets/sidelet-icon.png
+go run scripts/prepare-icons.go
 ```
 
-打包工具嵌入 16 / 20 / 24 / 32 / 40 / 48 / 64 / 128 / 256px 图标，资源编号为 MyGo Windows 后端使用的 1。VERSIONINFO 包含产品名、公司名 Sidelet、内部名、原始文件名、版本及兼容的 MyGo 应用标识；标记为预发布。清单使用普通用户权限、Windows 10 兼容声明、Common Controls v6、PerMonitorV2 DPI 感知。系统中的最终显示与缩放仍需实机验证。
+打包工具读取 `assets/sidelet.ico`，嵌入 16 / 20 / 24 / 32 / 40 / 48 / 64 / 128 / 256px 图标，其中 16–32px 使用简化版。资源编号为 MyGo Windows 后端使用的 1；安装器复用同一图标。macOS 打包读取 `assets/sidelet.icns`。VERSIONINFO 包含产品名、公司名 Sidelet、内部名、原始文件名、版本及兼容的 MyGo 应用标识；标记为预发布。清单使用普通用户权限、Windows 10 兼容声明、Common Controls v6、PerMonitorV2 DPI 感知。系统中的最终显示与缩放仍需实机验证。
 
 ## 构建依赖与失败处理
 

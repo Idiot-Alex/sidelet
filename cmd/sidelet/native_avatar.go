@@ -28,7 +28,8 @@ type nativeAvatar struct {
 	panel                            *mygo.Window
 	panelFocus                       bool
 	panelIndex                       int
-	panelItems                       [4]ui.Handle
+	panelItems                       [5]ui.Handle
+	panelQuit                        func()
 }
 
 func avatarBounds(m *model) mygo.Rectangle {
@@ -238,6 +239,12 @@ func (a *nativeAvatar) cancelDrag() {
 }
 
 func (h *nativeApp) createAvatar() *nativeAvatar {
+	a := h.newAssistantMenu()
+	a.sync()
+	return a
+}
+
+func (h *nativeApp) newAssistantMenu() *nativeAvatar {
 	a := &nativeAvatar{service: h.service, quickAdd: h.showQuickAdd}
 	a.openMain = func() {
 		h.show()
@@ -257,6 +264,5 @@ func (h *nativeApp) createAvatar() *nativeAvatar {
 			h.window.Invalidate()
 		}
 	}
-	a.sync()
 	return a
 }
