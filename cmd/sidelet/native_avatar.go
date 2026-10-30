@@ -118,7 +118,7 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	t := webTheme(a.service.m.UITheme)
 	c.SetTheme(t.Theme)
 	c.Root().Background(ui.Transparent)
-	b := ui.ButtonBase(c).Label("侧栏助手菜单").Fill().Padding(1).Radius(28).Background(t.Surface).Border(1, desktopOutline(t))
+	b := ui.ButtonBase(c).Label("侧栏助手菜单").Fill().Padding(1).Radius(28).Background(ui.Transparent)
 	b.Cursor(ui.CursorMove).HandleInput(func(ev ui.InputEvent) bool {
 		if ev.Kind == ui.InputKeyDown && (ev.Key == ui.KeyEnter || ev.Key == ui.KeySpace) {
 			a.popup()
@@ -135,13 +135,8 @@ func (a *nativeAvatar) render(c *ui.Context) {
 		return a.pointer(ev, mygo.Point{X: r.X + int(ev.X), Y: r.Y + int(ev.Y)})
 	})
 	webFocus(c, b, 28)
-	if b.Hovered() {
-		b.Background(t.Soft).BorderColor(t.Accent)
-	}
 	b.Children(func() {
-		ui.Box(c).Fill().Radius(26).Clip().Children(func() {
-			ui.Image(c, a.vector()).Fill().Fit(ui.Cover)
-		})
+		ui.Image(c, a.vector()).Fill().Fit(ui.Contain)
 	})
 }
 
