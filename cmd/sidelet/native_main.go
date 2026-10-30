@@ -57,6 +57,8 @@ type nativeTasksView struct {
 	draftSaveAt                   time.Time
 	draftSaveError                string
 	filterAll                     bool
+	searchText, searchQuery       string
+	focusSearch                   bool
 	formDue                       string
 	defaultDue                    string
 	deadline                      deadlineSegments

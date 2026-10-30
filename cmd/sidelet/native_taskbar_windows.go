@@ -39,6 +39,9 @@ func taskbarStoreCall(store *taskbarStore, method int, args ...uintptr) uintptr 
 }
 
 func configureTaskbarIcon(w *mygo.Window, profileDir string) error {
+	if err := setTaskbarWindowIcons(w.NativeHandle()); err != nil {
+		return err
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -64,9 +67,29 @@ func configureTaskbarIcon(w *mygo.Window, profileDir string) error {
 		command += " -data-dir " + syscall.EscapeArg(profileDir)
 	}
 	// A stable identity per executable keeps installed and development builds
-	// separate. Icon revisions never change the identity or pin target.
+	// separate. The NoteSpirit identity migrates the original simplified icon
+	// group, which Explorer caches even after its relaunch icon path changes.
+	// Keep this identity stable for subsequent builds (do not hash icon bytes).
 	identity := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(exe))))
-	return setTaskbarProperties(w.NativeHandle(), fmt.Sprintf("Sidelet.Desktop.%x", identity[:12]), command, icon+",0")
+	return setTaskbarProperties(w.NativeHandle(), fmt.Sprintf("Sidelet.Desktop.NoteSpirit.%x", identity[:12]), command, icon+",0")
+}
+
+// Set explicit window icons as well as Shell relaunch metadata. A class icon
+// alone can leave Explorer reusing an earlier taskbar image for this app ID.
+// LR_SHARED keeps resource handles owned by Windows across main-window reopen.
+func setTaskbarWindowIcons(hwnd uintptr) error {
+	user := windows.NewLazySystemDLL("user32.dll")
+	instance, _, _ := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetModuleHandleW").Call(0)
+	dpi, _, _ := user.NewProc("GetDpiForWindow").Call(hwnd)
+	for _, entry := range []struct{ kind, metric uintptr }{{0, 49}, {1, 11}} {
+		size, _, _ := user.NewProc("GetSystemMetricsForDpi").Call(entry.metric, dpi)
+		icon, _, err := user.NewProc("LoadImageW").Call(instance, 1, 1, size, size, 0x8000)
+		if icon == 0 {
+			return fmt.Errorf("load taskbar window icon: %w", err)
+		}
+		user.NewProc("SendMessageW").Call(hwnd, 0x80, entry.kind, icon) // WM_SETICON
+	}
+	return nil
 }
 
 func setTaskbarProperties(hwnd uintptr, id, command, icon string) error {

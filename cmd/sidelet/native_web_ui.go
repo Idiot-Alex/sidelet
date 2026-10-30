@@ -18,6 +18,16 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	c.SetTheme(v.visual.Theme)
 	c.Root().Background(v.visual.Surface)
 	v.reconcile()
+	if !v.settingsOpen && !v.workLogOpen && !v.service.m.Arranging && !v.datePickerOpen {
+		mods := ui.Ctrl
+		if runtime.GOOS == "darwin" {
+			mods = ui.Super
+		}
+		if c.Root().Shortcut(mods, ui.KeyF) {
+			v.focusSearch = true
+			v.scroll = ui.ScrollState{}
+		}
+	}
 	width, _ := c.Size()
 	pad, bottom, gap, asideWidth, panelPad := float32(32), float32(20), float32(28), float32(320), float32(0)
 	if width <= 900 {
@@ -46,7 +56,11 @@ func (v *nativeTasksView) render(c *ui.Context) {
 		if v.settingsOpen {
 			pageKey = "settings-" + v.settingsTab
 		}
-		ui.Scroll(c.Key(pageKey)).Grow(1).Padding(16, 0, 0).Children(func() {
+		page := ui.Scroll(c.Key(pageKey)).Grow(1).Padding(16, 0, 0)
+		if pageKey == "page" {
+			page.TrackScroll(&v.scroll)
+		}
+		page.Children(func() {
 			if v.service.m.storageError != "" {
 				ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
 			}
@@ -87,6 +101,13 @@ func (v *nativeTasksView) render(c *ui.Context) {
 					enterSurface(c, pane, uint64(v.editID)).Children(func() { v.webForm(c, 18) })
 				}
 			})
+			if !v.settingsOpen && !v.workLogOpen {
+				text := "自动保存在本机"
+				if v.service.m.profile == nil {
+					text = "合成任务 · 不保存"
+				}
+				ui.Text(c, text).FontSize(11).TextColor(v.visual.TextMuted).Margin(24, 0, 0).Shrink(0)
+			}
 		})
 	})
 	if !v.datePickerOpen && c.Root().Shortcut(0, ui.KeyEscape) {
@@ -176,52 +197,43 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 	}
 	t := v.visual
 	pending := v.service.m.activeCount()
-	width, _ := c.Size()
 	ui.Column(c).WidthPercent(100).Padding(0, pad, 4).Children(func() {
-		ui.Row(c).Gap(4).Padding(0, 0, 12).AlignItems(ui.Center).Children(func() {
-			for _, f := range []struct {
-				name      string
-				count     int
-				done, all bool
-			}{{"待办", pending, false, false}, {"已完成", v.service.m.totalCount() - pending, true, false}, {"全部", v.service.m.totalCount(), false, true}} {
-				selected := v.filterAll == f.all && (f.all || v.showDone == f.done)
-				b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).TextColor(t.TextMuted).Border(0, ui.Transparent).FontSize(13).Padding(7, 12)
-				if selected {
-					b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
-				}
-				b.Children(func() { ui.Text(c, fmt.Sprintf("%s %d", f.name, f.count)) })
-				if b.Clicked() && !selected {
-					v.setFilter(f.done)
-					v.filterAll = f.all
-				}
-			}
-			if width > 900 {
-				ui.Spacer(c)
-				ui.Row(c).Gap(6).Shrink(0).TextColor(v.visual.Text).Children(func() {
-					ui.Box(c).Size(5, 5).Radius(2.5).Background(t.Accent)
-					text := "自动保存在本机"
-					if v.service.m.profile == nil {
-						text = "合成任务 · 不保存"
+		ui.Row(c).Wrap().Gap(8).Padding(0, 0, 14).AlignItems(ui.Center).Children(func() {
+			ui.Row(c.Key("task-filters")).Grow(1).Gap(4).Children(func() {
+				for _, f := range []struct {
+					name      string
+					count     int
+					done, all bool
+				}{{"待办", pending, false, false}, {"已完成", v.service.m.totalCount() - pending, true, false}, {"全部", v.service.m.totalCount(), false, true}} {
+					selected := v.filterAll == f.all && (f.all || v.showDone == f.done)
+					b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).TextColor(t.TextMuted).Border(0, ui.Transparent).FontSize(13).Padding(7, 12)
+					if selected {
+						b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
 					}
-					ui.Text(c, text).FontSize(11).NoWrap()
-				})
+					b.Children(func() { ui.Text(c, fmt.Sprintf("%s %d", f.name, f.count)) })
+					if b.Clicked() && !selected {
+						v.setFilter(f.done)
+						v.filterAll = f.all
+					}
+				}
+			})
+			if !v.newFormOpen && v.editID == 0 {
+				v.webNewTaskEntry(c)
 			}
 		})
-		if !v.newFormOpen && v.editID == 0 {
-			v.webNewTaskEntry(c)
-		}
+		v.webSearch(c)
 		count := 0
 		v.deleteOutsideID, v.deleteTriggerPressed = 0, false
 		items := v.service.snapshot().Tasks
 		deleteAnchors := make(map[int]ui.Element)
 		visibleCount := 0
 		for _, item := range items {
-			if v.filterAll || item.Done == v.showDone {
+			if v.taskVisible(item) {
 				visibleCount++
 			}
 		}
 		for _, item := range items {
-			if !v.filterAll && item.Done != v.showDone {
+			if !v.taskVisible(item) {
 				continue
 			}
 			count++
@@ -253,6 +265,13 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 			v.moreID, v.deleteID = 0, 0
 		}
 		if count == 0 {
+			if strings.TrimSpace(v.searchQuery) != "" {
+				ui.Column(c).Padding(40, 12).Gap(10).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, "没有找到匹配的任务").FontSize(18).TextColor(t.Text)
+					ui.Text(c, "试试其他关键词，或切换到「全部」。").FontSize(12).TextColor(t.TextMuted)
+				})
+				return
+			}
 			ui.Column(c).Padding(50, 10).AlignItems(ui.Center).Children(func() {
 				v.webEmptyArt(c)
 				title := "这里暂时没有任务。"
@@ -281,22 +300,21 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 }
 
 func (v *nativeTasksView) webNewTaskEntry(c *ui.Context) {
-	t := v.visual
-	b := webButton(c.Key("new-task-entry"), "新建任务", false).WidthPercent(100).Height(44).Margin(0, 0, 12).Padding(0, 12).Gap(10).Border(1, t.Border).Background(t.Field).Justify(ui.Start).TextColor(t.Accent)
+	b := webButton(c.Key("new-task-entry"), "新建任务", true).Height(34).Padding(0, 12).Gap(6).Shrink(0)
+	if v.captureNewTaskDraft() != nil {
+		b.Tooltip("继续新建草稿 · " + v.newTitle)
+	}
 	if v.focusNewEntry {
 		b.Focus()
 		v.focusNewEntry = false
 	}
 	b.Children(func() {
 		webIcon(c, "plus", 17)
-		caption := "添加一件要做的事…"
+		caption := "新建任务"
 		if v.captureNewTaskDraft() != nil {
-			caption = "继续新建草稿"
-			if v.newTitle != "" {
-				caption += " · " + v.newTitle
-			}
+			caption = "继续草稿"
 		}
-		ui.Text(c, caption).FontSize(14).MaxLines(1).Ellipsis("…").Grow(1).MinWidth(0)
+		webActionText(c, caption)
 	})
 	if b.Clicked() {
 		v.openNewTask()

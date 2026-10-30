@@ -30,21 +30,16 @@ func render(svg *ui.SVG, size int) []byte {
 }
 func main() {
 	fullBytes := read("cmd/sidelet/design/sidebar-avatar.svg")
-	smallBytes := read("assets/sidelet-icon-small.svg")
-	full, small := ui.MustParseSVG(fullBytes), ui.MustParseSVG(smallBytes)
+	full := ui.MustParseSVG(fullBytes)
 	write("assets/sidelet-icon.svg", fullBytes)
 	write("website/public/sidelet-icon.svg", fullBytes)
-	write("website/public/favicon.svg", smallBytes)
+	write("website/public/favicon.svg", fullBytes)
 	write("assets/sidelet-icon.png", render(full, 1024))
-	write("cmd/sidelet/design/tray-icon.png", render(small, 32))
+	write("cmd/sidelet/design/tray-icon.png", render(full, 32))
 	sizes := []int{16, 20, 24, 32, 40, 48, 64, 128, 256}
 	frames := make([][]byte, len(sizes))
 	for i, s := range sizes {
-		svg := full
-		if s <= 32 {
-			svg = small
-		}
-		frames[i] = render(svg, s)
+		frames[i] = render(full, s)
 	}
 	var ico bytes.Buffer
 	for _, n := range []uint16{0, 1, uint16(len(sizes))} {
@@ -69,11 +64,7 @@ func main() {
 		kind string
 		size int
 	}{{"icp4", 16}, {"icp5", 32}, {"icp6", 64}, {"ic07", 128}, {"ic08", 256}, {"ic09", 512}, {"ic10", 1024}} {
-		svg := full
-		if entry.size <= 32 {
-			svg = small
-		}
-		data := render(svg, entry.size)
+		data := render(full, entry.size)
 		chunks.WriteString(entry.kind)
 		must(binary.Write(&chunks, binary.BigEndian, uint32(8+len(data))))
 		chunks.Write(data)
@@ -90,11 +81,7 @@ func main() {
 		ui.Row(c).Padding(20).Gap(20).AlignItems(ui.Center).Children(func() {
 			ui.Image(c, full).Size(192, 192)
 			for _, size := range []float32{16, 24, 32, 48} {
-				svg := small
-				if size > 32 {
-					svg = full
-				}
-				ui.Image(c, svg).Size(size, size)
+				ui.Image(c, full).Size(size, size)
 			}
 		})
 	}, 440, 232)

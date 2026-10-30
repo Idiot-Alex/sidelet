@@ -28,8 +28,8 @@ func TestMainEditorDisclosureKeepsDraftAcrossCollapseEditAndRestart(t *testing.T
 				t.Fatal("idle list still renders a permanent editor")
 			}
 			entry := visualRect(t, u, "新建任务")
-			if entry.W < 900 {
-				t.Fatal("collapsed editor still reserves an empty column", entry)
+			if entry.W > 180 || entry.W < 80 {
+				t.Fatal("new task entry should be a compact toolbar action", entry)
 			}
 			click("新建任务")
 			if !u.Focused("新任务标题") {
@@ -42,7 +42,7 @@ func TestMainEditorDisclosureKeepsDraftAcrossCollapseEditAndRestart(t *testing.T
 			if v.newFormOpen || !u.Focused("新建任务") || p.saved.NewTaskDraft == nil || p.saved.NewTaskDraft.Note != "第一行\n第二行" {
 				t.Fatal("collapse lost focus or failed to persist the complete draft")
 			}
-			if !u.HasText("继续新建草稿 · 待续草稿") {
+			if !u.HasText("继续草稿") {
 				t.Fatal("collapsed draft has no visible recovery entry")
 			}
 			click("编辑：已有任务")

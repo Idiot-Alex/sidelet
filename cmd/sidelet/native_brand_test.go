@@ -6,6 +6,8 @@ import (
 	"image/png"
 	"os"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestBrandIconAssetsStayInSync(t *testing.T) {
@@ -17,14 +19,12 @@ func TestBrandIconAssetsStayInSync(t *testing.T) {
 		}
 		return b
 	}
-	for _, path := range []string{"../../assets/sidelet-icon.svg", "../../website/public/sidelet-icon.svg"} {
+	for _, path := range []string{"../../assets/sidelet-icon.svg", "../../website/public/sidelet-icon.svg", "../../website/public/favicon.svg"} {
 		if !bytes.Equal(read(path), sidebarAvatarSVG) {
 			t.Fatalf("%s is stale; run scripts/prepare-icons.go", path)
 		}
 	}
-	if !bytes.Equal(read("../../assets/sidelet-icon-small.svg"), read("../../website/public/favicon.svg")) {
-		t.Fatal("favicon is stale")
-	}
+	svg := ui.MustParseSVG(sidebarAvatarSVG)
 	checkPNG := func(data []byte, size int) {
 		t.Helper()
 		img, e := png.Decode(bytes.NewReader(data))
@@ -37,6 +37,29 @@ func TestBrandIconAssetsStayInSync(t *testing.T) {
 		_, _, _, alpha := img.At(0, 0).RGBA()
 		if alpha != 0 {
 			t.Fatal("icon corners must be transparent")
+		}
+		preview := ui.NewTester(func(c *ui.Context) {
+			c.Root().Background(ui.Transparent)
+			ui.Image(c, svg).Size(float32(size), float32(size))
+		}, size, size)
+		// Compare after the same PNG round trip: premultiplied renderer colors
+		// otherwise differ slightly at antialiased, translucent edges.
+		var rendered bytes.Buffer
+		if err := png.Encode(&rendered, preview.Image()); err != nil {
+			t.Fatal(err)
+		}
+		want, err := png.Decode(&rendered)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for y := 0; y < size; y++ {
+			for x := 0; x < size; x++ {
+				r, g, b, a := img.At(x, y).RGBA()
+				wr, wg, wb, wa := want.At(x, y).RGBA()
+				if r != wr || g != wg || b != wb || a != wa {
+					t.Fatalf("%dpx icon differs from floating mascot at %d,%d; regenerate icons", size, x, y)
+				}
+			}
 		}
 	}
 	checkPNG(nativeTrayIcon(), 32)

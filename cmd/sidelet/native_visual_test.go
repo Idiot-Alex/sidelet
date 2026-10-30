@@ -44,12 +44,12 @@ func TestEmptyTaskPageOffersFocusedFirstTaskInEveryTheme(t *testing.T) {
 			}
 			tabs := visualRect(t, u, "待办 1")
 			note := visualRect(t, u, "自动保存在本机")
-			if math.Abs(float64(tabs.Y+tabs.H/2-note.Y-note.H/2)) > 1 || note.X < tabs.X+tabs.W {
-				t.Fatal("save note not aligned with filter bar", tabs, note)
+			if note.Y <= tabs.Y+tabs.H {
+				t.Fatal("save note should follow page content", tabs, note)
 			}
 			u.SetSize(820, 600)
-			if u.HasText("自动保存在本机") {
-				t.Fatal("compact filter bar kept wide save note")
+			if !u.HasText("自动保存在本机") {
+				t.Fatal("compact page lost save note")
 			}
 			if err := u.Click("已完成 0"); err != nil {
 				t.Fatal(err)
