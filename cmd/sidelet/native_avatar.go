@@ -17,6 +17,7 @@ const sidebarAvatarSize = 56
 type nativeAvatar struct {
 	window                           *mygo.Window
 	image                            *ui.SVG
+	gaze                             avatarGaze
 	service                          *TasksService
 	openMain, quickAdd, openSettings func()
 	pressed, dragging                bool
@@ -60,6 +61,7 @@ func (a *nativeAvatar) sync() {
 	m := a.service.m
 	if m.Preferences.Appearance.HideSidebarAvatar || m.desktopArrange() {
 		a.closePanel()
+		a.gaze.stop()
 		if a.window != nil && a.window.IsVisible() {
 			a.window.Hide()
 		}
@@ -74,6 +76,8 @@ func (a *nativeAvatar) sync() {
 			Frameless: true, Transparent: true, AlwaysOnTop: true, DisableResize: true, DisableShadow: true, Hidden: true, BackgroundColor: "#00000000", Content: ui.View(a.render)})
 		a.window.OnBlur(a.cancelDrag)
 		w := a.window
+		w.OnHide(a.gaze.stop)
+		w.OnShow(a.startGaze)
 		w.OnMinimize(func() {
 			// Shell actions can minimize a window even without a minimize
 			// button. Restore after WM_SIZE dispatch, without taking focus.
@@ -85,6 +89,7 @@ func (a *nativeAvatar) sync() {
 		})
 		w.OnClosed(func() {
 			if a.window == w {
+				a.gaze.stop()
 				a.window = nil
 			}
 		})
@@ -100,6 +105,7 @@ func (a *nativeAvatar) sync() {
 	if !a.window.IsVisible() {
 		a.window.ShowInactive()
 	}
+	a.startGaze()
 }
 
 // Share one lazily parsed vector between the avatar and settings preview.
@@ -137,7 +143,10 @@ func (a *nativeAvatar) render(c *ui.Context) {
 	})
 	webFocus(c, b, 28)
 	b.Children(func() {
-		ui.Image(c, a.vector()).Fill().Fit(ui.Contain)
+		a.vector() // Keep the shared static asset available for previews.
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
+			drawAvatarGaze(p, r, a.gaze.offset)
+		})
 	})
 }
 
@@ -240,6 +249,7 @@ func (a *nativeAvatar) cancelDrag() {
 
 func (h *nativeApp) createAvatar() *nativeAvatar {
 	a := h.newAssistantMenu()
+	onQuitCleanup(a.gaze.stop)
 	a.sync()
 	return a
 }

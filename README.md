@@ -20,7 +20,7 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。
 
-当前打包构建号为 47。本轮官网同步、头像资源优化与验收记录见 [build 47](docs/mygo/BUILD47_20261030.md)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build47-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
+当前打包构建号为 50。精灵视线跟随与本轮验证记录见 [build 50](docs/mygo/AVATAR_GAZE_20261031.md#build-50远距离响应优化)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build50-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
 
 ## 数据与应用身份
 

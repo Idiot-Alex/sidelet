@@ -189,6 +189,9 @@ func main() {
 		if card != nil {
 			data["cardBounds"], data["cardFocused"], data["cardVisible"] = card.Bounds(), card.IsFocused(), card.IsVisible()
 		}
+		if avatar != nil && avatar.window != nil {
+			data["avatar"] = map[string]any{"bounds": avatar.window.Bounds(), "visible": avatar.window.IsVisible(), "gazeRunning": avatar.gaze.running, "gazeX": avatar.gaze.offset.x, "gazeY": avatar.gaze.offset.y}
+		}
 		if backgroundProbe != nil {
 			data["probeBounds"], data["probeFocused"] = backgroundProbe.Bounds(), backgroundProbe.IsFocused()
 		}
@@ -570,6 +573,9 @@ func main() {
 				var stateJSON []byte
 				mygo.RunOnMain(func() {
 					targets = map[string]*mygo.Window{"stack": stack, "card": card}
+					if avatar != nil {
+						targets["avatar"] = avatar.window
+					}
 					if h != nil {
 						targets["main"] = h.window
 					}
