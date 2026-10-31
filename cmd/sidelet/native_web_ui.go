@@ -226,32 +226,14 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 		v.deleteOutsideID, v.deleteTriggerPressed = 0, false
 		items := v.service.snapshot().Tasks
 		deleteAnchors := make(map[int]ui.Element)
-		visibleCount := 0
+		visible := make([]taskEntry, 0, len(items))
 		for _, item := range items {
 			if v.taskVisible(item) {
-				visibleCount++
+				visible = append(visible, item)
 			}
 		}
-		for _, item := range items {
-			if !v.taskVisible(item) {
-				continue
-			}
-			count++
-			row := ui.Column(c.Key(fmt.Sprintf("task-%d", item.ID))).Padding(15, 12)
-			if count < visibleCount {
-				row.BorderColor(t.Border).BorderWidth(0, 0, 1, 0)
-			}
-			if row.Hovered() {
-				row.Background(t.Alt).Radius(8)
-			}
-			if v.editID == item.ID {
-				row.Background(t.Soft).Radius(8)
-			}
-			showActions := row.Hovered() || row.FocusWithin() || v.editID == item.ID || v.moreID == item.ID
-			row.Children(func() {
-				deleteAnchors[item.ID] = v.webTaskRow(c, item, showActions)
-			})
-		}
+		count = len(visible)
+		v.webTaskTimeline(c, visible, deleteAnchors)
 		for _, item := range items {
 			if item.ID == v.moreID {
 				if anchor, ok := deleteAnchors[item.ID]; ok {
@@ -423,20 +405,42 @@ func (v *nativeTasksView) webTaskRow(c *ui.Context, item taskEntry, showActions 
 }
 
 func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {
-	if item.DueAt == 0 && (!item.Remind || item.Done) && !item.Temporary {
+	if !item.Done && item.DueAt == 0 && !item.Remind && !item.Temporary {
 		return
 	}
 	t := v.visual
 	status := ui.Row(c).Wrap().GapX(10).GapY(5).AlignItems(ui.Center).Margin(4, 0, 0, 30).TextColor(t.Subtle)
 	status.Children(func() {
-		if item.DueAt > 0 {
+		if item.Done {
+			label := "完成时间未记录"
+			if item.CompletedAt > 0 {
+				at := time.UnixMilli(item.CompletedAt).In(v.service.m.now().Location())
+				format := "1/2 15:04"
+				if at.Year() != v.service.m.now().Year() {
+					format = "2006/1/2 15:04"
+				}
+				if v.showDone && !v.filterAll {
+					format = "15:04"
+				}
+				label = "完成于 " + at.Format(format)
+			}
+			ui.Row(c).Gap(4).TextColor(t.TextMuted).Children(func() {
+				webIcon(c, "check", 12)
+				ui.Text(c, label).FontSize(12).LineHeight(4.0 / 3).FontFeatures("tnum").NoWrap()
+			})
+		}
+		if item.DueAt > 0 && !(item.Done && v.showDone && !v.filterAll) {
 			color := t.TextMuted
 			if !item.Done && item.DueAt < v.service.m.now().UnixMilli() {
 				color = t.Danger
 			}
 			ui.Row(c).Gap(4).TextColor(color).Children(func() {
 				webIcon(c, "clock", 12)
-				ui.Text(c, dueText(item.task, v.service.m.now())).FontSize(12).LineHeight(4.0 / 3).FontFeatures("tnum").NoWrap()
+				label := dueText(item.task, v.service.m.now())
+				if item.Done {
+					label = "计划 " + label
+				}
+				ui.Text(c, label).FontSize(12).LineHeight(4.0 / 3).FontFeatures("tnum").NoWrap()
 			})
 		}
 		if item.Remind && !item.Done {
