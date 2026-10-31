@@ -53,7 +53,7 @@ func (v *nativeTasksView) openDatePopup(anchor ui.Element) {
 	p := &nativeDatePopup{owner: owner}
 	v.datePopup = p
 	v.pickerCalendarOpen = true
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet · 预计完成时间", Parent: owner,
+	w := newAuxiliaryWindow(mygo.WindowOptions{Title: "Sidelet · 预计完成时间", Parent: owner,
 		X: bounds.X, Y: bounds.Y, Width: bounds.Width, Height: bounds.Height,
 		Frameless: true, DisableResize: true, AlwaysOnTop: true, SkipTaskbar: true, Hidden: true,
 		Content: ui.View(func(c *ui.Context) {

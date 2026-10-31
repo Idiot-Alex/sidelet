@@ -14,7 +14,7 @@ func newRoundedDesktopWindow(opts mygo.WindowOptions) *mygo.Window {
 	if runtime.GOOS == "windows" {
 		opts.Vibrancy = mygo.VibrancyPopover
 	}
-	w := mygo.NewWindow(opts)
+	w := newAuxiliaryWindow(opts)
 	if runtime.GOOS == "windows" {
 		if err := configureClearTransparency(w, true); err != nil {
 			log.Printf("rounded desktop alpha unavailable: %v", err)

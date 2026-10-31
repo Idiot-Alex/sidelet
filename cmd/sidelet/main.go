@@ -453,7 +453,7 @@ func main() {
 				v.beginSession(i)
 			}
 			if card == nil {
-				card = mygo.NewWindow(mygo.WindowOptions{Title: "Sidelet MyGo 任务卡片", Width: cardWidth, Height: cardHeight, Hidden: true, Frameless: true,
+				card = newAuxiliaryWindow(mygo.WindowOptions{Title: "Sidelet MyGo 任务卡片", Width: cardWidth, Height: cardHeight, Hidden: true, Frameless: true,
 					Transparent: true, Vibrancy: mygo.VibrancyPopover, AlwaysOnTop: true, DisableResize: true, Content: ui.View(v.card)})
 				cardGlass.bind(card, m, mygo.VibrancyPopover, true)
 				input.bindCard(card)

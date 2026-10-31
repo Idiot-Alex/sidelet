@@ -46,7 +46,7 @@ func (a *nativeAvatar) popupAt(r mygo.Rectangle, parent *mygo.Window) {
 		height += 53
 	}
 	bounds := assistantPanelBounds(r, area, height)
-	w := mygo.NewWindow(mygo.WindowOptions{
+	w := newAuxiliaryWindow(mygo.WindowOptions{
 		Title: "Sidelet 助手菜单", Parent: parent,
 		X: bounds.X, Y: bounds.Y, Width: bounds.Width, Height: bounds.Height,
 		Frameless: true, DisableResize: true, AlwaysOnTop: true, SkipTaskbar: true,
