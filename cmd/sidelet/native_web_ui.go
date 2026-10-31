@@ -249,24 +249,13 @@ func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 	}
 	t := v.visual
 	ui.Column(c).WidthPercent(100).Padding(0, pad, 4).Children(func() {
-		count := 0
 		v.deleteOutsideID, v.deleteTriggerPressed = 0, false
-		items := v.service.snapshot().Tasks
+		prepared := v.preparedTimeline(v.service.m.now())
+		count := prepared.count
 		deleteAnchors := make(map[int]ui.Element)
-		visible := make([]taskEntry, 0, len(items))
-		for _, item := range items {
-			if v.taskVisible(item) {
-				visible = append(visible, item)
-			}
-		}
-		count = len(visible)
-		v.webTaskTimeline(c, visible, deleteAnchors)
-		for _, item := range items {
-			if item.ID == v.moreID {
-				if anchor, ok := deleteAnchors[item.ID]; ok {
-					v.webDeleteConfirmation(c, item, anchor)
-				}
-			}
+		v.webTaskTimeline(c, prepared, deleteAnchors)
+		if anchor, ok := deleteAnchors[v.moreID]; ok && v.moreID > 0 && v.moreID <= len(v.service.m.Tasks) {
+			v.webDeleteConfirmation(c, taskEntry{ID: v.moreID, task: v.service.m.Tasks[v.moreID-1]}, anchor)
 		}
 		// Resolve outside dismissal after all delete triggers, so switching
 		// tasks cannot dismiss the newly opened confirmation.

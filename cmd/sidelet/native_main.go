@@ -45,6 +45,7 @@ type nativeTasksView struct {
 	scroll                        ui.ScrollState
 	taskScroll                    [3]ui.ScrollState
 	taskCollapsed                 [3]map[string]bool
+	timelineCache                 taskTimelineCache
 	jumpToday                     bool
 	theme                         *ui.Theme
 	visual                        *visualTheme

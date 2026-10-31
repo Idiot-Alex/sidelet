@@ -20,7 +20,7 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 
 测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。显式使用 `-memory`、`-data-dir` 或 `-output` 的实例显示“Sidelet · 演示”和独立数据提示；默认启动仍显示 Sidelet。同一应用标识下重复启动同一资料目录，会唤起原窗口；独立资料仍可并行，SQLite 资料锁保留。
 
-当前打包构建号为 54。固定工具栏、日期折叠与实例区分见 [build 54](docs/mygo/TIMELINE_NAVIGATION_20261031.md)，三页签时间轴见 [build 53](docs/mygo/TASK_TIMELINE_ALL_20261031.md)，待办首版见 [build 52](docs/mygo/TASK_TIMELINE_20261031.md)；macOS Dock 窗口列表修复见 [build 51](docs/mygo/MACOS_DOCK_WINDOWS_20261031.md)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build54-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
+当前打包构建号为 55。列表分配优化与内存实测见 [build 55](docs/mygo/LIST_MEMORY_20261031.md)。固定工具栏、日期折叠与实例区分见 [build 54](docs/mygo/TIMELINE_NAVIGATION_20261031.md)，三页签时间轴见 [build 53](docs/mygo/TASK_TIMELINE_ALL_20261031.md)，待办首版见 [build 52](docs/mygo/TASK_TIMELINE_20261031.md)；macOS Dock 窗口列表修复见 [build 51](docs/mygo/MACOS_DOCK_WINDOWS_20261031.md)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build55-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
 
 ## 数据与应用身份
 

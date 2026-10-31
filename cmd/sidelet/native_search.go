@@ -51,12 +51,7 @@ func (v *nativeTasksView) webSearch(c *ui.Context) {
 		// the list or change the input width, including while using an IME.
 		ui.Row(c.Key("search-status")).Width(86).Shrink(0).Gap(4).AlignItems(ui.Center).Justify(ui.End).Children(func() {
 			if v.searchText != "" {
-				count := 0
-				for _, item := range v.service.snapshot().Tasks {
-					if v.taskVisible(item) {
-						count++
-					}
-				}
+				count := v.preparedTimeline(v.service.m.now()).count
 				ui.Text(c, fmt.Sprintf("%d 项", count)).Label(fmt.Sprintf("当前分类找到 %d 项任务", count)).FontSize(11).TextColor(t.TextMuted).NoWrap()
 				b := webIconButton(c, "清空搜索", "close", 14).Size(26, 26)
 				if b.Clicked() {

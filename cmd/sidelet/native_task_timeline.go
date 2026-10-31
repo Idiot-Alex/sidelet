@@ -43,17 +43,8 @@ func (v *nativeTasksView) setTaskFilter(done, all bool) {
 }
 
 func (v *nativeTasksView) hasTodayTasks() bool {
-	now, mode := v.service.m.now(), v.taskTimelineMode()
-	for i, entry := range v.service.m.Tasks {
-		item := taskEntry{ID: i + 1, task: entry}
-		if !v.taskVisible(item) {
-			continue
-		}
-		at := timelineTimestamp(item, mode)
-		if at <= 0 || mode == timelinePending && at < now.UnixMilli() {
-			continue
-		}
-		if time.UnixMilli(at).In(now.Location()).Format("2006-01-02") == now.Format("2006-01-02") {
+	for _, group := range v.preparedTimeline(v.service.m.now()).groups {
+		if group.key == "today" {
 			return true
 		}
 	}
@@ -99,7 +90,7 @@ func taskTimeline(items []taskEntry, now time.Time, mode taskTimelineMode) []tas
 		return a < b
 	})
 	var groups []taskDateGroup
-	for _, item := range ordered {
+	for i, item := range ordered {
 		key, title, detail := "unscheduled", "未安排", ""
 		if mode == timelineCompleted {
 			key, title = "unknown-completion", "完成日期未知"
@@ -111,9 +102,11 @@ func taskTimeline(items []taskEntry, now time.Time, mode taskTimelineMode) []tas
 			}
 		}
 		if len(groups) == 0 || groups[len(groups)-1].key != key {
-			groups = append(groups, taskDateGroup{key: key, title: title, detail: detail})
+			groups = append(groups, taskDateGroup{key: key, title: title, detail: detail, items: ordered[i:i:i]})
 		}
-		groups[len(groups)-1].items = append(groups[len(groups)-1].items, item)
+		group := &groups[len(groups)-1]
+		start := i - len(group.items)
+		group.items = ordered[start : i+1 : i+1]
 	}
 	return groups
 }
@@ -165,13 +158,14 @@ func nextTaskTimelineChange(items []taskEntry, now time.Time, mode taskTimelineM
 	return next.Sub(now)
 }
 
-func (v *nativeTasksView) webTaskTimeline(c *ui.Context, items []taskEntry, anchors map[int]ui.Element) {
+func (v *nativeTasksView) webTaskTimeline(c *ui.Context, prepared *taskTimelineCache, anchors map[int]ui.Element) {
 	t := v.visual
 	now, mode := v.service.m.now(), v.taskTimelineMode()
-	if delay := nextTaskTimelineChange(items, now, mode); delay > 0 {
-		c.After(delay)
+	if !prepared.expires.IsZero() {
+		// The deadline may pass between preparation and rendering this frame.
+		c.After(max(time.Millisecond, prepared.expires.Sub(now)))
 	}
-	if len(items) > 0 {
+	if prepared.count > 0 {
 		caption := "按预计完成时间"
 		if mode == timelineCompleted {
 			caption = "按实际完成日期 · 最近在前"
@@ -184,7 +178,7 @@ func (v *nativeTasksView) webTaskTimeline(c *ui.Context, items []taskEntry, anch
 	if v.taskCollapsed[mode] == nil {
 		v.taskCollapsed[mode] = make(map[string]bool)
 	}
-	for _, group := range taskTimeline(items, now, mode) {
+	for _, group := range prepared.groups {
 		collapseKey := timelineCollapseKey(group, mode, now)
 		searching := strings.TrimSpace(v.searchQuery) != ""
 		collapsed := v.taskCollapsed[mode][collapseKey] && !searching
