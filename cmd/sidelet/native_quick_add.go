@@ -64,7 +64,7 @@ func (h *nativeApp) openQuickAdd(source string) {
 	q.savedTitle = ""
 	q.focus = true
 	if q.window == nil {
-		w := newAuxiliaryWindow(mygo.WindowOptions{Title: "Sidelet · 快速添加", Width: 540, Height: 360, Hidden: true,
+		w := newAuxiliaryWindow(mygo.WindowOptions{Title: h.service.m.applicationTitle() + " · 快速添加", Width: 540, Height: 360, Hidden: true,
 			DisableResize: true, Frameless: true, AlwaysOnTop: true, Content: ui.View(q.render)})
 		q.window = w
 		q.hide = w.Hide

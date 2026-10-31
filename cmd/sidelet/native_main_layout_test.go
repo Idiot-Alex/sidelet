@@ -196,8 +196,12 @@ func TestMainNoteDisclosureKeepsContentAndNewFormState(t *testing.T) {
 			click("新任务标题")
 			u.Type("草稿任务")
 			click("展开备注")
-			if !u.Focused("任务备注") || visualRect(t, u, "添加任务").Y < collapsed.Y+70 {
+			note, fields := visualRect(t, u, "任务备注"), visualRect(t, u, "任务编辑内容")
+			if !u.Focused("任务备注") || note.Y < fields.Y || note.Y+note.H > fields.Y+fields.H {
 				t.Fatal("expansion did not reveal and focus the note")
+			}
+			if visualRect(t, u, "添加任务") != collapsed {
+				t.Fatal("note expansion moved the pinned submit action")
 			}
 			u.Type("需要保留的备注")
 			click("收起备注")

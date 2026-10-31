@@ -317,13 +317,16 @@ func (h *nativeApp) show() {
 		return
 	}
 	if h.window != nil {
+		if h.window.IsMinimized() {
+			h.window.Restore()
+		}
 		h.window.Show()
 		h.window.Focus()
 		return
 	}
 	opts := mygo.WindowOptions{Title: "Sidelet · 任务", Width: 760, Height: 600, MinWidth: 560, MinHeight: 460, BackgroundColor: "#f7f8f4"}
 	if h.native {
-		opts.Title = "Sidelet"
+		opts.Title = h.service.m.applicationTitle()
 		if runtime.GOOS == "windows" {
 			opts.TitleBarStyle = mygo.TitleBarHidden
 		}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -29,6 +30,42 @@ func (v *nativeTasksView) taskTimelineMode() taskTimelineMode {
 		return timelineCompleted
 	}
 	return timelinePending
+}
+
+func (v *nativeTasksView) currentTaskScroll() *ui.ScrollState {
+	return &v.taskScroll[v.taskTimelineMode()]
+}
+
+func (v *nativeTasksView) setTaskFilter(done, all bool) {
+	v.setFilter(done)
+	v.filterAll = all
+	v.jumpToday = false
+}
+
+func (v *nativeTasksView) hasTodayTasks() bool {
+	now, mode := v.service.m.now(), v.taskTimelineMode()
+	for i, entry := range v.service.m.Tasks {
+		item := taskEntry{ID: i + 1, task: entry}
+		if !v.taskVisible(item) {
+			continue
+		}
+		at := timelineTimestamp(item, mode)
+		if at <= 0 || mode == timelinePending && at < now.UnixMilli() {
+			continue
+		}
+		if time.UnixMilli(at).In(now.Location()).Format("2006-01-02") == now.Format("2006-01-02") {
+			return true
+		}
+	}
+	return false
+}
+
+// Store actual dates, so a collapsed "today" does not collapse tomorrow's tasks.
+func timelineCollapseKey(group taskDateGroup, mode taskTimelineMode, now time.Time) string {
+	if group.key == "today" || group.key == "yesterday" || group.key == "tomorrow" {
+		return time.UnixMilli(timelineTimestamp(group.items[0], mode)).In(now.Location()).Format("2006-01-02")
+	}
+	return group.key
 }
 
 func timelineTimestamp(item taskEntry, mode taskTimelineMode) int64 {
@@ -144,7 +181,19 @@ func (v *nativeTasksView) webTaskTimeline(c *ui.Context, items []taskEntry, anch
 		}
 		ui.Text(c, caption).FontSize(11).TextColor(t.TextMuted).Margin(6, 0, 2, 24)
 	}
+	if v.taskCollapsed[mode] == nil {
+		v.taskCollapsed[mode] = make(map[string]bool)
+	}
 	for _, group := range taskTimeline(items, now, mode) {
+		collapseKey := timelineCollapseKey(group, mode, now)
+		searching := strings.TrimSpace(v.searchQuery) != ""
+		collapsed := v.taskCollapsed[mode][collapseKey] && !searching
+		jump := v.jumpToday && group.key == "today"
+		if jump {
+			delete(v.taskCollapsed[mode], collapseKey)
+			collapsed = false
+			v.jumpToday = false
+		}
 		color := t.TextMuted
 		if group.key == "today" {
 			color = t.Accent
@@ -152,16 +201,48 @@ func (v *nativeTasksView) webTaskTimeline(c *ui.Context, items []taskEntry, anch
 		if group.key == "overdue" {
 			color = t.Danger
 		}
-		ui.Column(c.Key(fmt.Sprintf("timeline-%d-%s", mode, group.key))).Margin(0, 0, 12).Children(func() {
+		section := ui.Column(c.Key(fmt.Sprintf("timeline-%d-%s", mode, group.key))).Margin(0, 0, 12)
+		if jump {
+			section.ScrollIntoView()
+		}
+		section.Children(func() {
 			ui.Box(c).Absolute().Left(5).Top(20).Bottom(0).Width(1).Background(t.Border)
 			ui.Box(c).Absolute().Left(2).Top(15).Size(7, 7).Radius(4).Background(color)
-			ui.Row(c).Height(38).Padding(0, 0, 0, 24).Gap(8).AlignItems(ui.Center).Children(func() {
+			action, icon := "收起", "chevron"
+			if collapsed {
+				action, icon = "展开", "chevron-right"
+			}
+			header := ui.ButtonBase(c).Label(action+"日期分组："+group.title).WidthPercent(100).Height(38).Padding(0, 8, 0, 24).Gap(8).AlignItems(ui.Center).Justify(ui.Start).Radius(6).Disabled(searching)
+			if searching {
+				header.Tooltip("搜索时展开所有匹配日期")
+			}
+			if header.Hovered() {
+				header.Background(t.Alt)
+			}
+			header.Children(func() {
 				ui.Text(c, group.title).FontSize(13).FontWeight(600).TextColor(color)
 				if group.detail != "" {
 					ui.Text(c, group.detail).FontSize(11).TextColor(t.TextMuted)
 				}
 				ui.Text(c, fmt.Sprintf("%d 项", len(group.items))).FontSize(11).TextColor(t.TextMuted)
+				ui.Box(c).TextColor(t.TextMuted).Children(func() { webIcon(c, icon, 12) })
 			})
+			if header.Clicked() {
+				if collapsed {
+					delete(v.taskCollapsed[mode], collapseKey)
+				} else {
+					v.taskCollapsed[mode][collapseKey] = true
+				}
+				for _, item := range group.items {
+					if item.ID == v.moreID {
+						v.moreID, v.deleteID = 0, 0
+					}
+				}
+				c.Invalidate()
+			}
+			if collapsed {
+				return
+			}
 			ui.Column(c).Margin(0, 0, 0, 16).Children(func() {
 				for i, item := range group.items {
 					anchors[item.ID] = v.webTaskListRow(c, item, i < len(group.items)-1)

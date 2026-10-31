@@ -387,7 +387,7 @@ func TestPackagedWindowsCrossProcessFocus(t *testing.T) {
 		d.keys(probeWindow, 0x11, 0x10, 0x20)
 		var quick uintptr
 		d.wait("global shortcut opens quick add", func() bool {
-			quick = focusWindow(app.Process.Pid, "Sidelet · 快速添加")
+			quick = focusWindow(app.Process.Pid, "Sidelet · 演示 · 快速添加")
 			return quick != 0 && d.app().QuickVisible
 		})
 		d.foreground(quick)

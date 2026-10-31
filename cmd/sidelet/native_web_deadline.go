@@ -55,6 +55,7 @@ func (v *nativeTasksView) webDeadlineLayout(c *ui.Context, split bool) {
 			}
 			v.datePickerOpen = !v.datePickerOpen
 			if v.datePickerOpen {
+				v.revealDatePanel = true
 				v.openDatePopup(field)
 			}
 		}
@@ -122,6 +123,10 @@ func (v *nativeTasksView) renderDatePanel(c *ui.Context) {
 	panel := ui.Column(c.Key("inline-deadline")).Label("预计完成时间设置").Padding(12).Gap(10).Margin(8, 0, 0).Border(1, t.Border).Radius(t.Radius).Background(t.Surface)
 	if standalone {
 		panel.Padding(16).Margin(0).Border(0, ui.Transparent).Radius(0)
+	}
+	if v.revealDatePanel && !standalone {
+		panel.ScrollIntoView()
+		v.revealDatePanel = false
 	}
 	panel.Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {

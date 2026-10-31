@@ -25,7 +25,6 @@ func (v *nativeTasksView) render(c *ui.Context) {
 		}
 		if c.Root().Shortcut(mods, ui.KeyF) {
 			v.focusSearch = true
-			v.scroll = ui.ScrollState{}
 		}
 	}
 	width, _ := c.Size()
@@ -41,13 +40,20 @@ func (v *nativeTasksView) render(c *ui.Context) {
 	ui.Column(c).Fill().Padding(0, pad, bottom).Children(func() {
 		if bar := c.TitleBar(); bar.Height > 0 {
 			ui.Row(c).Height(bar.Height).Shrink(0).Padding(0, bar.Right, 0, bar.Left).DragWindow().Children(func() {
-				ui.Text(c, "Sidelet").FontSize(12).FontWeight(500).TextColor(v.visual.TextMuted)
+				ui.Text(c, v.service.m.applicationTitle()).FontSize(12).FontWeight(500).TextColor(v.visual.TextMuted)
 			})
 		}
 		v.webHeader(c)
+		if v.service.m.demoInstance {
+			ui.Text(c, "演示实例 · 独立数据，不影响日常任务").FontSize(12).TextColor(v.visual.Accent).Margin(0, 0, 4).Shrink(0)
+		}
 		v.webDraftSaveError(c)
 		if v.settingsOpen {
 			v.webSettingsNavigation(c)
+		}
+		if !v.settingsOpen && !v.workLogOpen && !v.service.m.Arranging {
+			v.webTaskWorkspace(c, width, gap, asideWidth)
+			return
 		}
 		pageKey := "page"
 		if v.workLogOpen {
@@ -72,42 +78,7 @@ func (v *nativeTasksView) render(c *ui.Context) {
 				v.webSettings(c)
 				return
 			}
-			if v.failed && v.status != "" {
-				ui.Text(c, v.status).FontSize(12).TextColor(v.visual.Danger).Background(v.visual.DangerSoft).Padding(12, 16).Radius(v.visual.Theme.Radius).Margin(0, 0, 18)
-			}
-			v.webNotificationStatus(c)
-			v.webUndo(c)
-			editorOpen := v.newFormOpen || v.editID > 0
-			layout := ui.Row(c.Key("tasks-layout")).WidthPercent(100).MaxWidth(1080).Margin(0, ui.Auto).Gap(gap).AlignItems(ui.Start)
-			if width <= 650 {
-				layout.Column().AlignItems(ui.Stretch)
-				if editorOpen {
-					layout.Reverse()
-				}
-			}
-			layout.Children(func() {
-				// Keep both branches keyed: opening an editor or resizing must
-				// not replace text-input state, selection or IME composition.
-				ui.Column(c.Key("task-list-pane")).Grow(1).MinWidth(0).Children(func() {
-					v.webTaskList(c, panelPad)
-				})
-				if editorOpen {
-					pane := ui.Box(c.Key("task-editor-pane")).Shrink(0)
-					if width > 650 {
-						pane.Width(asideWidth)
-					} else {
-						pane.WidthPercent(100)
-					}
-					enterSurface(c, pane, uint64(v.editID)).Children(func() { v.webForm(c, 18) })
-				}
-			})
-			if !v.settingsOpen && !v.workLogOpen {
-				text := "自动保存在本机"
-				if v.service.m.profile == nil {
-					text = "合成任务 · 不保存"
-				}
-				ui.Text(c, text).FontSize(11).TextColor(v.visual.TextMuted).Margin(24, 0, 0).Shrink(0)
-			}
+			v.webOrder(c, panelPad)
 		})
 	})
 	if !v.datePickerOpen && c.Root().Shortcut(0, ui.KeyEscape) {
@@ -134,6 +105,53 @@ func (v *nativeTasksView) render(c *ui.Context) {
 		v.failed = false
 		v.status = ""
 	}
+}
+
+// The list owns its viewport; the editor scrolls separately, so keeping search
+// visible does not push editor fields or save actions below a taller toolbar.
+func (v *nativeTasksView) webTaskWorkspace(c *ui.Context, width float32, gap, asideWidth float32) {
+	t := v.visual
+	ui.Column(c.Key("task-workspace")).Grow(1).MinHeight(0).Padding(16, 0, 0).Children(func() {
+		if v.service.m.storageError != "" {
+			ui.Text(c, v.service.m.storageError).FontSize(12).TextColor(t.Danger).Margin(0, 0, 10)
+		}
+		if v.failed && v.status != "" {
+			ui.Text(c, v.status).FontSize(12).TextColor(t.Danger).Margin(0, 0, 10)
+		}
+		v.webNotificationStatus(c)
+		v.webUndo(c)
+		editorOpen := v.newFormOpen || v.editID > 0
+		layout := ui.Row(c.Key("tasks-layout")).Grow(1).MinHeight(0).WidthPercent(100).MaxWidth(1080).Margin(0, ui.Auto).Gap(gap).AlignItems(ui.Stretch)
+		if width <= 650 {
+			layout.Column()
+			if editorOpen {
+				layout.Reverse()
+			}
+		}
+		layout.Children(func() {
+			ui.Column(c.Key("task-list-pane")).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+				ui.Column(c.Key("task-toolbar")).Shrink(0).Children(func() { v.webTaskToolbar(c) })
+				ui.Scroll(c.Key(fmt.Sprintf("task-scroll-%d", v.taskTimelineMode()))).Label("任务时间轴").Grow(1).MinHeight(0).TrackScroll(v.currentTaskScroll()).Children(func() { v.webTaskList(c, 0) })
+			})
+			if editorOpen {
+				pane := ui.Box(c.Key("task-editor-pane")).Shrink(0)
+				if width > 650 {
+					pane.Width(asideWidth)
+				} else {
+					pane.WidthPercent(100).HeightPercent(60)
+				}
+				pane.Children(func() {
+					box := ui.Box(c).Fill()
+					enterSurface(c, box, uint64(v.editID)).Children(func() { v.webForm(c, 18) })
+				})
+			}
+		})
+		text := "自动保存在本机"
+		if v.service.m.profile == nil {
+			text = "合成任务 · 不保存"
+		}
+		ui.Text(c, text).FontSize(11).TextColor(t.TextMuted).Margin(12, 0, 0).Shrink(0)
+	})
 }
 
 func (v *nativeTasksView) webHeader(c *ui.Context) {
@@ -190,38 +208,47 @@ func (v *nativeTasksView) webHeader(c *ui.Context) {
 	})
 }
 
+func (v *nativeTasksView) webTaskToolbar(c *ui.Context) {
+	t := v.visual
+	pending := v.service.m.activeCount()
+	ui.Row(c).Wrap().Gap(8).Padding(0, 0, 14).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("task-filters")).Grow(1).Gap(4).Children(func() {
+			for _, f := range []struct {
+				name      string
+				count     int
+				done, all bool
+			}{{"待办", pending, false, false}, {"已完成", v.service.m.totalCount() - pending, true, false}, {"全部", v.service.m.totalCount(), false, true}} {
+				selected := v.filterAll == f.all && (f.all || v.showDone == f.done)
+				b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).TextColor(t.TextMuted).Border(0, ui.Transparent).FontSize(13).Padding(7, 12)
+				if selected {
+					b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
+				}
+				b.Children(func() { ui.Text(c, fmt.Sprintf("%s %d", f.name, f.count)) })
+				if b.Clicked() && !selected {
+					v.setTaskFilter(f.done, f.all)
+				}
+			}
+		})
+		b := webButton(c, "回到今天", false).Height(34).Padding(0, 10).FontSize(12).Border(0, ui.Transparent).TextColor(t.TextMuted).Disabled(!v.hasTodayTasks())
+		b.Children(func() { ui.Text(c, "回到今天") })
+		if b.Clicked() {
+			v.jumpToday = true
+			c.Invalidate()
+		}
+		if !v.newFormOpen && v.editID == 0 {
+			v.webNewTaskEntry(c)
+		}
+	})
+	v.webSearch(c)
+}
+
 func (v *nativeTasksView) webTaskList(c *ui.Context, pad float32) {
 	if v.service.m.Arranging {
 		v.webOrder(c, pad)
 		return
 	}
 	t := v.visual
-	pending := v.service.m.activeCount()
 	ui.Column(c).WidthPercent(100).Padding(0, pad, 4).Children(func() {
-		ui.Row(c).Wrap().Gap(8).Padding(0, 0, 14).AlignItems(ui.Center).Children(func() {
-			ui.Row(c.Key("task-filters")).Grow(1).Gap(4).Children(func() {
-				for _, f := range []struct {
-					name      string
-					count     int
-					done, all bool
-				}{{"待办", pending, false, false}, {"已完成", v.service.m.totalCount() - pending, true, false}, {"全部", v.service.m.totalCount(), false, true}} {
-					selected := v.filterAll == f.all && (f.all || v.showDone == f.done)
-					b := webButton(c, fmt.Sprintf("%s %d", f.name, f.count), false).TextColor(t.TextMuted).Border(0, ui.Transparent).FontSize(13).Padding(7, 12)
-					if selected {
-						b.Background(t.Soft).TextColor(t.Accent).FontWeight(550)
-					}
-					b.Children(func() { ui.Text(c, fmt.Sprintf("%s %d", f.name, f.count)) })
-					if b.Clicked() && !selected {
-						v.setFilter(f.done)
-						v.filterAll = f.all
-					}
-				}
-			})
-			if !v.newFormOpen && v.editID == 0 {
-				v.webNewTaskEntry(c)
-			}
-		})
-		v.webSearch(c)
 		count := 0
 		v.deleteOutsideID, v.deleteTriggerPressed = 0, false
 		items := v.service.snapshot().Tasks
@@ -458,79 +485,81 @@ func (v *nativeTasksView) webTaskStatus(c *ui.Context, item taskEntry) {
 
 func (v *nativeTasksView) webForm(c *ui.Context, pad float32) {
 	t := v.visual
-	form := ui.Column(c).Padding(pad).Radius(t.Radius).Background(t.Field).Border(1, t.Border).Disabled(v.service.m.Arranging)
+	form := ui.Column(c).Fill().MinHeight(0).Padding(pad).Radius(t.Radius).Background(t.Field).Border(1, t.Border).Disabled(v.service.m.Arranging)
 	glassPanel(c, form, t, t.Radius).Children(func() {
-		ui.Row(c).Gap(9).Margin(0, 0, 16).Children(func() {
-			icon, title := "plus", "新建任务"
-			if v.editID > 0 {
-				icon, title = "list", "编辑任务"
-			}
-			ui.Box(c).TextColor(t.Accent).Children(func() { webIcon(c, icon, 18) })
-			ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
-		})
-		if v.editID > 0 && v.editID <= len(v.service.m.Tasks) {
-			item := v.service.m.Tasks[v.editID-1]
-			if !item.Deleted && item.Done && item.CompletedAt > 0 {
-				label := "完成于 " + time.UnixMilli(item.CompletedAt).In(v.service.m.now().Location()).Format("2006年1月2日 15:04")
-				ui.Text(c, label).FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 14)
-			}
-		}
-		ui.Column(c.Key(fmt.Sprintf("task-form-%d", v.editID))).Gap(7).Children(func() {
-			ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
-			value, label := &v.newTitle, "新任务标题"
-			if v.editID > 0 {
-				value, label = &v.draft, "编辑任务标题"
-			}
-			field := webTextInput(c.Key("title"), value).Label(label).Placeholder("接下来想做什么？").FontSize(15).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Surface).Height(42)
-			if v.focusNew && v.editID == 0 || v.focusEdit && v.editID > 0 {
-				field.Focus()
-				v.focusNew, v.focusEdit = false, false
-			}
-			if field.Submitted() {
-				v.webSubmit()
-			}
-			v.webTaskNote(c, false, v.webSubmit)
-		})
-		ui.Row(c).Gap(12).AlignItems(ui.Center).Margin(14, 0).Children(func() {
-			ui.Text(c, "优先级").FontSize(12).TextColor(t.TextMuted)
-			value := &v.newPriority
-			if v.editID > 0 {
-				value = &v.draftPriority
-			}
-			webPriorityRadios(c, value)
-		})
-		ui.Row(c).AlignItems(ui.Center).Margin(0, 0, 7).Children(func() {
-			ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Grow(1)
-			webCheckbox(c, &v.formRemind, "到时提醒", 12).Height(16).Disabled(v.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
-		})
-		v.webDeadline(c)
-		b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
-		b.Children(func() {
-			marker := "▸"
-			if v.optionsOpen {
-				marker = "▾"
-			}
-			ui.Text(c, marker).FontSize(12).FixedLineHeight(16)
-			ui.Text(c, "更多设置")
-		})
-		if b.Clicked() {
-			v.optionsOpen = !v.optionsOpen
-		}
-		if !v.optionsOpen {
-			v.webFormSummary(c)
-		}
-		if v.optionsOpen {
-			ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
-				webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(12, 0, 0).Tooltip("完成后自动移除，不保留完成记录")
-				if v.formTemporary {
-					ui.Text(c, "完成后保留 5 秒撤销时间，随后自动移除。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.7)
+		ui.Scroll(c.Key("form-fields")).Label("任务编辑内容").Grow(1).MinHeight(0).Children(func() {
+			ui.Row(c).Gap(9).Margin(0, 0, 16).Children(func() {
+				icon, title := "plus", "新建任务"
+				if v.editID > 0 {
+					icon, title = "list", "编辑任务"
 				}
+				ui.Box(c).TextColor(t.Accent).Children(func() { webIcon(c, icon, 18) })
+				ui.Text(c, title).Font(t.HeadingFont).FontSize(16).FontWeight(600).LineHeight(1.375)
 			})
-		}
-		if v.editID == 0 {
-			webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").TextColor(t.Text).Margin(0, 0, 16)
-		}
-		ui.Row(c).Gap(8).Children(func() {
+			if v.editID > 0 && v.editID <= len(v.service.m.Tasks) {
+				item := v.service.m.Tasks[v.editID-1]
+				if !item.Deleted && item.Done && item.CompletedAt > 0 {
+					label := "完成于 " + time.UnixMilli(item.CompletedAt).In(v.service.m.now().Location()).Format("2006年1月2日 15:04")
+					ui.Text(c, label).FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 14)
+				}
+			}
+			ui.Column(c.Key(fmt.Sprintf("task-form-%d", v.editID))).Gap(7).Children(func() {
+				ui.Text(c, "标题").FontSize(12).Height(14).FixedLineHeight(14).TextColor(t.TextMuted)
+				value, label := &v.newTitle, "新任务标题"
+				if v.editID > 0 {
+					value, label = &v.draft, "编辑任务标题"
+				}
+				field := webTextInput(c.Key("title"), value).Label(label).Placeholder("接下来想做什么？").FontSize(15).Padding(10, 11).Radius(t.Theme.Radius).Background(t.Surface).Height(42)
+				if v.focusNew && v.editID == 0 || v.focusEdit && v.editID > 0 {
+					field.Focus()
+					v.focusNew, v.focusEdit = false, false
+				}
+				if field.Submitted() {
+					v.webSubmit()
+				}
+				v.webTaskNote(c, false, v.webSubmit)
+			})
+			ui.Row(c).Gap(12).AlignItems(ui.Center).Margin(14, 0).Children(func() {
+				ui.Text(c, "优先级").FontSize(12).TextColor(t.TextMuted)
+				value := &v.newPriority
+				if v.editID > 0 {
+					value = &v.draftPriority
+				}
+				webPriorityRadios(c, value)
+			})
+			ui.Row(c).AlignItems(ui.Center).Margin(0, 0, 7).Children(func() {
+				ui.Text(c, "预计完成时间").FontSize(12).TextColor(t.TextMuted).Grow(1)
+				webCheckbox(c, &v.formRemind, "到时提醒", 12).Height(16).Disabled(v.formDue == "").Tooltip("在预计完成时间发送通知，需保持 Sidelet 运行")
+			})
+			v.webDeadline(c)
+			b := webButton(c, "截止时间与更多选项", false).Border(0, ui.Transparent).Padding(15, 0).Margin(2, 0, 0).BorderColor(t.Border).BorderWidth(1, 0, 0, 0).Gap(6).Justify(ui.Start)
+			b.Children(func() {
+				marker := "▸"
+				if v.optionsOpen {
+					marker = "▾"
+				}
+				ui.Text(c, marker).FontSize(12).FixedLineHeight(16)
+				ui.Text(c, "更多设置")
+			})
+			if b.Clicked() {
+				v.optionsOpen = !v.optionsOpen
+			}
+			if !v.optionsOpen {
+				v.webFormSummary(c)
+			}
+			if v.optionsOpen {
+				ui.Column(c).Gap(7).Margin(0, 0, 16).Children(func() {
+					webCheckbox(c, &v.formTemporary, "临时任务", 12).Margin(12, 0, 0).Tooltip("完成后自动移除，不保留完成记录")
+					if v.formTemporary {
+						ui.Text(c, "完成后保留 5 秒撤销时间，随后自动移除。").FontSize(12).TextColor(t.TextMuted).LineHeight(1.7)
+					}
+				})
+			}
+			if v.editID == 0 {
+				webCheckbox(c, &v.formPin, "固定到桌面", 12, "desktop").TextColor(t.Text).Margin(0, 0, 16)
+			}
+		})
+		ui.Row(c).Gap(8).Padding(12, 0, 0).Shrink(0).Children(func() {
 			text, value := "添加任务", v.newTitle
 			if v.editID > 0 {
 				text, value = "保存修改", v.draft

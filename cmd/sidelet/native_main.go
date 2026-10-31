@@ -43,6 +43,9 @@ type nativeTasksView struct {
 	status                        string
 	failed                        bool
 	scroll                        ui.ScrollState
+	taskScroll                    [3]ui.ScrollState
+	taskCollapsed                 [3]map[string]bool
+	jumpToday                     bool
 	theme                         *ui.Theme
 	visual                        *visualTheme
 	settingsOpen, optionsOpen     bool
@@ -65,6 +68,7 @@ type nativeTasksView struct {
 	originalDue                   int64
 	originalDueText               string
 	datePickerOpen                bool
+	revealDatePanel               bool
 	pickerCalendarOpen            bool
 	pickerDate                    time.Time
 	pickerHour, pickerMinute      string

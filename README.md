@@ -18,9 +18,9 @@ bash scripts/test-regression.sh
 
 macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-amd64.exe`（也支持 arm64 交叉编译，已通过 x64 / ARM64 原生 CI，完整交互仍待实机验收）。本地 macOS 包为 ad-hoc 签名，未公证。Windows 构建会嵌入 Sidelet 多尺寸图标、文件版本、产品信息和运行清单；`package-windows.sh` / `package-windows.ps1` 生成 ZIP 与 SHA-256，命令和实机验收见 [Windows 打包记录](docs/mygo/WINDOWS_PACKAGE.md)。
 
-测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。
+测试可用 `-memory -main`，仅生成三条内存任务；`-data-dir <目录>` 指定独立 SQLite 资料目录。不要把测试指向日常数据。显式使用 `-memory`、`-data-dir` 或 `-output` 的实例显示“Sidelet · 演示”和独立数据提示；默认启动仍显示 Sidelet。同一应用标识下重复启动同一资料目录，会唤起原窗口；独立资料仍可并行，SQLite 资料锁保留。
 
-当前打包构建号为 53。三页签时间轴见 [build 53](docs/mygo/TASK_TIMELINE_ALL_20261031.md)，待办首版见 [build 52](docs/mygo/TASK_TIMELINE_20261031.md)；macOS Dock 窗口列表修复见 [build 51](docs/mygo/MACOS_DOCK_WINDOWS_20261031.md)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build53-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
+当前打包构建号为 54。固定工具栏、日期折叠与实例区分见 [build 54](docs/mygo/TIMELINE_NAVIGATION_20261031.md)，三页签时间轴见 [build 53](docs/mygo/TASK_TIMELINE_ALL_20261031.md)，待办首版见 [build 52](docs/mygo/TASK_TIMELINE_20261031.md)；macOS Dock 窗口列表修复见 [build 51](docs/mygo/MACOS_DOCK_WINDOWS_20261031.md)。macOS 安装包名包含版本与构建号，例如 `Sidelet-0.2.0-build54-local-arm64.dmg`；打包脚本只读挂载 DMG，检查包内版本、架构和签名后生成 `.dmg.json` 校验记录及 `.sha256`。官网构建校验记录与实际包哈希一致后才提供下载；旧包不会被标记成新构建。构建命令和校验边界见 [macOS 打包与官网下载校验](docs/mygo/MACOS_PACKAGE_20261026.md)。
 
 ## 数据与应用身份
 
@@ -43,6 +43,8 @@ macOS 产物为 `build/bin/Sidelet.app`；Windows 产物为 `build/bin/Sidelet-a
 快速添加默认连续录入：Enter / Return 添加后保留窗口和优先级、预计完成时间、提醒、固定选项，清空标题与备注。Windows / Linux 使用 Ctrl+Enter、macOS 使用 ⌘+Return 添加并关闭，也可点击“添加并关闭”；Esc 关闭窗口。备注中的普通回车保留换行。
 
 主界面的“待办”按预计完成时间展示轻量时间轴：已逾期、今天、明天、后续日期、未安排。搜索只保留匹配任务的分组；到期和跨日自动刷新。相同时间及未安排任务保留原有顺序，不改变桌面标签的手动排列。“已完成”按实际完成日期倒序，缺少记录的放入“完成日期未知”；“全部”按预计完成日期升序，同一天的已完成和未完成任务合并显示，已完成任务用勾选、淡色和删除线区分。
+
+任务筛选和搜索固定在列表上方；日期组支持折叠，“回到今天”可展开并定位当天分组。三个页签各自保留本次运行的滚动位置和折叠状态；搜索期间自动展开匹配日期。编辑区独立滚动，保存与取消按钮固定在底部。
 
 主界面的“工作日志”按本地完成日期展示多天时间轴，默认最近 7 天，可切换最近 30 天、输入起止日期或加载更早记录，支持复制单日、所选日期范围和明日计划。普通任务完成时独立保存当时的名称与完成时间，之后编辑、恢复为未完成或删除任务不改变历史；5 秒内“撤销完成”会撤回对应日志。临时任务不保留完成记录。现有已完成任务会自动回填，已经删除或没有完成时间的旧任务无法补回。明日计划实时读取预计明天完成的未完成任务，日志不包含备注。
 

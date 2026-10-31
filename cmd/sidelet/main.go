@@ -104,6 +104,8 @@ func main() {
 	}
 	mygo.App.SetName("Sidelet")
 	m := newModel()
+	m.demoInstance = *memoryOnly || *dataDir != "" || *output != ""
+	mygo.App.SetName(m.applicationTitle())
 	v := &views{m: m}
 	if *nativeCheck && runtime.GOOS == "windows" {
 		// Exercise the production sidebar/card with synthetic tasks only.
@@ -113,12 +115,29 @@ func main() {
 	input := newOverlayInput(m)
 	input.directFixture = *directInput
 	var h *nativeApp
+	instanceReady, instancePending := false, false
 	if *nativeMain {
 		m.UITheme, m.Side, m.Offset = "mac", "right", .35
 		if !*memoryOnly {
 			dir, err := profileDirectory(*dataDir, *output)
 			if err != nil {
 				log.Fatal(err)
+			}
+			first, err := requestProfileInstance(dir, func() {
+				if !instanceReady {
+					instancePending = true
+					return
+				}
+				if h != nil {
+					h.show()
+					log.Print("second instance: activated existing task window")
+				}
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+			if !first {
+				return
 			}
 			p, err := openProfile(dir, m)
 			if err != nil {
@@ -599,6 +618,13 @@ func main() {
 					log.Print(err)
 				}
 			})
+		}
+	})
+	mygo.App.WhenReady(func() {
+		instanceReady = true
+		if instancePending && h != nil {
+			h.show()
+			log.Print("second instance: activated existing task window")
 		}
 	})
 	// SIGINT only stops this lab, never an installed Sidelet instance.

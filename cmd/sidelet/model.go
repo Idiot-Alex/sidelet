@@ -39,6 +39,7 @@ type task struct {
 // Owns an optional independent experiment profile; never the formal store.
 type model struct {
 	profile                             *profile
+	demoInstance                        bool
 	newTaskDraft                        *persistedNewTaskDraft
 	storageError                        string
 	reduceTransparency                  bool

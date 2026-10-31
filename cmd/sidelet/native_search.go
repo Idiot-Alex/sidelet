@@ -23,7 +23,8 @@ func (v *nativeTasksView) updateSearch(query string) {
 	}
 	v.searchQuery = query
 	v.moreID, v.deleteID = 0, 0
-	v.scroll = ui.ScrollState{}
+	*v.currentTaskScroll() = ui.ScrollState{}
+	v.jumpToday = false
 }
 
 func (v *nativeTasksView) webSearch(c *ui.Context) {
