@@ -54,15 +54,25 @@ func TestGlassPreferencePreservesDraftAndOnlyPublishesAfterCommit(t *testing.T) 
 	if err := u.Click("桌面任务"); err != nil {
 		t.Fatal(err)
 	}
-	if err := u.Click("启用悬浮任务半透明"); err != nil {
+	if err := u.Click("启用" + desktopTransparencyLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if !m.Preferences.Appearance.DesktopTranslucent || !p.saved.Preferences.Appearance.DesktopTranslucent || v.newTitle != "切换玻璃时保留的草稿" || !reflect.DeepEqual(tasks, m.Tasks) {
 		t.Fatal("glass toggle did not persist or affected tasks/draft")
 	}
+	m.reduceTransparency = true
+	u.Frame()
+	if !u.HasText("系统已限制透明效果，当前卡片使用实色背景。") || m.desktopGlassAllowed() {
+		t.Fatal("system transparency restriction was not explained")
+	}
+	m.reduceTransparency = false
+	u.Frame()
+	if u.HasText("系统已限制透明效果，当前卡片使用实色背景。") {
+		t.Fatal("stale system restriction notice")
+	}
 	write := p.write
 	p.write = func(string, []byte) error { return errors.New("glass preference disk failure") }
-	if err := u.Click("启用悬浮任务半透明"); err != nil {
+	if err := u.Click("启用" + desktopTransparencyLabel()); err != nil {
 		t.Fatal(err)
 	}
 	if !v.failed || !m.Preferences.Appearance.DesktopTranslucent || v.visual.Background.A != 255 {

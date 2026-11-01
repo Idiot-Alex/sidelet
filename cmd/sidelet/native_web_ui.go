@@ -716,15 +716,25 @@ func (v *nativeTasksView) webAppearance(c *ui.Context) {
 	})
 }
 
+func desktopTransparencyLabel() string {
+	if runtime.GOOS == "darwin" {
+		return "浮动卡片磨砂背景"
+	}
+	return "浮动卡片半透明背景"
+}
+
 func (v *nativeTasksView) webDesktopTransparency(c *ui.Context) {
 	t := v.visual
 	ui.Row(c).Gap(28).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).Children(func() {
-			ui.Text(c, "悬浮任务半透明").FontSize(13).FontWeight(500)
-			ui.Text(c, "让桌面悬浮卡片透出背景，主窗口始终使用实色。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+			ui.Text(c, desktopTransparencyLabel()).FontSize(13).FontWeight(500)
+			ui.Text(c, "鼠标悬停展开任务时，让卡片背景透出桌面。仅影响展开的任务卡片。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+			if v.service.m.Preferences.Appearance.DesktopTranslucent && v.service.m.reduceTransparency {
+				ui.Text(c, "系统已限制透明效果，当前卡片使用实色背景。").FontSize(12).LineHeight(1.6).TextColor(t.TextMuted).Margin(5, 0)
+			}
 		})
 		on := v.service.m.Preferences.Appearance.DesktopTranslucent
-		if webSwitch(c, &on, "启用悬浮任务半透明").Changed() {
+		if webSwitch(c, &on, "启用"+desktopTransparencyLabel()).Changed() {
 			value := v.service.m.Preferences
 			value.Appearance.DesktopTranslucent = on
 			_, err := v.service.SavePreferences(value)
