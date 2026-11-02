@@ -28,6 +28,7 @@ func (a *nativeAvatar) closePanel() {
 }
 
 func (a *nativeAvatar) popup() {
+	a.dismissHint()
 	if a.window == nil {
 		return
 	}

@@ -31,6 +31,8 @@ type nativeAvatar struct {
 	panelIndex                       int
 	panelItems                       [5]ui.Handle
 	panelQuit                        func()
+	hint                             *mygo.Window
+	hintDismissed                    bool
 }
 
 func avatarBounds(m *model) mygo.Rectangle {
@@ -60,6 +62,7 @@ func (a *nativeAvatar) sync() {
 	}
 	m := a.service.m
 	if m.Preferences.Appearance.HideSidebarAvatar || m.desktopArrange() {
+		a.closeHint()
 		a.closePanel()
 		a.gaze.stop()
 		if a.window != nil && a.window.IsVisible() {
@@ -76,7 +79,7 @@ func (a *nativeAvatar) sync() {
 			Frameless: true, Transparent: true, AlwaysOnTop: true, DisableResize: true, DisableShadow: true, Hidden: true, BackgroundColor: "#00000000", Content: ui.View(a.render)})
 		a.window.OnBlur(a.cancelDrag)
 		w := a.window
-		w.OnHide(a.gaze.stop)
+		w.OnHide(func() { a.gaze.stop(); a.closeHint() })
 		w.OnShow(a.startGaze)
 		w.OnMinimize(func() {
 			// Shell actions can minimize a window even without a minimize
@@ -89,6 +92,7 @@ func (a *nativeAvatar) sync() {
 		})
 		w.OnClosed(func() {
 			if a.window == w {
+				a.closeHint()
 				a.gaze.stop()
 				a.window = nil
 			}
@@ -106,6 +110,7 @@ func (a *nativeAvatar) sync() {
 		a.window.ShowInactive()
 	}
 	a.startGaze()
+	a.syncHint()
 }
 
 // Share one lazily parsed vector between the avatar and settings preview.
@@ -181,6 +186,7 @@ func (a *nativeAvatar) pointer(ev ui.InputEvent, point mygo.Point) bool {
 		}
 		dx, dy := point.X-a.pressPoint.X, point.Y-a.pressPoint.Y
 		if !a.dragging && dx*dx+dy*dy >= 25 {
+			a.dismissHint()
 			a.closePanel()
 			a.dragging = true
 		}
@@ -250,6 +256,7 @@ func (a *nativeAvatar) cancelDrag() {
 func (h *nativeApp) createAvatar() *nativeAvatar {
 	a := h.newAssistantMenu()
 	onQuitCleanup(a.gaze.stop)
+	onQuitCleanup(a.closeHint)
 	a.sync()
 	return a
 }
