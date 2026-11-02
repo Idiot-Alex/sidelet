@@ -60,6 +60,9 @@ func timelineCollapseKey(group taskDateGroup, mode taskTimelineMode, now time.Ti
 }
 
 func timelineTimestamp(item taskEntry, mode taskTimelineMode) int64 {
+	if mode == timelineAll {
+		return item.CreatedAt
+	}
 	if mode == timelineCompleted {
 		return item.CompletedAt
 	}
@@ -78,13 +81,18 @@ func taskTimeline(items []taskEntry, now time.Time, mode taskTimelineMode) []tas
 	}
 	sort.SliceStable(ordered, func(i, j int) bool {
 		a, b := timelineTimestamp(ordered[i], mode), timelineTimestamp(ordered[j], mode)
+		if mode == timelineAll && (a == b || a <= 0 && b <= 0) {
+			// IDs follow append order and survive deletion and manual sidebar
+			// reordering. Legacy tasks have no timestamp; do not invent dates.
+			return ordered[i].ID > ordered[j].ID
+		}
 		if a <= 0 {
 			return false
 		}
 		if b <= 0 {
 			return true
 		}
-		if mode == timelineCompleted {
+		if mode == timelineCompleted || mode == timelineAll {
 			return a > b
 		}
 		return a < b
@@ -94,6 +102,9 @@ func taskTimeline(items []taskEntry, now time.Time, mode taskTimelineMode) []tas
 		key, title, detail := "unscheduled", "未安排", ""
 		if mode == timelineCompleted {
 			key, title = "unknown-completion", "完成日期未知"
+		}
+		if mode == timelineAll {
+			key, title, detail = "unknown-creation", "历史任务", "未记录创建时间 · 按添加顺序倒序"
 		}
 		if at := timelineTimestamp(item, mode); at > 0 {
 			key, title, detail = taskTimelineDate(time.UnixMilli(at).In(now.Location()), now)
@@ -171,7 +182,7 @@ func (v *nativeTasksView) webTaskTimeline(c *ui.Context, prepared *taskTimelineC
 			caption = "按实际完成日期 · 最近在前"
 		}
 		if mode == timelineAll {
-			caption = "按预计完成日期 · 从早到晚"
+			caption = "按创建日期 · 最新在前"
 		}
 		ui.Text(c, caption).FontSize(11).TextColor(t.TextMuted).Margin(6, 0, 2, 24)
 	}

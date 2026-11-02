@@ -75,8 +75,8 @@ func TestNativeExportProjectsAllCommittedStatusesAndHiddenOrder(t *testing.T) {
 		if !original.Unpinned && (item.DisplayMode != "EDGE" || item.StackID != 1) {
 			t.Fatal("hidden pinned layout", item)
 		}
-		if item.CreatedAt != 0 || item.UpdatedAt != 0 {
-			t.Fatal("fabricated timestamps")
+		if item.CreatedAt != original.CreatedAt || item.UpdatedAt != original.UpdatedAt {
+			t.Fatal("export changed persisted timestamps")
 		}
 	}
 	if snapshot.Todos[0].ID != 6 || snapshot.Todos[1].ID != 2 {

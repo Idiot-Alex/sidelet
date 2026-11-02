@@ -115,7 +115,7 @@ func BenchmarkTimelinePreparation(b *testing.B) {
 func TestTimelineCacheDeadlineAndMidnightBoundaries(t *testing.T) {
 	v, now := timelineCacheFixture(0)
 	due := now.Add(time.Hour)
-	v.service.m.Tasks = []task{{Title: "Deadline", DueAt: due.UnixMilli()}}
+	v.service.m.Tasks = []task{{Title: "Deadline", CreatedAt: now.UnixMilli(), DueAt: due.UnixMilli()}}
 	for _, tc := range []struct {
 		at  time.Time
 		key string

@@ -145,7 +145,7 @@ func (s *TasksService) addNewTask(title, note string, priority int, pinned bool,
 		if utf8.RuneCountInString(note) > 16000 {
 			return errors.New("备注最多 16000 个字。")
 		}
-		next := task{Title: title, Note: note, Priority: priority, Version: 1, Unpinned: !pinned}
+		next := task{Title: title, Note: note, Priority: priority, Version: 1, Unpinned: !pinned, CreatedAt: s.m.now().UnixMilli()}
 		if schedule != nil {
 			if err := schedule.apply(&next); err != nil {
 				return err

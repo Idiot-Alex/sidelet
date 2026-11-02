@@ -190,10 +190,10 @@ func TestCompletedAndAllTimelineUseDifferentDates(t *testing.T) {
 	today := now.Add(-time.Hour).UnixMilli()
 	yesterday := now.AddDate(0, 0, -1).UnixMilli()
 	items := []taskEntry{
-		{ID: 1, task: task{Done: true, DueAt: yesterday, CompletedAt: today}},
-		{ID: 2, task: task{Done: true, DueAt: now.AddDate(0, 0, 1).UnixMilli(), CompletedAt: yesterday}},
+		{ID: 1, task: task{CreatedAt: yesterday, Done: true, DueAt: yesterday, CompletedAt: today}},
+		{ID: 2, task: task{CreatedAt: today, Done: true, DueAt: now.AddDate(0, 0, 1).UnixMilli(), CompletedAt: yesterday}},
 		{ID: 3, task: task{Done: true, DueAt: today}},
-		{ID: 4, task: task{DueAt: yesterday}},
+		{ID: 4, task: task{CreatedAt: today + 1, DueAt: yesterday}},
 		{ID: 5, task: task{Done: true, CompletedAt: today}},
 		{ID: 6, task: task{Done: true}},
 		{ID: 7, task: task{Deleted: true, Done: true, CompletedAt: now.UnixMilli()}},
@@ -216,11 +216,14 @@ func TestCompletedAndAllTimelineUseDifferentDates(t *testing.T) {
 		}
 	}
 	check(timelineCompleted, []string{"today", "yesterday", "unknown-completion"}, [][]int{{1, 5}, {2}, {3, 6}})
-	check(timelineAll, []string{"yesterday", "today", "tomorrow", "unscheduled"}, [][]int{{1, 4}, {3}, {2}, {5, 6}})
+	check(timelineAll, []string{"today", "yesterday", "unknown-creation"}, [][]int{{4, 2}, {1}, {6, 5, 3}})
 	if !reflect.DeepEqual(items, before) {
 		t.Fatal("grouping mutated source dates or order")
 	}
 	items[1].CompletedAt = now.Add(time.Minute).UnixMilli()
+	items[1].Title, items[1].Note, items[1].Priority = "修改标题", "修改备注", 3
+	items[1].UpdatedAt, items[1].DueAt = now.UnixMilli(), 0
+	check(timelineAll, []string{"today", "yesterday", "unknown-creation"}, [][]int{{4, 2}, {1}, {6, 5, 3}})
 	check(timelineCompleted, []string{"today", "unknown-completion"}, [][]int{{2, 1, 5}, {3, 6}})
 	// Calendar boundaries use local dates, not a rolling 24-hour interval.
 	midnight := time.Date(2027, 1, 1, 0, 0, 0, 0, now.Location())
@@ -229,9 +232,12 @@ func TestCompletedAndAllTimelineUseDifferentDates(t *testing.T) {
 		t.Fatal("completion group did not roll over at midnight")
 	}
 	groups = taskTimeline(items, now.AddDate(0, 0, 4), timelineAll)
-	if groups[0].title != "2026年12月30日" {
-		t.Fatal("past plan from another year lacks year")
+	if groups[0].title != "2026年12月31日" {
+		t.Fatal("creation date from another year lacks year")
 	}
+	// New tasks without a deadline still lead the All timeline.
+	items = append(items, taskEntry{ID: 8, task: task{Title: "新任务", CreatedAt: now.UnixMilli()}})
+	check(timelineAll, []string{"today", "yesterday", "unknown-creation"}, [][]int{{8, 4, 2}, {1}, {6, 5, 3}})
 }
 
 func TestCompletedTimelineSchedulesMidnightWithoutDeadline(t *testing.T) {
@@ -244,6 +250,7 @@ func TestCompletedTimelineSchedulesMidnightWithoutDeadline(t *testing.T) {
 		t.Fatal("undated plan should not wake", got)
 	}
 	item.DueAt = now.Add(time.Minute).UnixMilli()
+	item.CreatedAt = now.UnixMilli()
 	if got := nextTaskTimelineChange([]taskEntry{item}, now, timelineAll); got != 10*time.Minute {
 		t.Fatal("completed plan must wake at midnight, not deadline", got)
 	}
@@ -334,6 +341,9 @@ func TestCompletedAndAllTimelineInteractionAndLayout(t *testing.T) {
 				t.Fatal("restore retained empty completion group")
 			}
 			click("全部 5")
+			if !u.HasText("按创建日期 · 最新在前") {
+				t.Fatal("all timeline does not explain creation-date sorting")
+			}
 			if !u.HasText("已逾期 · 10/31 08:00") {
 				t.Fatal("restored overdue plan missing status")
 			}
