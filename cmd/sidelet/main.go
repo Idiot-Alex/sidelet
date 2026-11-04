@@ -526,6 +526,27 @@ func main() {
 			h.installMenu()
 			if h.native {
 				avatar = h.createAvatar()
+				onQuitCleanup(watchDesktopLayers(func() {
+					if h.quitting {
+						return
+					}
+					if !m.Quiet {
+						raiseDesktopWindow(stack)
+					}
+					if m.cardOpen() && card != nil && card.IsVisible() {
+						raiseDesktopWindow(card)
+					}
+					if !m.Preferences.Appearance.HideSidebarAvatar && !m.desktopArrange() {
+						avatar.sync()
+						raiseDesktopWindow(avatar.window)
+						if avatar.hint != nil && avatar.hint.IsVisible() {
+							raiseDesktopWindow(avatar.hint)
+						}
+						if avatar.panel != nil && avatar.panel.IsVisible() {
+							raiseDesktopWindow(avatar.panel)
+						}
+					}
+				}))
 			}
 			if h.native {
 				h.service.quickShortcut = &nativeQuickShortcut{diagnostic: *quickShortcutFixture}
